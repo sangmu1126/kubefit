@@ -48,6 +48,16 @@ uvicorn api.main:app --reload
 
 Then open `http://localhost:8000/docs` and call `POST /v1/recommendations`.
 
+Analyze a live Deployment (with Prometheus reachable locally):
+
+```bash
+kubefit analyze --namespace kubefit-demo --deployment overprovisioned-api \
+  --prometheus-url http://localhost:9090
+```
+
+The CLI invokes `kubectl` using the current context, reads only Deployment and
+Pod metadata, queries Prometheus, and prints a recommendation with its evidence.
+
 Example request:
 
 ```json
@@ -78,4 +88,3 @@ is context, not this repository's codebase or deployment architecture.
 - Submit changes as draft pull requests with evidence and rollback guidance.
 - Never store Kubernetes, Prometheus, or GitHub credentials in the repository.
 - Keep recommendation policy deterministic and independently testable.
-

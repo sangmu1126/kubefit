@@ -7,7 +7,6 @@ from collector.kubernetes import (
     KubernetesCollectionError,
 )
 
-
 DEPLOYMENT = {
     "spec": {
         "selector": {"matchLabels": {"app": "demo"}},
