@@ -39,7 +39,7 @@ def test_collects_workload_percentiles_and_units() -> None:
     assert result.sample_count == 2
     assert 0 < result.observation_coverage < 0.01
     assert all('namespace="demo"' in query for query in queries)
-    assert all("api\\-abc" in query for query in queries)
+    assert all("api-abc" in query for query in queries)
     assert all("sum by (pod)" in query for query in queries)
 
 

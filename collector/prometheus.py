@@ -40,7 +40,15 @@ def percentile(values: list[float], quantile: float) -> float:
 def _pod_regex(pods: list[str]) -> str:
     if not pods:
         raise ValueError("at least one pod is required")
-    return "(?:" + "|".join(re.escape(pod) for pod in pods) + ")"
+    escaped = []
+    for pod in pods:
+        # Kubernetes names commonly contain hyphens, which are only special
+        # inside a regex character class. Python escapes them unnecessarily and
+        # PromQL rejects `\-` as an invalid string escape. Regex backslashes that
+        # remain (for example for a dot) must themselves be escaped for PromQL.
+        regex_value = re.escape(pod).replace(r"\-", "-")
+        escaped.append(regex_value.replace("\\", "\\\\"))
+    return "(?:" + "|".join(escaped) + ")"
 
 
 class PrometheusClient:
