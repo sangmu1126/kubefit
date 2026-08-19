@@ -22,11 +22,12 @@ policy.
 - CPU limit: 2x recommended request
 - Memory limit: 1.5x recommended request
 - Enforce small non-zero floors for idle or incomplete observations
+- Calculate each percentile per Pod and retain the busiest Pod's value
 
 These defaults are deliberately transparent and deterministic. Before production
 use, the engine will also gate recommendations on observation coverage, workload
 restarts, throttling, OOM events, latency, and traffic representativeness.
 
-The initial `estimated_request_reduction_percent` is a capacity-reduction signal,
-not a currency estimate. Monetary savings will be produced by the evaluator from
-explicit CPU and memory prices so unlike units are never presented as real cost.
+CPU and memory request changes are reported separately because millicores and MiB
+cannot be combined into a meaningful percentage. Monetary savings will be produced
+by the evaluator from explicit CPU and memory prices, replica count, and time.

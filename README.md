@@ -35,12 +35,16 @@ docs/            Architecture, security, and evaluation records
 tests/           Unit and integration tests
 ```
 
+The ordered delivery phases and their completion criteria are documented in
+[`docs/implementation-plan.md`](docs/implementation-plan.md).
+
 ## Quick start
 
 Requires Python 3.12+.
 
 ```bash
 python -m venv .venv
+. .venv/bin/activate
 python -m pip install -e ".[dev]"
 pytest
 uvicorn api.main:app --reload
@@ -70,10 +74,17 @@ Example request:
   },
   "observed": {
     "cpu_p95_millicores": 230,
-    "memory_p99_mib": 710
+    "memory_p99_mib": 710,
+    "cpu_max_millicores": 400,
+    "memory_max_mib": 900,
+    "sample_count": 1900,
+    "observation_coverage": 0.95
   }
 }
 ```
+
+When maxima or sufficient observation coverage are unavailable, KubeFit reports
+the related risk as `unknown` rather than presenting an unsupported low-risk claim.
 
 ## Project origin
 
