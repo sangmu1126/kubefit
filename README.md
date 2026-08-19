@@ -41,6 +41,9 @@ The ordered delivery phases and their completion criteria are documented in
 To run KubeFit against a disposable kind cluster with Prometheus, follow the
 [`docs/local-development.md`](docs/local-development.md) guide.
 
+Engineering decisions, failed assumptions, diagrams, and reproducible evidence are
+recorded in the [`docs/devlog/`](docs/devlog/README.md) development journal.
+
 ## Quick start
 
 Requires Python 3.12+.

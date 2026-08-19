@@ -13,6 +13,14 @@ adds more automation.
 - Insufficient or unrepresentative observations must be visible to the user.
 - Every Git change starts as a reviewable draft pull request.
 
+## Development evidence
+
+Each meaningful implementation slice must add or update an entry in the
+[`devlog`](devlog/README.md). Entries record why the work mattered, how the decision
+was implemented, which alternatives were rejected, and what reproducible evidence
+supports the resulting claim. Failures and remaining uncertainty are documented at
+the time they are observed.
+
 ## Phase 1: trustworthy resource analysis
 
 **Goal:** produce a deterministic recommendation from correctly scoped metrics.
