@@ -47,14 +47,51 @@ def recommend_resources(
         memory_request * policy.memory_limit_multiplier, policy.memory_step_mib
     )
 
-    current_request_score = current.cpu_request_millicores + current.memory_request_mib
-    recommended_request_score = cpu_request + memory_request
-    savings = max(0.0, (1 - recommended_request_score / current_request_score) * 100)
+    cpu_change = (cpu_request / current.cpu_request_millicores - 1) * 100
+    memory_change = (memory_request / current.memory_request_mib - 1) * 100
 
-    oom_headroom = memory_limit / max(observed.memory_p99_mib, 1)
-    cpu_headroom = cpu_limit / max(observed.cpu_p95_millicores, 1)
-    oom_risk = "low" if oom_headroom >= 1.5 else "medium" if oom_headroom >= 1.2 else "high"
-    throttle_risk = "low" if cpu_headroom >= 2 else "medium" if cpu_headroom >= 1.5 else "high"
+    coverage_is_sufficient = (
+        observed.observation_coverage is not None and observed.observation_coverage >= 0.7
+    )
+    oom_headroom = (
+        memory_limit / max(observed.memory_max_mib, 1)
+        if observed.memory_max_mib is not None
+        else None
+    )
+    cpu_headroom = (
+        cpu_limit / max(observed.cpu_max_millicores, 1)
+        if observed.cpu_max_millicores is not None
+        else None
+    )
+    oom_risk = _risk_from_headroom(oom_headroom, coverage_is_sufficient)
+    throttle_risk = _risk_from_headroom(cpu_headroom, coverage_is_sufficient)
+
+    risk_reasons = []
+    if observed.observation_coverage is None:
+        risk_reasons.append("observation coverage was not provided")
+    elif not coverage_is_sufficient:
+        risk_reasons.append(
+            f"observation coverage is {observed.observation_coverage:.1%}; at least 70% is required"
+        )
+    risk_reasons.extend(
+        [
+            _headroom_reason("memory limit", oom_headroom, "observed maximum"),
+            _headroom_reason("CPU limit", cpu_headroom, "observed maximum"),
+        ]
+    )
+
+    evidence = [
+        f"CPU request uses {observed.observation_days}-day P95 plus "
+        f"{policy.safety_margin:.0%} safety margin",
+        f"memory request uses {observed.observation_days}-day P99 plus "
+        f"{policy.safety_margin:.0%} safety margin",
+        "values are rounded upward to scheduler-friendly units",
+    ]
+    if observed.sample_count is not None and observed.observation_coverage is not None:
+        evidence.append(
+            f"{observed.sample_count} paired samples provide "
+            f"{observed.observation_coverage:.1%} observation coverage"
+        )
 
     return ResourceRecommendation(
         recommended=ResourceValues(
@@ -63,20 +100,28 @@ def recommend_resources(
             memory_request_mib=memory_request,
             memory_limit_mib=memory_limit,
         ),
-        estimated_request_reduction_percent=round(savings, 1),
+        cpu_request_change_percent=round(cpu_change, 1),
+        memory_request_change_percent=round(memory_change, 1),
         risk=RiskAssessment(
             oom=oom_risk,
             cpu_throttling=throttle_risk,
-            reasons=[
-                f"memory limit provides {oom_headroom:.2f}x headroom over observed P99",
-                f"CPU limit provides {cpu_headroom:.2f}x headroom over observed P95",
-            ],
+            reasons=risk_reasons,
         ),
-        evidence=[
-            f"CPU request uses {observed.observation_days}-day P95 plus "
-            f"{policy.safety_margin:.0%} safety margin",
-            f"memory request uses {observed.observation_days}-day P99 plus "
-            f"{policy.safety_margin:.0%} safety margin",
-            "values are rounded upward to scheduler-friendly units",
-        ],
+        evidence=evidence,
     )
+
+
+def _risk_from_headroom(headroom: float | None, coverage_is_sufficient: bool) -> str:
+    if headroom is None or not coverage_is_sufficient:
+        return "unknown"
+    if headroom >= 1.25:
+        return "low"
+    if headroom >= 1.05:
+        return "medium"
+    return "high"
+
+
+def _headroom_reason(label: str, headroom: float | None, baseline: str) -> str:
+    if headroom is None:
+        return f"{label} risk is unknown because a {baseline} was not provided"
+    return f"{label} provides {headroom:.2f}x headroom over {baseline}"

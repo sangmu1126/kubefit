@@ -33,7 +33,11 @@ def main() -> None:
         ObservedUsage(
             cpu_p95_millicores=metrics.cpu_p95_millicores,
             memory_p99_mib=metrics.memory_p99_mib,
+            cpu_max_millicores=metrics.cpu_max_millicores,
+            memory_max_mib=metrics.memory_max_mib,
             observation_days=metrics.observation_days,
+            sample_count=metrics.sample_count,
+            observation_coverage=metrics.observation_coverage,
         ),
     )
     print(recommendation.model_dump_json(indent=2))

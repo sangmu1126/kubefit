@@ -21,7 +21,22 @@ class CurrentResources(BaseModel):
 class ObservedUsage(BaseModel):
     cpu_p95_millicores: float = Field(ge=0)
     memory_p99_mib: float = Field(ge=0)
+    cpu_max_millicores: float | None = Field(default=None, ge=0)
+    memory_max_mib: float | None = Field(default=None, ge=0)
     observation_days: int = Field(default=7, ge=1)
+    sample_count: int | None = Field(default=None, ge=0)
+    observation_coverage: float | None = Field(default=None, ge=0, le=1)
+
+    @model_validator(mode="after")
+    def maxima_are_not_below_percentiles(self) -> "ObservedUsage":
+        if (
+            self.cpu_max_millicores is not None
+            and self.cpu_max_millicores < self.cpu_p95_millicores
+        ):
+            raise ValueError("CPU maximum must be greater than or equal to P95")
+        if self.memory_max_mib is not None and self.memory_max_mib < self.memory_p99_mib:
+            raise ValueError("memory maximum must be greater than or equal to P99")
+        return self
 
 
 class ResourceValues(BaseModel):
@@ -32,13 +47,14 @@ class ResourceValues(BaseModel):
 
 
 class RiskAssessment(BaseModel):
-    oom: Literal["low", "medium", "high"]
-    cpu_throttling: Literal["low", "medium", "high"]
+    oom: Literal["low", "medium", "high", "unknown"]
+    cpu_throttling: Literal["low", "medium", "high", "unknown"]
     reasons: list[str]
 
 
 class ResourceRecommendation(BaseModel):
     recommended: ResourceValues
-    estimated_request_reduction_percent: float
+    cpu_request_change_percent: float
+    memory_request_change_percent: float
     risk: RiskAssessment
     evidence: list[str]
