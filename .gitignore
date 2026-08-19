@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+.env
+node_modules/
+dist/
+coverage/
+*.log
+
+# Generated benchmark and local cluster data
+benchmarks/results/
+.kube/
+
