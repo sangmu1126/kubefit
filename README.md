@@ -38,6 +38,9 @@ tests/           Unit and integration tests
 The ordered delivery phases and their completion criteria are documented in
 [`docs/implementation-plan.md`](docs/implementation-plan.md).
 
+To run KubeFit against a disposable kind cluster with Prometheus, follow the
+[`docs/local-development.md`](docs/local-development.md) guide.
+
 ## Quick start
 
 Requires Python 3.12+.
