@@ -375,3 +375,28 @@ Each source file is SHA-256 hashed. A canonical object containing the proposal I
 benchmark ID, and sorted hash map produces a deterministic `publication-<digest>`
 verification ID. This binds the locally verified bytes but does not authenticate who
 captured them or replace the live procedure.
+
+## API image and Helm security boundary
+
+The container build uses a wheel-producing builder stage and a slim runtime stage.
+Only installed project/runtime dependencies cross the stage boundary. The runtime
+uses numeric UID/GID `10001`; Kubernetes additionally enforces non-root execution,
+RuntimeDefault seccomp, no privilege escalation, all capabilities dropped, and a
+read-only root filesystem with a dedicated empty `/tmp` volume.
+
+The default chart deploys the current stateless HTTP API behind a ClusterIP Service
+with liveness/readiness probes and explicit resource requests/limits. Its dedicated
+ServiceAccount and Pod both disable token automount. No Role is rendered while
+`rbac.targetNamespaces` is empty.
+
+Optional observation RBAC is generated as one Role and RoleBinding per explicitly
+named namespace. It contains only Deployment `get`, ReplicaSet `list`, and Pod
+`list`, matching the current collector's Kubernetes reads. Values validation rejects
+invalid namespace names and template validation rejects incomplete RBAC/token/service
+account combinations. There are no ClusterRoles, Secrets, watch, logs, events, or
+write verbs.
+
+This RBAC is a prepared boundary, not a claim that the current HTTP API performs
+in-cluster observation. The packaged image does not include kubectl and the API
+routes remain pure recommendation/evaluation endpoints; operator-side collection
+continues through the CLI.

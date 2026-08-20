@@ -150,6 +150,12 @@ collected metrics and benchmark artifacts.
 
 ## Phase 6: presentation layer and packaging
 
+**Status: in progress.** Entry
+[0028](devlog/0028-least-privilege-helm-package.md) adds a non-root API image and
+Helm chart with tokenless defaults, explicit resources/probes, and namespace-scoped
+opt-in read-only RBAC. Image build, kind installation, and live health evidence remain
+open because the local Docker daemon was unavailable.
+
 **Goal:** make the completed workflow easy to install and demonstrate.
 
 - Add a small dashboard over the existing API after the CLI workflow is complete.

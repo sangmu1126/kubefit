@@ -35,6 +35,13 @@ docs/            Architecture, security, and evaluation records
 tests/           Unit and integration tests
 ```
 
+The API now has a multi-stage non-root `Dockerfile` and a Helm chart at
+[`deploy/helm/kubefit`](deploy/helm/kubefit). The chart defaults to a tokenless
+ServiceAccount, read-only root filesystem, dropped capabilities, health probes, and
+explicit resources. Optional observation access creates only namespace-scoped
+read-only Roles for explicitly named targets; see the
+[chart guide](deploy/helm/kubefit/README.md).
+
 The ordered delivery phases and their completion criteria are documented in
 [`docs/implementation-plan.md`](docs/implementation-plan.md).
 
