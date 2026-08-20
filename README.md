@@ -127,6 +127,12 @@ measurements, exact k6 summaries and raw streams, the recomputed verdict, and a
 human-readable report with per-file hashes. Identical publication retries reuse the
 same result; tampered or partial existing content is never overwritten.
 
+`kubefit benchmark` composes the local workflow under a Deployment-scoped OS lock.
+It requires an explicit `kind-*` context and `--confirm-disposable-cluster`, holds
+the lock through restoration and result publication, then prints a compact JSON
+handoff. Port-forwards and an existing immutable proposal are currently required;
+see [`docs/local-development.md`](docs/local-development.md).
+
 The example prices are illustrative, not a cloud-provider price claim. Live
 analysis requires the caller to provide CPU and memory rates plus a source label.
 The output repeats those assumptions and separates current/recommended CPU and

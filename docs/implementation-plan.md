@@ -92,8 +92,10 @@ entries [0011](devlog/0011-reproducible-proposal-bundle.md),
 also complete. Entry [0014](devlog/0014-aligned-benchmark-measurement.md) adds the
 time-aligned k6, Prometheus, Kubernetes-delta, and proposal-cost collector.
 Entry [0015](devlog/0015-immutable-benchmark-result.md) completes durable raw
-evidence and atomic result publication. Target-document isolation, cross-process
-execution locking, CLI composition, and a real disposable-cluster run remain open.
+evidence and atomic result publication. Entry
+[0016](devlog/0016-locked-benchmark-cli.md) completes the Deployment-scoped execution
+lock and local CLI composition. Target-document isolation, CLI proposal creation,
+and a real disposable-cluster run remain open.
 
 **Goal:** validate savings without concealing performance regressions.
 

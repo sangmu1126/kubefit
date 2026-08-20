@@ -75,6 +75,33 @@ restart and OOMKilled counts from the current target-container statuses. A quiet
 cluster still reports `unknown` rather than `low` until both usage and throttling
 windows satisfy the readiness gates.
 
+## Run a published proposal benchmark
+
+The benchmark command is intentionally restricted to an explicit kind context and
+requires acknowledgement because it temporarily applies before and after manifests.
+It expects an existing immutable proposal plus separate Service and Prometheus
+port-forwards:
+
+```bash
+kubectl --context kind-kubefit port-forward \
+  -n kubefit-demo service/overprovisioned-api 8080:80
+
+kubectl --context kind-kubefit port-forward \
+  -n monitoring service/monitoring-kube-prometheus-prometheus 9090:9090
+
+kubefit benchmark \
+  --proposal .kubefit/proposals/proposal-<digest> \
+  --target-url http://localhost:8080/ \
+  --prometheus-url http://localhost:9090 \
+  --context kind-kubefit \
+  --confirm-disposable-cluster
+```
+
+The command locks the target Deployment, revalidates the proposal, restores the
+before manifest on every exit path, and publishes a separate immutable result under
+`benchmarks/results/`. Proposal creation is not yet exposed as a CLI command, and
+this sequence has not yet been claimed as a completed live benchmark.
+
 ## Remove the environment
 
 This permanently deletes the local kind cluster and its Prometheus data:

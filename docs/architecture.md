@@ -148,8 +148,7 @@ The verdict first rejects results that do not reference the same proposal and fi
 offered load. Only comparable runs reach the safety policy. Safety failures and cost
 change remain independent outputs, preventing projected savings from masking a
 latency, error, throttling, recovery, or OOM regression. The current module defines
-this pure contract; cluster mutation and result artifact publication belong to the
-next runner boundary.
+this policy as a pure contract, independently of cluster mutation and artifact I/O.
 
 ## Restoring benchmark execution
 
@@ -161,9 +160,8 @@ if execution and restoration both fail, both causes remain available to the call
 
 The kubectl adapter requires an explicit context and bounded rollout timeout. The
 measurement collector remains injected and now composes k6 with aligned
-Prometheus/Kubernetes evidence. Until target-document isolation and cross-process
-locking are added, this mutation workflow is restricted to a disposable benchmark
-cluster.
+Prometheus/Kubernetes evidence. Until target-document isolation is added, this
+mutation workflow is restricted to a disposable benchmark cluster.
 
 ## Aligned measurement evidence
 
@@ -176,8 +174,8 @@ supplies the matching current or recommended monthly request cost.
 The typed provenance stores the run boundaries, Pod set, Prometheus rate window,
 and hashes of the k6 summary and raw stream. Candidate OOM is an absolute failure,
 incomplete candidate recovery is a failure, and incomplete baseline recovery makes
-the comparison invalid. Raw stream bytes are still temporary and must be retained
-by the upcoming immutable result publisher.
+the comparison invalid. The execution result retains raw stream bytes for the
+immutable result publisher.
 
 ## Immutable benchmark results
 
@@ -191,5 +189,18 @@ Result publication uses the same private staging, `fsync`, exclusive lock, atomi
 rename, and byte-exact retry principles as proposal publication, but writes to a
 separate root and never modifies proposal inputs. Restricted k6 system tags and URL
 validation keep common URL credentials out of retained evidence. The publication
-lock does not serialize cluster mutation; execution locking remains a separate CLI
-boundary.
+lock does not serialize cluster mutation; the local CLI wraps the wider workflow in
+the separate Deployment-scoped execution lock below.
+
+## Deployment-scoped execution lock
+
+The local benchmark command hashes explicit kubectl context, namespace, and
+Deployment into a lock filename and acquires a non-blocking POSIX advisory lock.
+The kernel releases ownership on process exit, avoiding stale PID-file cleanup.
+Symlinked roots and files are rejected and the lock is held across proposal
+revalidation, both applies and measurements, restoration, and result publication.
+
+The CLI accepts only an explicit `kind-*` context plus a required disposable-cluster
+acknowledgement. This is a product boundary rather than a claim that lower-level
+adapters are production safe. Locks coordinate only local cooperating processes;
+distributed execution remains outside the MVP.

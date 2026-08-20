@@ -37,6 +37,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0013](0013-restoring-benchmark-runner.md) | Restoring benchmark runner | Verify inputs, execute sequentially, and restore before returning |
 | [0014](0014-aligned-benchmark-measurement.md) | Aligned benchmark measurement | Align k6, Prometheus, Kubernetes deltas, and proposal-fixed cost |
 | [0015](0015-immutable-benchmark-result.md) | Immutable benchmark result | Retain raw evidence and publish a content-addressed, retry-safe result |
+| [0016](0016-locked-benchmark-cli.md) | Locked benchmark CLI | Serialize Deployment mutation and compose the full local workflow |
 
 ## Visual language
 
