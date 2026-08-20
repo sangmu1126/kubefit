@@ -27,7 +27,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["api", "collector", "recommender", "evaluator", "gitops"]
+packages = ["api", "collector", "recommender", "evaluator", "gitops", "benchmarks"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
