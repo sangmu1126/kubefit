@@ -24,6 +24,11 @@ from gitops.pull_request import (
     RepositoryFileChange,
     build_pull_request_plan,
 )
+from gitops.repository import (
+    RepositoryCommit,
+    RepositoryCommitError,
+    commit_pull_request_plan,
+)
 from gitops.source import ManifestSourceError, load_manifest_sources
 
 __all__ = [
@@ -41,7 +46,10 @@ __all__ = [
     "PullRequestPlan",
     "PullRequestPlanError",
     "RepositoryFileChange",
+    "RepositoryCommit",
+    "RepositoryCommitError",
     "build_pull_request_plan",
+    "commit_pull_request_plan",
     "extract_target_document",
     "generate_resource_patch",
     "load_proposal_bundle",

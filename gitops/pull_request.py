@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from gitops.bundle import LoadedProposalBundle, load_proposal_bundle
 from gitops.manifest import ManifestTarget, ResourceChange
@@ -19,6 +19,8 @@ class PullRequestPlanError(RuntimeError):
 
 
 class RepositoryFileChange(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     path: str
     expected_before_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     before_content: str
@@ -26,6 +28,8 @@ class RepositoryFileChange(BaseModel):
 
 
 class PullRequestPlan(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     schema_version: Literal[1] = 1
     draft: Literal[True] = True
     branch_name: str = Field(pattern=r"^kubefit/[a-z0-9][a-z0-9._-]*$")
