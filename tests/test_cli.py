@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
@@ -10,8 +10,10 @@ import api.cli as cli_module
 from api.cli import build_parser
 from evaluator import AnalysisArtifact, AnalysisTarget
 from gitops import ManifestPatchError
+from recommender import CurrentResources
 from tests.test_benchmark_artifact import completed_run
 from tests.test_manifest import FIXTURES, eligible_evaluation
+from tests.test_readiness import OBSERVED_AT, observed_usage
 
 
 def eligible_analysis() -> AnalysisArtifact:
@@ -63,6 +65,57 @@ def test_analyze_rejects_non_positive_price() -> None:
                 "example://local-model",
             ]
         )
+
+
+def test_readiness_does_not_require_price_arguments() -> None:
+    args = build_parser().parse_args(
+        [
+            "readiness",
+            "--deployment",
+            "demo",
+            "--context",
+            "kind-kubefit",
+        ]
+    )
+
+    assert args.deployment == "demo"
+    assert args.context == "kind-kubefit"
+    assert not hasattr(args, "cpu_core_hour_usd")
+
+
+def test_readiness_prints_machine_readable_collection_progress(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    workload = SimpleNamespace(
+        namespace="demo",
+        name="demo",
+        container="api",
+        resources=CurrentResources(
+            cpu_request_millicores=1000,
+            cpu_limit_millicores=2000,
+            memory_request_mib=2048,
+            memory_limit_mib=4096,
+        ),
+    )
+    metrics = SimpleNamespace(
+        requested_start=OBSERVED_AT - timedelta(days=1),
+        observation_days=1,
+    )
+    monkeypatch.setattr(
+        cli_module,
+        "_collect_observation",
+        lambda args: (workload, metrics, observed_usage()),
+    )
+
+    cli_module.main(["readiness", "--deployment", "demo"])
+
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == "collecting"
+    assert output["workload_uid"] == "deployment-uid"
+    assert output["usage"]["sample_count"] == 64
+    assert output["usage"]["required_sample_count"] == 405
+    assert output["estimated_readiness_at"] == "2026-08-21T14:15:00Z"
 
 
 def test_benchmark_requires_explicit_mutation_acknowledgement() -> None:

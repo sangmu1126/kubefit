@@ -1,5 +1,6 @@
 import argparse
 import json
+from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -12,8 +13,20 @@ from benchmarks import (
     execute_benchmark,
     write_benchmark_result,
 )
-from collector import IdentitySnapshotStore, KubectlDeploymentCollector, PrometheusClient
-from evaluator import AnalysisArtifact, AnalysisTarget, CostAssumptions, evaluate_resources
+from collector import (
+    DeploymentResources,
+    IdentitySnapshotStore,
+    KubectlDeploymentCollector,
+    PrometheusClient,
+    WorkloadMetrics,
+)
+from evaluator import (
+    AnalysisArtifact,
+    AnalysisTarget,
+    CostAssumptions,
+    assess_observation_readiness,
+    evaluate_resources,
+)
 from gitops import (
     ManifestTarget,
     generate_resource_patch,
@@ -38,18 +51,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="kubefit")
     subcommands = parser.add_subparsers(dest="command", required=True)
     analyze = subcommands.add_parser("analyze", help="analyze a Kubernetes Deployment")
-    analyze.add_argument("--namespace", "-n", default="default")
-    analyze.add_argument("--deployment", required=True)
-    analyze.add_argument("--container")
-    analyze.add_argument("--prometheus-url", default="http://localhost:9090")
-    analyze.add_argument("--days", type=int, default=7)
-    analyze.add_argument("--step-seconds", type=int, default=300)
-    analyze.add_argument("--identity-store", type=Path)
-    analyze.add_argument("--context")
+    _add_observation_arguments(analyze)
     analyze.add_argument("--cpu-core-hour-usd", required=True, type=_positive_decimal)
     analyze.add_argument("--memory-gib-hour-usd", required=True, type=_positive_decimal)
     analyze.add_argument("--monthly-hours", type=_positive_decimal, default=Decimal("730"))
     analyze.add_argument("--price-source", required=True)
+    readiness = subcommands.add_parser(
+        "readiness", help="explain whether observation evidence is proposal-ready"
+    )
+    _add_observation_arguments(readiness)
     propose = subcommands.add_parser(
         "propose", help="create an immutable proposal from an analysis and YAML"
     )
@@ -90,10 +100,26 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "propose":
         _run_propose(args)
         return
+    if args.command == "readiness":
+        _run_readiness(args)
+        return
     _run_analyze(args)
 
 
-def _run_analyze(args: argparse.Namespace) -> None:
+def _add_observation_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--namespace", "-n", default="default")
+    parser.add_argument("--deployment", required=True)
+    parser.add_argument("--container")
+    parser.add_argument("--prometheus-url", default="http://localhost:9090")
+    parser.add_argument("--days", type=int, default=7)
+    parser.add_argument("--step-seconds", type=int, default=300)
+    parser.add_argument("--identity-store", type=Path)
+    parser.add_argument("--context")
+
+
+def _collect_observation(
+    args: argparse.Namespace,
+) -> tuple[DeploymentResources, WorkloadMetrics, ObservedUsage]:
     workload = KubectlDeploymentCollector(context=args.context).collect(
         args.namespace, args.deployment, args.container
     )
@@ -143,6 +169,11 @@ def _run_analyze(args: argparse.Namespace) -> None:
         restart_count=workload.restart_count,
         oom_killed_count=workload.oom_killed_count,
     )
+    return workload, metrics, observed
+
+
+def _run_analyze(args: argparse.Namespace) -> None:
+    workload, _, observed = _collect_observation(args)
     evaluation = evaluate_resources(
         workload.resources,
         observed,
@@ -165,6 +196,21 @@ def _run_analyze(args: argparse.Namespace) -> None:
         evaluation=evaluation,
     )
     print(result.model_dump_json(indent=2))
+
+
+def _run_readiness(args: argparse.Namespace) -> None:
+    workload, metrics, observed = _collect_observation(args)
+    report = assess_observation_readiness(
+        target=AnalysisTarget(
+            namespace=workload.namespace,
+            deployment=workload.name,
+            container=workload.container,
+        ),
+        current=workload.resources,
+        observed=observed,
+        observed_at=metrics.requested_start + timedelta(days=metrics.observation_days),
+    )
+    print(report.model_dump_json(indent=2))
 
 
 def _run_benchmark(args: argparse.Namespace) -> None:

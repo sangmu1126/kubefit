@@ -164,6 +164,16 @@ def _readiness_reasons(
             f"sample count is {observed.sample_count}; at least "
             f"{policy.minimum_sample_count} is required"
         )
+    if (
+        observed.metric_pod_count is not None
+        and observed.desired_replicas is not None
+        and observed.metric_pod_count < observed.desired_replicas
+    ):
+        reasons.append(
+            "usage metric Pod coverage is incomplete: "
+            f"metric_pods={observed.metric_pod_count}, "
+            f"desired={observed.desired_replicas}"
+        )
 
     replica_values = (
         observed.desired_replicas,
