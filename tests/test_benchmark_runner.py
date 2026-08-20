@@ -1,9 +1,12 @@
+import hashlib
 from pathlib import Path
 
 import pytest
 
 from benchmarks import (
     BenchmarkExecutionError,
+    CollectedMeasurement,
+    K6RunSummary,
     KubectlManifestController,
     execute_benchmark,
 )
@@ -47,7 +50,26 @@ def collector(events: list[str], *, fail_variant: str | None = None):
         events.append(f"measure:{variant}")
         if variant == fail_variant:
             raise RuntimeError(f"measure:{variant}")
-        return measurement(variant, proposal_id=proposal.artifact_id)
+        measured = measurement(variant, proposal_id=proposal.artifact_id)
+        summary_bytes = (
+            K6RunSummary.model_validate(measured.model_dump()).model_dump_json().encode()
+        )
+        raw_bytes = f"raw:{variant}".encode()
+        measured = measured.model_copy(
+            update={
+                "provenance": measured.provenance.model_copy(
+                    update={
+                        "k6_summary_sha256": hashlib.sha256(summary_bytes).hexdigest(),
+                        "k6_raw_sha256": hashlib.sha256(raw_bytes).hexdigest(),
+                    }
+                )
+            }
+        )
+        return CollectedMeasurement(
+            measurement=measured,
+            k6_summary=summary_bytes,
+            k6_raw=raw_bytes,
+        )
 
     return collect
 
@@ -65,6 +87,7 @@ def test_executes_fixed_order_and_restores_before_returning(tmp_path: Path) -> N
     assert result.proposal_id == proposal.artifact_id
     assert result.verdict.status == "pass"
     assert result.restored is True
+    assert result.before_k6_raw == b"raw:before"
     assert controller.events == [
         "apply:before:1",
         "wait:before:1",
@@ -86,9 +109,7 @@ def test_executes_fixed_order_and_restores_before_returning(tmp_path: Path) -> N
         ("wait:after:1", "wait_after_rollout"),
     ],
 )
-def test_restores_after_apply_or_rollout_failure(
-    tmp_path: Path, failure: str, stage: str
-) -> None:
+def test_restores_after_apply_or_rollout_failure(tmp_path: Path, failure: str, stage: str) -> None:
     proposal = published_proposal(tmp_path)
     controller = RecordingController({failure})
 

@@ -165,6 +165,25 @@ def test_k6_executor_rejects_output_identity_mismatch(tmp_path: Path) -> None:
         executor.run(proposal_id, "before")
 
 
+@pytest.mark.parametrize(
+    "target_url",
+    [
+        "ftp://demo.local/",
+        "http://user:secret@demo.local/",
+        "http://demo.local/?token=secret",
+        "http://demo.local/#fragment",
+    ],
+)
+def test_k6_executor_rejects_target_urls_that_can_leak_credentials(
+    tmp_path: Path, target_url: str
+) -> None:
+    script = tmp_path / "profile.js"
+    script.write_text("export default function() {}")
+
+    with pytest.raises(ValueError, match="without credentials"):
+        SubprocessK6Executor(target_url, script)
+
+
 def test_aligned_collector_uses_stable_pod_deltas_window_and_bundle_cost(
     tmp_path: Path,
 ) -> None:
@@ -183,7 +202,8 @@ def test_aligned_collector_uses_stable_pod_deltas_window_and_bundle_cost(
         prometheus=prometheus,
     )
 
-    result = collector(proposal, "before")
+    collected = collector(proposal, "before")
+    result = collected.measurement
 
     assert result.runtime.restart_count == 1
     assert result.runtime.oom_killed_count == 1
@@ -209,7 +229,7 @@ def test_aligned_collector_uses_recommended_cost_for_after(tmp_path: Path) -> No
         prometheus=RecordingPrometheus(),
     )
 
-    result = collector(proposal, "after")
+    result = collector(proposal, "after").measurement
 
     assert result.request_cost_usd == proposal.after_request_cost_usd
 
@@ -266,8 +286,8 @@ class FakeK6:
             finished_at=START + timedelta(seconds=161),
             traffic_spike_recovery_seconds=5 if self.recovered else 60,
             traffic_spike_recovered=self.recovered,
-            summary_sha256="a" * 64,
-            raw_sha256="b" * 64,
+            summary_content=self.result_summary.model_dump_json().encode(),
+            raw_content=recovery_raw(100).encode(),
         )
 
 

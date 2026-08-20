@@ -1,8 +1,14 @@
 """Reproducible before/after benchmark contracts and verdicts."""
 
+from benchmarks.artifact import (
+    BenchmarkResultArtifact,
+    BenchmarkResultArtifactError,
+    write_benchmark_result,
+)
 from benchmarks.measurement import (
     AlignedMeasurementCollector,
     BenchmarkMeasurementError,
+    CollectedMeasurement,
     DeploymentRuntimeSnapshotter,
     PodRuntimeCounters,
     RuntimeCounterSnapshot,
@@ -33,8 +39,11 @@ __all__ = [
     "BenchmarkExecutionError",
     "BenchmarkMeasurement",
     "BenchmarkMeasurementError",
+    "CollectedMeasurement",
     "BenchmarkPolicy",
     "BenchmarkRun",
+    "BenchmarkResultArtifact",
+    "BenchmarkResultArtifactError",
     "BenchmarkVerdict",
     "AlignedMeasurementCollector",
     "DeploymentRuntimeSnapshotter",
@@ -50,4 +59,5 @@ __all__ = [
     "compare_benchmarks",
     "execute_benchmark",
     "recovery_from_k6_raw",
+    "write_benchmark_result",
 ]

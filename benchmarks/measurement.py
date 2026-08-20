@@ -7,6 +7,7 @@ from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal, Protocol
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -50,8 +51,8 @@ class TimedK6Result(BaseModel):
     finished_at: datetime
     traffic_spike_recovery_seconds: float = Field(ge=0)
     traffic_spike_recovered: bool
-    summary_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    raw_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    summary_content: bytes
+    raw_content: bytes
 
     @model_validator(mode="after")
     def timestamps_are_ordered(self) -> "TimedK6Result":
@@ -59,6 +60,39 @@ class TimedK6Result(BaseModel):
             raise ValueError("k6 timestamps must include timezone information")
         if self.finished_at <= self.started_at:
             raise ValueError("k6 finish must be later than start")
+        return self
+
+    @property
+    def summary_sha256(self) -> str:
+        return hashlib.sha256(self.summary_content).hexdigest()
+
+    @property
+    def raw_sha256(self) -> str:
+        return hashlib.sha256(self.raw_content).hexdigest()
+
+
+class CollectedMeasurement(BaseModel):
+    measurement: BenchmarkMeasurement
+    k6_summary: bytes
+    k6_raw: bytes
+
+    @model_validator(mode="after")
+    def evidence_matches_measurement(self) -> "CollectedMeasurement":
+        try:
+            summary = K6RunSummary.model_validate_json(self.k6_summary)
+        except ValueError as exc:
+            raise ValueError("collected k6 summary is invalid") from exc
+        measured_summary = K6RunSummary.model_validate(self.measurement.model_dump())
+        if summary != measured_summary:
+            raise ValueError("collected k6 summary conflicts with measurement")
+        if hashlib.sha256(self.k6_summary).hexdigest() != (
+            self.measurement.provenance.k6_summary_sha256
+        ):
+            raise ValueError("collected k6 summary hash conflicts with measurement")
+        if hashlib.sha256(self.k6_raw).hexdigest() != (
+            self.measurement.provenance.k6_raw_sha256
+        ):
+            raise ValueError("collected k6 raw hash conflicts with measurement")
         return self
 
 
@@ -122,8 +156,18 @@ class SubprocessK6Executor:
         clock: Clock | None = None,
         timeout_seconds: int = 240,
     ) -> None:
-        if not target_url:
-            raise ValueError("k6 target URL must not be empty")
+        parsed_target = urlsplit(target_url)
+        if (
+            parsed_target.scheme not in {"http", "https"}
+            or not parsed_target.netloc
+            or parsed_target.username is not None
+            or parsed_target.password is not None
+            or parsed_target.query
+            or parsed_target.fragment
+        ):
+            raise ValueError(
+                "k6 target URL must be HTTP(S) without credentials, query, or fragment"
+            )
         if not script_path.is_file():
             raise ValueError("k6 script path must be a file")
         if timeout_seconds < 1:
@@ -179,8 +223,8 @@ class SubprocessK6Executor:
                 finished_at=finished_at,
                 traffic_spike_recovery_seconds=recovery_seconds,
                 traffic_spike_recovered=recovered,
-                summary_sha256=hashlib.sha256(summary_content).hexdigest(),
-                raw_sha256=hashlib.sha256(raw_bytes).hexdigest(),
+                summary_content=summary_content,
+                raw_content=raw_bytes,
             )
 
 
@@ -199,7 +243,7 @@ class AlignedMeasurementCollector:
         self,
         proposal: LoadedProposalBundle,
         variant: Literal["before", "after"],
-    ) -> BenchmarkMeasurement:
+    ) -> CollectedMeasurement:
         before_runtime = self._snapshot(proposal.target)
         load = self._k6.run(proposal.artifact_id, variant)
         after_runtime = self._snapshot(proposal.target)
@@ -216,7 +260,7 @@ class AlignedMeasurementCollector:
             if variant == "before"
             else proposal.after_request_cost_usd
         )
-        return BenchmarkMeasurement(
+        measurement = BenchmarkMeasurement(
             **load.summary.model_dump(),
             runtime=RuntimeBenchmarkSignals(
                 cpu_throttling_p95_percent=throttling,
@@ -234,6 +278,11 @@ class AlignedMeasurementCollector:
                 prometheus_rate_window_seconds=30,
             ),
             request_cost_usd=request_cost,
+        )
+        return CollectedMeasurement(
+            measurement=measurement,
+            k6_summary=load.summary_content,
+            k6_raw=load.raw_content,
         )
 
 

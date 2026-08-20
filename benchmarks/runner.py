@@ -3,8 +3,9 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Literal, Protocol
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
+from benchmarks.measurement import CollectedMeasurement
 from benchmarks.result import (
     BenchmarkMeasurement,
     BenchmarkVerdict,
@@ -40,7 +41,7 @@ class ManifestController(Protocol):
 
 
 MeasurementCollector = Callable[
-    [LoadedProposalBundle, Literal["before", "after"]], BenchmarkMeasurement
+    [LoadedProposalBundle, Literal["before", "after"]], CollectedMeasurement
 ]
 CommandRunner = Callable[[Sequence[str]], str]
 
@@ -50,7 +51,25 @@ class BenchmarkRun(BaseModel):
     before: BenchmarkMeasurement
     after: BenchmarkMeasurement
     verdict: BenchmarkVerdict
+    before_k6_summary: bytes
+    before_k6_raw: bytes
+    after_k6_summary: bytes
+    after_k6_raw: bytes
     restored: Literal[True] = True
+
+    @model_validator(mode="after")
+    def raw_evidence_matches_measurements(self) -> "BenchmarkRun":
+        CollectedMeasurement(
+            measurement=self.before,
+            k6_summary=self.before_k6_summary,
+            k6_raw=self.before_k6_raw,
+        )
+        CollectedMeasurement(
+            measurement=self.after,
+            k6_summary=self.after_k6_summary,
+            k6_raw=self.after_k6_raw,
+        )
+        return self
 
 
 class KubectlManifestController:
@@ -127,9 +146,13 @@ def execute_benchmark(
         primary_stage = "compare"
         result = BenchmarkRun(
             proposal_id=proposal.artifact_id,
-            before=before,
-            after=after,
-            verdict=compare_benchmarks(before, after),
+            before=before.measurement,
+            after=after.measurement,
+            verdict=compare_benchmarks(before.measurement, after.measurement),
+            before_k6_summary=before.k6_summary,
+            before_k6_raw=before.k6_raw,
+            after_k6_summary=after.k6_summary,
+            after_k6_raw=after.k6_raw,
         )
     except Exception as exc:
         primary_error = exc
