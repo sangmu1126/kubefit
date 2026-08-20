@@ -120,8 +120,10 @@ commands and obtain a pass/fail safety verdict.
 
 **Status: in progress.** Entry [0021](devlog/0021-pull-request-plan.md) establishes
 load-time semantic verification for proposal/result artifacts and produces a
-deterministic, draft-only, one-file review contract. Repository mutation, branch
-publication, and the GitHub API adapter remain open.
+deterministic, draft-only, one-file review contract. Entry
+[0022](devlog/0022-transactional-git-commit.md) adds stale-safe, one-file local branch
+commits with rollback and idempotent reuse. Push and the GitHub API adapter remain
+open.
 
 **Goal:** deliver the validated change through the repository's review workflow.
 

@@ -156,6 +156,12 @@ source hash, patched content, benchmark metrics, cost caveats, warnings, and rol
 guidance. This stage is read-only; branch creation and GitHub publication remain
 separate adapters.
 
+`commit_pull_request_plan` applies that contract to an explicit clean Git top-level.
+It rechecks the source hash and bytes, rejects symlinks and detached HEAD, creates a
+one-file commit on the deterministic branch, verifies the resulting Git tree, and
+returns to the original branch. An identical existing branch is reused; a collision
+fails closed. It does not push or contact GitHub.
+
 The example prices are illustrative, not a cloud-provider price claim. Live
 analysis requires the caller to provide CPU and memory rates plus a source label.
 The output repeats those assumptions and separates current/recommended CPU and

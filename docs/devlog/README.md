@@ -43,6 +43,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0019](0019-persistent-local-observation.md) | Persistent local observation | Preserve Prometheus evidence across Pod and Docker restarts |
 | [0020](0020-readiness-cli.md) | Readiness CLI | Explain whether to wait or intervene before creating a proposal |
 | [0021](0021-pull-request-plan.md) | Pull request plan | Turn verified proposal and benchmark evidence into one review contract |
+| [0022](0022-transactional-git-commit.md) | Transactional Git commit | Commit one verified file without leaving the checkout on the generated branch |
 
 ## Visual language
 

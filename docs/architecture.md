@@ -270,3 +270,23 @@ its expected before SHA-256, exact before/after bytes, deterministic branch/titl
 draft-only flag, evidence summary, and rollback guidance. A later repository adapter
 must compare the live file hash again before writing; planning itself performs no
 checkout, commit, push, or GitHub operation.
+
+## Transactional repository commit
+
+The local repository adapter requires the explicit root to equal Git's top-level,
+an attached branch, and a completely clean tracked/untracked status. It rejects
+symlinked roots and planned path components, then compares both SHA-256 and exact
+source bytes before creating the deterministic branch.
+
+The adapter atomically replaces only the planned file, stages only that path, and
+commits without changing Git configuration. It verifies the generated commit has
+the original base as its sole parent, exactly one changed path, unchanged Git file
+mode, exact planned blob bytes, and the planned subject. It then returns to the base
+branch and requires a clean tree. A matching existing one-commit branch is reused;
+all other collisions fail without overwrite.
+
+If a failure occurs after branch creation, cleanup restores and unstages only the
+adapter-owned file, switches back, and deletes only the newly created branch. It
+does not reset or erase unrelated paths. Repository hooks are honored; their
+external side effects cannot be rolled back, and unexpected hook-created files are
+reported as cleanup failure instead of being deleted.
