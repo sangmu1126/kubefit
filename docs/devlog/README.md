@@ -29,6 +29,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0005](0005-identity-snapshot.md) | Identity snapshot | Recover observed ReplicaSet history after API deletion |
 | [0006](0006-resource-input-boundary.md) | Resource input boundary | Close Phase 1 with exact quantities and complete selectors |
 | [0007](0007-explicit-cost-model.md) | Explicit cost model | Separate transparent request-cost projections from readiness |
+| [0008](0008-runtime-safety-signals.md) | Runtime safety signals | Ground risk in throttling, restarts, OOM, and signal coverage |
 
 ## Visual language
 

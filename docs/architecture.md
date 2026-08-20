@@ -45,10 +45,14 @@ or a replacement for a future controller-backed identity source.
 - Calculate each percentile per Pod and retain the busiest Pod's value
 - Require 70% observation coverage and at least 100 metric samples
 - Require desired, available, and observed replica counts to match
+- Require CPU throttling coverage and samples to meet the same thresholds
+- Require target-container status for every desired replica
+- Treat CPU throttled-period P95 of at least 1% as medium risk and 10% as high
+- Treat any current OOMKilled container status as high risk
 
-These defaults are deliberately transparent and deterministic. Before production
-use, the engine will also gate recommendations on observation coverage, workload
-restarts, throttling, OOM events, latency, and traffic representativeness.
+These defaults are deliberately transparent and deterministic. Restarts are exposed
+as evidence but are not automatically attributed to memory pressure. Application
+latency and traffic representativeness still need to be added before production use.
 
 CPU and memory request changes are reported separately because millicores and MiB
 cannot be combined into a meaningful percentage. The evaluator converts both into

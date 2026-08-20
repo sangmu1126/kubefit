@@ -70,6 +70,11 @@ correctly report low observation coverage and `unknown` risk until enough sample
 have accumulated. A mathematical cost projection is still shown for inspection,
 but it does not make an insufficient recommendation actionable.
 
+The output also includes CPU throttling P95 and its independent coverage, plus
+restart and OOMKilled counts from the current target-container statuses. A quiet new
+cluster still reports `unknown` rather than `low` until both usage and throttling
+windows satisfy the readiness gates.
+
 ## Remove the environment
 
 This permanently deletes the local kind cluster and its Prometheus data:

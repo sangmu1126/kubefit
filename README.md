@@ -78,6 +78,11 @@ kube-state-metrics. KubeFit filters ReplicaSets through their Kubernetes control
 owner UID and clips history to the current Deployment creation time, avoiding
 Pod-name prefixes and same-name workload history.
 
+The evaluator also reads the cAdvisor CPU throttled-period counters and current
+Kubernetes target-container status. Missing throttling metrics or incomplete Pod
+status coverage keeps the relevant risk `unknown`; an observed OOMKilled state is
+reported as high risk even when the wider observation window is incomplete.
+
 The example prices are illustrative, not a cloud-provider price claim. Live
 analysis requires the caller to provide CPU and memory rates plus a source label.
 The output repeats those assumptions and separates current/recommended CPU and

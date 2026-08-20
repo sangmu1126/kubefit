@@ -48,8 +48,9 @@ rounding, and both upsize and downsize recommendations.
 
 ## Phase 2: cost and safety evaluation
 
-**Status: in progress.** Explicit request-cost comparison was completed on
-2026-08-21; runtime safety signal collection remains open.
+**Status: in progress.** Explicit request-cost comparison and runtime throttling,
+restart, and OOM signal collection were completed on 2026-08-21. The downstream
+patch eligibility gate remains open.
 
 **Goal:** turn a capacity recommendation into a defensible decision.
 
