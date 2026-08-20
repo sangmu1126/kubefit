@@ -187,6 +187,11 @@ merge, approve, mark ready, deploy, persist credentials, or delete a remote bran
 This workflow is covered by isolated local tests but has not yet been exercised
 against a disposable live GitHub repository.
 
+For the first authenticated verification, follow
+[the live GitHub demonstration runbook](live-github-demo.md). It uses a separately
+named private repository, makes blocked preflight exit nonzero, captures two-run
+idempotency evidence outside the checkout, and archives the target by default.
+
 ## Remove the environment
 
 This permanently deletes the local kind cluster and its Prometheus data:

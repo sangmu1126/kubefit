@@ -47,6 +47,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0023](0023-idempotent-draft-pull-request.md) | Idempotent draft pull request | Publish one verified commit without overwriting a remote branch or duplicate PR |
 | [0024](0024-publish-cli-secret-boundary.md) | Publish CLI secret boundary | Compose verified publication without accepting or printing a token value |
 | [0025](0025-live-publication-preflight.md) | Live publication preflight | Explain artifact, Git, remote, and credential blockers without mutation |
+| [0026](0026-live-demo-contract.md) | Live demo contract | Make readiness machine-enforceable and define disposable two-run evidence |
 
 ## Visual language
 

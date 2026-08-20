@@ -353,3 +353,6 @@ The JSON report has ordered artifact, local repository, Git remote, and GitHub A
 checks plus blockers and warnings. It always includes `mutation_performed: false`.
 Artifact or local failures stop dependent checks; token absence and remote/API
 failures are explicit blockers rather than prompts or automatic repair attempts.
+The CLI prints the report before returning exit 2 for a blocked diagnostic; only a
+report without blockers returns exit 0. This lets shell control flow enforce the
+same gate without parsing JSON, while the JSON retains the reason.

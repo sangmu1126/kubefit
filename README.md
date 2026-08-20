@@ -179,6 +179,11 @@ from warnings and always reports `mutation_performed: false`. A `ready` result m
 the observable preconditions passed; it does not prove effective branch or pull
 request write permission.
 
+The authenticated two-run verification procedure is documented in
+[`docs/live-github-demo.md`](docs/live-github-demo.md). It requires a separately named
+private disposable repository, captures first-create and second-reuse evidence, and
+archives rather than deletes the target by default.
+
 The example prices are illustrative, not a cloud-provider price claim. Live
 analysis requires the caller to provide CPU and memory rates plus a source label.
 The output repeats those assumptions and separates current/recommended CPU and
