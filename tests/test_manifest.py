@@ -230,7 +230,7 @@ def test_rejects_malformed_yaml() -> None:
         )
 
 
-@pytest.mark.parametrize("path", ["", "/tmp/demo.yaml", "../demo.yaml", "bad\npath.yaml"])
+@pytest.mark.parametrize("path", ["", ".", "/tmp/demo.yaml", "../demo.yaml", "bad\npath.yaml"])
 def test_rejects_unsafe_manifest_source_path(path: str) -> None:
     with pytest.raises(ValueError, match="repository-relative"):
         ManifestSource(path=path, content="")

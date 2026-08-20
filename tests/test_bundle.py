@@ -10,6 +10,7 @@ from gitops import (
     ManifestSource,
     ProposalBundleError,
     generate_resource_patch,
+    load_proposal_bundle,
     write_proposal_bundle,
 )
 from tests.test_manifest import FIXTURES, eligible_evaluation, target
@@ -53,6 +54,19 @@ def test_publishes_complete_hashed_proposal_bundle(tmp_path: Path) -> None:
     assert context["before_resources"] == evaluation.current.model_dump()
     assert context["after_resources"] == evaluation.recommendation.recommended.model_dump()
     assert "latency_p99_ms" in context["required_metrics"]
+
+
+def test_loads_and_revalidates_published_bundle(tmp_path: Path) -> None:
+    _, evaluation, patch = proposal_inputs()
+    published = write_proposal_bundle(tmp_path / "proposals", patch, evaluation)
+
+    loaded = load_proposal_bundle(published.path)
+
+    assert loaded.artifact_id == published.artifact_id
+    assert loaded.source_path == "deploy/demo.yaml"
+    assert loaded.target == patch.report.target
+    assert loaded.before_manifest.read_text() == patch.original_content
+    assert loaded.after_manifest.read_text() == patch.patched_content
 
 
 def test_reuses_byte_identical_bundle_idempotently(tmp_path: Path) -> None:

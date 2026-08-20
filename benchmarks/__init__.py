@@ -10,14 +10,24 @@ from benchmarks.result import (
     RuntimeBenchmarkSignals,
     compare_benchmarks,
 )
+from benchmarks.runner import (
+    BenchmarkExecutionError,
+    BenchmarkRun,
+    KubectlManifestController,
+    execute_benchmark,
+)
 
 __all__ = [
     "BenchmarkCheck",
+    "BenchmarkExecutionError",
     "BenchmarkMeasurement",
     "BenchmarkPolicy",
+    "BenchmarkRun",
     "BenchmarkVerdict",
     "K6RunSummary",
+    "KubectlManifestController",
     "LoadPhaseMetrics",
     "RuntimeBenchmarkSignals",
     "compare_benchmarks",
+    "execute_benchmark",
 ]

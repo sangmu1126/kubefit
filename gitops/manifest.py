@@ -27,6 +27,7 @@ class ManifestSource:
         parsed = PurePosixPath(self.path)
         if (
             not self.path
+            or not parsed.parts
             or "\n" in self.path
             or "\r" in self.path
             or parsed.is_absolute()

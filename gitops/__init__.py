@@ -2,8 +2,10 @@
 
 from gitops.bundle import (
     BenchmarkContext,
+    LoadedProposalBundle,
     ProposalBundle,
     ProposalBundleError,
+    load_proposal_bundle,
     write_proposal_bundle,
 )
 from gitops.manifest import (
@@ -24,8 +26,10 @@ __all__ = [
     "ManifestTarget",
     "ResourceChange",
     "BenchmarkContext",
+    "LoadedProposalBundle",
     "ProposalBundle",
     "ProposalBundleError",
     "generate_resource_patch",
+    "load_proposal_bundle",
     "write_proposal_bundle",
 ]

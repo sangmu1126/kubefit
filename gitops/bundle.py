@@ -4,11 +4,12 @@ import os
 import shutil
 import tempfile
 from pathlib import Path, PurePosixPath
+from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from evaluator import EvaluationResult
-from gitops.manifest import ManifestPatch
+from gitops.manifest import ManifestPatch, ManifestPatchReport, ManifestTarget
 from recommender import CurrentResources
 from recommender.models import ResourceValues
 
@@ -18,8 +19,8 @@ class ProposalBundleError(RuntimeError):
 
 
 class BenchmarkContext(BaseModel):
-    schema_version: int = 1
-    target: dict[str, str]
+    schema_version: Literal[1] = 1
+    target: ManifestTarget
     before_resources: CurrentResources
     after_resources: ResourceValues
     required_metrics: list[str]
@@ -31,6 +32,28 @@ class ProposalBundle(BaseModel):
     path: Path
     reused: bool
     files: list[str]
+
+
+class LoadedProposalBundle(BaseModel):
+    artifact_id: str
+    path: Path
+    source_path: str
+    target: ManifestTarget
+    before_manifest: Path
+    after_manifest: Path
+
+
+class _FileMetadata(BaseModel):
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    size_bytes: int = Field(ge=0)
+
+
+class _ArtifactIndex(BaseModel):
+    schema_version: Literal[1]
+    artifact_id: str = Field(pattern=r"^proposal-[0-9a-f]{32}$")
+    content_digest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_path: str
+    files: dict[str, _FileMetadata]
 
 
 def write_proposal_bundle(
@@ -96,6 +119,78 @@ def write_proposal_bundle(
         _fsync_directory(output_root)
 
 
+def load_proposal_bundle(path: Path) -> LoadedProposalBundle:
+    """Load and cryptographically revalidate a published proposal bundle."""
+    if path.is_symlink() or not path.is_dir():
+        raise ProposalBundleError(f"proposal path is not a safe directory: {path}")
+    artifact_path = path / "artifact.json"
+    if artifact_path.is_symlink() or not artifact_path.is_file():
+        raise ProposalBundleError("proposal is missing a regular artifact.json")
+    try:
+        artifact_bytes = artifact_path.read_bytes()
+        raw_index = json.loads(artifact_bytes)
+        index = _ArtifactIndex.model_validate(raw_index)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        raise ProposalBundleError("proposal artifact index is invalid") from exc
+    if artifact_bytes != _canonical_json(raw_index):
+        raise ProposalBundleError("proposal artifact index is not canonical JSON")
+    if path.name != index.artifact_id:
+        raise ProposalBundleError("proposal directory name does not match artifact ID")
+    if index.content_digest_sha256[:32] != index.artifact_id.removeprefix("proposal-"):
+        raise ProposalBundleError("proposal artifact ID does not match its content digest")
+
+    source_path = _safe_relative_path(index.source_path)
+    expected_payload_paths = {
+        "evaluation.json",
+        "patch.diff",
+        "patch-report.json",
+        "benchmark-context.json",
+        f"manifests/before/{source_path.as_posix()}",
+        f"manifests/after/{source_path.as_posix()}",
+    }
+    if set(index.files) != expected_payload_paths:
+        raise ProposalBundleError("proposal index does not contain the expected payload set")
+
+    actual_files = []
+    payloads: dict[str, bytes] = {}
+    for item in path.rglob("*"):
+        if item.is_symlink():
+            raise ProposalBundleError(f"proposal contains a symlink: {item}")
+        if item.is_file():
+            actual_files.append(item.relative_to(path).as_posix())
+    if set(actual_files) != expected_payload_paths | {"artifact.json"}:
+        raise ProposalBundleError("proposal file set does not match its index")
+    for relative_path, metadata in index.files.items():
+        safe_path = _safe_relative_path(relative_path)
+        content = path.joinpath(*safe_path.parts).read_bytes()
+        if len(content) != metadata.size_bytes:
+            raise ProposalBundleError(f"proposal payload size changed: {relative_path}")
+        if hashlib.sha256(content).hexdigest() != metadata.sha256:
+            raise ProposalBundleError(f"proposal payload digest changed: {relative_path}")
+        payloads[relative_path] = content
+    if _content_digest(payloads) != index.content_digest_sha256:
+        raise ProposalBundleError("proposal content digest does not match its payloads")
+
+    try:
+        context = BenchmarkContext.model_validate_json(payloads["benchmark-context.json"])
+        report = ManifestPatchReport.model_validate_json(payloads["patch-report.json"])
+    except ValueError as exc:
+        raise ProposalBundleError("proposal context or patch report is invalid") from exc
+    if report.source_path != source_path.as_posix():
+        raise ProposalBundleError("proposal source path conflicts with its patch report")
+    if report.target != context.target:
+        raise ProposalBundleError("proposal target conflicts with its patch report")
+
+    return LoadedProposalBundle(
+        artifact_id=index.artifact_id,
+        path=path,
+        source_path=source_path.as_posix(),
+        target=context.target,
+        before_manifest=path / "manifests" / "before" / source_path,
+        after_manifest=path / "manifests" / "after" / source_path,
+    )
+
+
 def _payloads(
     patch: ManifestPatch,
     evaluation: EvaluationResult,
@@ -153,6 +248,7 @@ def _safe_relative_path(value: str) -> PurePosixPath:
     path = PurePosixPath(value)
     if (
         not value
+        or not path.parts
         or "\n" in value
         or "\r" in value
         or path.is_absolute()
