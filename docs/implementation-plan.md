@@ -86,9 +86,11 @@ change and invalid or ambiguous manifests fail safely.
 
 **Status: in progress.** Immutable proposal inputs and the fixed load/verdict
 contract were completed on 2026-08-21 and are documented in development journal
-entries [0011](devlog/0011-reproducible-proposal-bundle.md) and
-[0012](devlog/0012-fixed-load-profile.md). Cluster apply, evidence collection,
-restoration, and result publication remain open.
+entries [0011](devlog/0011-reproducible-proposal-bundle.md),
+[0012](devlog/0012-fixed-load-profile.md), and
+[0013](devlog/0013-restoring-benchmark-runner.md). The restoring execution core is
+also complete. Measurement collection, target-document isolation, cross-process
+exclusivity, and result publication remain open.
 
 **Goal:** validate savings without concealing performance regressions.
 

@@ -150,3 +150,17 @@ change remain independent outputs, preventing projected savings from masking a
 latency, error, throttling, recovery, or OOM regression. The current module defines
 this pure contract; cluster mutation and result artifact publication belong to the
 next runner boundary.
+
+## Restoring benchmark execution
+
+The execution core loads and rehashes every proposal payload before invoking a
+cluster controller. It then applies and measures before and after sequentially. As
+soon as the first apply begins, every exit path attempts to reapply before and wait
+for its Deployment rollout. A successful result is returned only after restoration;
+if execution and restoration both fail, both causes remain available to the caller.
+
+The kubectl adapter requires an explicit context and bounded rollout timeout. The
+measurement collector remains injected: it will later own k6 execution and aligned
+Prometheus/Kubernetes evidence. Until target-document isolation and cross-process
+locking are added, this mutation workflow is restricted to a disposable benchmark
+cluster.

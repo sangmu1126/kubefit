@@ -107,6 +107,13 @@ safety verdict. Results must reference the same proposal, profile, and complete
 offered load before latency, errors, throttling, OOM, and recovery regressions are
 evaluated. Request-cost change is reported separately and cannot override safety.
 
+The benchmark execution core revalidates every proposal hash before cluster access,
+requires an explicit kubectl context, executes before and after sequentially, and
+reapplies the before manifest on every exit path after mutation starts. It is
+currently an internal building block for the disposable demo cluster, not a
+production automation interface; measurement collection and isolated result
+publication are still in progress.
+
 The example prices are illustrative, not a cloud-provider price claim. Live
 analysis requires the caller to provide CPU and memory rates plus a source label.
 The output repeats those assumptions and separates current/recommended CPU and

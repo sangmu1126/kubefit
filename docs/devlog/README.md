@@ -34,6 +34,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0010](0010-minimal-manifest-patch.md) | Minimal manifest patch | Generate a stale-safe four-scalar diff without reformatting YAML |
 | [0011](0011-reproducible-proposal-bundle.md) | Proposal bundle | Publish immutable, content-addressed benchmark inputs atomically |
 | [0012](0012-fixed-load-profile.md) | Fixed load profile | Version comparable before/after load and produce explicit safety verdicts |
+| [0013](0013-restoring-benchmark-runner.md) | Restoring benchmark runner | Verify inputs, execute sequentially, and restore before returning |
 
 ## Visual language
 
