@@ -1,0 +1,38 @@
+{{- if .Values.rbac.create }}
+{{- range $namespace := .Values.rbac.targetNamespaces }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "kubefit.fullname" $ }}-observer
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "kubefit.labels" $ | nindent 4 }}
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["list"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "kubefit.fullname" $ }}-observer
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "kubefit.labels" $ | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "kubefit.fullname" $ }}-observer
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "kubefit.serviceAccountName" $ }}
+    namespace: {{ $.Release.Namespace }}
+{{- end }}
+{{- end }}

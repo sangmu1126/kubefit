@@ -1,0 +1,7 @@
+KubeFit API is available inside the cluster at:
+  http://{{ include "kubefit.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}
+
+The ServiceAccount token is {{ ternary "enabled" "disabled" .Values.serviceAccount.automountToken }}.
+Observation RBAC targets: {{ len .Values.rbac.targetNamespaces }} namespace(s).
+
+This chart does not install Prometheus and does not mutate Kubernetes workloads.
