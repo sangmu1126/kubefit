@@ -62,7 +62,8 @@ Analyze a live Deployment (with Prometheus reachable locally):
 
 ```bash
 kubefit analyze --namespace kubefit-demo --deployment overprovisioned-api \
-  --prometheus-url http://localhost:9090
+  --prometheus-url http://localhost:9090 \
+  --identity-store .kubefit/identities.json
 ```
 
 The CLI invokes `kubectl` using the current context, reads only Deployment and
@@ -71,6 +72,10 @@ Prometheus must scrape cAdvisor metrics plus `kube_pod_owner` from
 kube-state-metrics. KubeFit filters ReplicaSets through their Kubernetes controller
 owner UID and clips history to the current Deployment creation time, avoiding
 Pod-name prefixes and same-name workload history.
+
+The optional identity store retains observed ReplicaSet names after Kubernetes
+deletes their objects. It is an atomic local JSON snapshot containing identifiers
+only; a new Deployment UID replaces same-name history rather than merging it.
 
 Example request:
 

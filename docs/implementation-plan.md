@@ -29,6 +29,7 @@ the time they are observed.
 - Query CPU and memory as per-Pod time series rather than a Deployment-wide sum.
 - Authorize ReplicaSets through the current Deployment owner UID.
 - Clip same-name history at the current Deployment creation timestamp.
+- Optionally retain observed ReplicaSet identity after API deletion.
 - Use the highest per-Pod CPU P95 and memory P99 so one busy replica is not hidden
   by an average.
 - Report sample count and observation coverage.

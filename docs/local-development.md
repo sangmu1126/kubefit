@@ -54,6 +54,7 @@ kubefit analyze \
   --namespace kubefit-demo \
   --deployment overprovisioned-api \
   --prometheus-url http://localhost:9090 \
+  --identity-store .kubefit/identities.json \
   --days 1
 ```
 

@@ -12,4 +12,4 @@ coverage/
 # Generated benchmark and local cluster data
 benchmarks/results/
 .kube/
-
+.kubefit/

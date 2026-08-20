@@ -28,6 +28,12 @@ recreation from inheriting older evidence and keeps new workloads non-actionable
 kube-state-metrics ownership retention remains an explicit prerequisite. ReplicaSets
 already removed from the Kubernetes API require a future persistent UID mapping.
 
+An optional local identity snapshot provides that mapping for ReplicaSets KubeFit
+has already observed. Records merge only while the Deployment UID remains identical;
+a new UID replaces same-name history. Writes are atomic, and malformed or unsupported
+snapshot schemas fail closed. This single-process adapter is not a shared audit store
+or a replacement for a future controller-backed identity source.
+
 ## Recommendation policy v0
 
 - CPU request: observed P95 plus 25% margin, rounded up to 10 millicores
