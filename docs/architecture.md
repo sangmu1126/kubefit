@@ -112,6 +112,20 @@ before an artifact is returned.
 
 The generator is pure: it does not write the repository or touch the cluster.
 
+## Analysis identity boundary
+
+CLI analysis output binds the evaluation to namespace, Deployment, container,
+Deployment UID, and creation timestamp. Proposal creation derives its target from
+this artifact rather than accepting retyped identity, and includes `analysis.json`
+in the content digest. Before benchmark mutation, the live Deployment UID and
+creation timestamp must still match. This extends stale resource checks across
+same-name workload recreation.
+
+Manifest sources are loaded only from an explicit repository root. Traversal,
+outside files, duplicates, directories, invalid UTF-8, and symlinked roots or path
+components fail before patch generation. Stored source paths are stable POSIX paths
+relative to that root.
+
 ## Immutable proposal artifacts
 
 The artifact writer turns a pure patch into stable input for benchmark and Git

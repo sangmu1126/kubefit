@@ -95,7 +95,10 @@ Entry [0015](devlog/0015-immutable-benchmark-result.md) completes durable raw
 evidence and atomic result publication. Entry
 [0016](devlog/0016-locked-benchmark-cli.md) completes the Deployment-scoped execution
 lock and local CLI composition. Target-document isolation, CLI proposal creation,
-and a real disposable-cluster run remain open.
+and a real disposable-cluster run remain open. Entry
+[0017](devlog/0017-proposal-cli.md) completes the analysis-bound proposal command and
+live Deployment identity preflight. Target-document isolation and a real eligible
+disposable-cluster run remain open.
 
 **Goal:** validate savings without concealing performance regressions.
 

@@ -133,6 +133,12 @@ the lock through restoration and result publication, then prints a compact JSON
 handoff. Port-forwards and an existing immutable proposal are currently required;
 see [`docs/local-development.md`](docs/local-development.md).
 
+`kubefit analyze` emits a typed artifact binding evaluation evidence to Deployment
+UID and creation time. `kubefit propose` consumes that identity directly with
+repository-bounded YAML sources and publishes an immutable proposal; it does not
+allow the target to be retyped. Benchmark preflight rejects a recreated Deployment
+before any apply.
+
 The example prices are illustrative, not a cloud-provider price claim. Live
 analysis requires the caller to provide CPU and memory rates plus a source label.
 The output repeats those assumptions and separates current/recommended CPU and

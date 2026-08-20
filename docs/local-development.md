@@ -51,6 +51,7 @@ After Prometheus has collected several samples, run in another terminal:
 
 ```bash
 kubefit analyze \
+  --context kind-kubefit \
   --namespace kubefit-demo \
   --deployment overprovisioned-api \
   --prometheus-url http://localhost:9090 \
@@ -58,7 +59,8 @@ kubefit analyze \
   --days 1 \
   --cpu-core-hour-usd 0.04 \
   --memory-gib-hour-usd 0.005 \
-  --price-source example://local-model
+  --price-source example://local-model \
+  > .kubefit/analysis.json
 ```
 
 These rates are deliberately labeled example inputs. Replace them and the source
@@ -70,7 +72,7 @@ correctly report low observation coverage and `unknown` risk until enough sample
 have accumulated. A mathematical cost projection is still shown for inspection,
 but it does not make an insufficient recommendation actionable.
 
-The output also includes CPU throttling P95 and its independent coverage, plus
+The analysis artifact also includes CPU throttling P95 and its independent coverage, plus
 restart and OOMKilled counts from the current target-container statuses. A quiet new
 cluster still reports `unknown` rather than `low` until both usage and throttling
 windows satisfy the readiness gates.
@@ -79,8 +81,16 @@ windows satisfy the readiness gates.
 
 The benchmark command is intentionally restricted to an explicit kind context and
 requires acknowledgement because it temporarily applies before and after manifests.
-It expects an existing immutable proposal plus separate Service and Prometheus
-port-forwards:
+Create an immutable proposal from an eligible analysis without retyping its target:
+
+```bash
+kubefit propose \
+  --analysis .kubefit/analysis.json \
+  --repository-root . \
+  --manifest deploy/demo/overprovisioned-api.yaml
+```
+
+Then keep separate Service and Prometheus port-forwards running:
 
 ```bash
 kubectl --context kind-kubefit port-forward \
@@ -97,10 +107,10 @@ kubefit benchmark \
   --confirm-disposable-cluster
 ```
 
-The command locks the target Deployment, revalidates the proposal, restores the
-before manifest on every exit path, and publishes a separate immutable result under
-`benchmarks/results/`. Proposal creation is not yet exposed as a CLI command, and
-this sequence has not yet been claimed as a completed live benchmark.
+The command locks the target Deployment, revalidates its analysis identity, restores
+the before manifest on every exit path, and publishes a separate immutable result
+under `benchmarks/results/`. This sequence has not yet been claimed as a completed
+live benchmark.
 
 ## Remove the environment
 
