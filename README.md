@@ -67,9 +67,10 @@ kubefit analyze --namespace kubefit-demo --deployment overprovisioned-api \
 
 The CLI invokes `kubectl` using the current context, reads only Deployment and
 Pod metadata, queries Prometheus, and prints a recommendation with its evidence.
-Prometheus must scrape cAdvisor metrics plus the `kube_pod_owner` and
-`kube_replicaset_owner` series from kube-state-metrics so rollout history can be
-associated without relying on Pod-name prefixes.
+Prometheus must scrape cAdvisor metrics plus `kube_pod_owner` from
+kube-state-metrics. KubeFit filters ReplicaSets through their Kubernetes controller
+owner UID and clips history to the current Deployment creation time, avoiding
+Pod-name prefixes and same-name workload history.
 
 Example request:
 

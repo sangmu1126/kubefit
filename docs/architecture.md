@@ -17,15 +17,16 @@ policy.
 
 ## Historical workload identity
 
-Container usage is joined with `kube_pod_owner` and `kube_replicaset_owner` at each
-Prometheus range-query timestamp. This associates old and current ReplicaSets with
-the exact Deployment name while preserving a separate series per Pod. It avoids the
-false matches possible with Deployment-name prefixes and does not require deleted
-Pods to remain in the live Kubernetes API.
+The collector reads the current Deployment UID and retains only live ReplicaSets
+whose controller owner UID matches it. Container usage is then joined with
+`kube_pod_owner` for that exact ReplicaSet allowlist at each Prometheus range-query
+timestamp, preserving a separate series per Pod.
 
-kube-state-metrics ownership retention is therefore an explicit metric prerequisite.
-A same-name Deployment deletion and recreation cannot yet be distinguished without
-additional UID evidence.
+The query begins no earlier than the current Deployment creation time, while
+coverage remains relative to the full requested window. This prevents a same-name
+recreation from inheriting older evidence and keeps new workloads non-actionable.
+kube-state-metrics ownership retention remains an explicit prerequisite. ReplicaSets
+already removed from the Kubernetes API require a future persistent UID mapping.
 
 ## Recommendation policy v0
 

@@ -27,7 +27,8 @@ the time they are observed.
 
 - Read a Deployment, its target container, replicas, resources, and matching Pods.
 - Query CPU and memory as per-Pod time series rather than a Deployment-wide sum.
-- Associate historical ReplicaSet Pods through kube-state-metrics ownership series.
+- Authorize ReplicaSets through the current Deployment owner UID.
+- Clip same-name history at the current Deployment creation timestamp.
 - Use the highest per-Pod CPU P95 and memory P99 so one busy replica is not hidden
   by an average.
 - Report sample count and observation coverage.
