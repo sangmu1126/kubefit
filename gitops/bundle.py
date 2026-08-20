@@ -11,7 +11,13 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from evaluator import AnalysisArtifact, EvaluationResult, compare_request_costs
-from gitops.manifest import ManifestPatch, ManifestPatchReport, ManifestTarget
+from gitops.manifest import (
+    ManifestPatch,
+    ManifestPatchError,
+    ManifestPatchReport,
+    ManifestTarget,
+    extract_target_document,
+)
 from recommender import CurrentResources
 from recommender.models import ResourceValues
 
@@ -41,6 +47,8 @@ class LoadedProposalBundle(BaseModel):
     path: Path
     source_path: str
     target: ManifestTarget
+    before_source_manifest: Path
+    after_source_manifest: Path
     before_manifest: Path
     after_manifest: Path
     before_request_cost_usd: Decimal = Field(gt=0)
@@ -74,9 +82,9 @@ def write_proposal_bundle(
             raise ProposalBundleError("analysis evaluation conflicts with proposal evaluation")
         if analysis.target.model_dump() != patch.report.target.model_dump():
             raise ProposalBundleError("analysis target conflicts with proposal target")
+    payloads = _payloads(patch, evaluation, source_path, analysis)
     _validate_output_root(output_root)
     output_root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    payloads = _payloads(patch, evaluation, source_path, analysis)
     content_digest = _content_digest(payloads)
     artifact_id = f"proposal-{content_digest[:32]}"
     index = {
@@ -155,6 +163,8 @@ def load_proposal_bundle(path: Path) -> LoadedProposalBundle:
         "patch.diff",
         "patch-report.json",
         "benchmark-context.json",
+        "benchmark/manifests/before.yaml",
+        "benchmark/manifests/after.yaml",
         f"manifests/before/{source_path.as_posix()}",
         f"manifests/after/{source_path.as_posix()}",
     }
@@ -216,13 +226,37 @@ def load_proposal_bundle(path: Path) -> LoadedProposalBundle:
         if analysis.target.model_dump() != context.target.model_dump():
             raise ProposalBundleError("proposal analysis conflicts with its target")
 
+    before_source_path = f"manifests/before/{source_path.as_posix()}"
+    after_source_path = f"manifests/after/{source_path.as_posix()}"
+    try:
+        before_source = payloads[before_source_path].decode("utf-8")
+        after_source = payloads[after_source_path].decode("utf-8")
+        expected_before = extract_target_document(
+            before_source, report.document_index, report.target
+        ).encode()
+        expected_after = extract_target_document(
+            after_source, report.document_index, report.target
+        ).encode()
+    except (UnicodeDecodeError, ManifestPatchError) as exc:
+        raise ProposalBundleError("proposal source manifest is invalid") from exc
+    if payloads["benchmark/manifests/before.yaml"] != expected_before:
+        raise ProposalBundleError(
+            "proposal before benchmark manifest conflicts with its source"
+        )
+    if payloads["benchmark/manifests/after.yaml"] != expected_after:
+        raise ProposalBundleError(
+            "proposal after benchmark manifest conflicts with its source"
+        )
+
     return LoadedProposalBundle(
         artifact_id=index.artifact_id,
         path=path,
         source_path=source_path.as_posix(),
         target=context.target,
-        before_manifest=path / "manifests" / "before" / source_path,
-        after_manifest=path / "manifests" / "after" / source_path,
+        before_source_manifest=path / "manifests" / "before" / source_path,
+        after_source_manifest=path / "manifests" / "after" / source_path,
+        before_manifest=path / "benchmark" / "manifests" / "before.yaml",
+        after_manifest=path / "benchmark" / "manifests" / "after.yaml",
         before_request_cost_usd=evaluation.cost.current.total_usd,
         after_request_cost_usd=evaluation.cost.recommended.total_usd,
         workload_uid=analysis.workload_uid if analysis is not None else None,
@@ -236,6 +270,19 @@ def _payloads(
     source_path: PurePosixPath,
     analysis: AnalysisArtifact | None,
 ) -> dict[str, bytes]:
+    try:
+        before_manifest = extract_target_document(
+            patch.original_content,
+            patch.report.document_index,
+            patch.report.target,
+        ).encode()
+        after_manifest = extract_target_document(
+            patch.patched_content,
+            patch.report.document_index,
+            patch.report.target,
+        ).encode()
+    except ManifestPatchError as exc:
+        raise ProposalBundleError("cannot isolate proposal target document") from exc
     context = BenchmarkContext(
         target=patch.report.target.model_dump(),
         before_resources=evaluation.current,
@@ -263,6 +310,8 @@ def _payloads(
         "patch.diff": patch.unified_diff.encode(),
         "patch-report.json": _canonical_json(patch.report.model_dump(mode="json")),
         "benchmark-context.json": _canonical_json(context.model_dump(mode="json")),
+        "benchmark/manifests/before.yaml": before_manifest,
+        "benchmark/manifests/after.yaml": after_manifest,
         f"manifests/before/{relative}": patch.original_content.encode(),
         f"manifests/after/{relative}": patch.patched_content.encode(),
     }

@@ -2,12 +2,14 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
+import yaml
 
 from evaluator import CostAssumptions, EvaluationResult, evaluate_resources
 from gitops import (
     ManifestPatchError,
     ManifestSource,
     ManifestTarget,
+    extract_target_document,
     generate_resource_patch,
 )
 from recommender import CurrentResources, ObservedUsage
@@ -79,6 +81,42 @@ def test_generates_golden_minimal_patch_without_reformatting() -> None:
         "limits.memory",
     ]
     assert result.report.recommendation_evidence
+
+
+def test_extracts_only_selected_deployment_from_multi_document_source() -> None:
+    original = (FIXTURES / "input.yaml").read_text()
+
+    isolated = extract_target_document(original, 2, target())
+
+    documents = list(yaml.safe_load_all(isolated))
+    assert len(documents) == 1
+    assert documents[0]["apiVersion"] == "apps/v1"
+    assert documents[0]["kind"] == "Deployment"
+    assert documents[0]["metadata"]["name"] == "demo"
+    assert "kind: Service" not in isolated
+
+
+def test_extract_target_document_excludes_following_resource() -> None:
+    original = (FIXTURES / "input.yaml").read_text() + """---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: unrelated
+  namespace: demo
+"""
+
+    isolated = extract_target_document(original, 2, target())
+
+    assert "kind: ConfigMap" not in isolated
+    assert len(list(yaml.safe_load_all(isolated))) == 1
+
+
+@pytest.mark.parametrize("document_index", [0, 3])
+def test_rejects_invalid_target_document_index(document_index: int) -> None:
+    original = (FIXTURES / "input.yaml").read_text()
+
+    with pytest.raises(ManifestPatchError, match="document"):
+        extract_target_document(original, document_index, target())
 
 
 def test_carries_eligibility_warning_into_patch_report() -> None:

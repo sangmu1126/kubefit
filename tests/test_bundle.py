@@ -42,6 +42,12 @@ def test_publishes_complete_hashed_proposal_bundle(tmp_path: Path) -> None:
         patch.original_content
     )
     assert (result.path / "manifests/after/deploy/demo.yaml").read_text() == (patch.patched_content)
+    before_executable = result.path / "benchmark/manifests/before.yaml"
+    after_executable = result.path / "benchmark/manifests/after.yaml"
+    assert "kind: Service" not in before_executable.read_text()
+    assert "kind: Service" not in after_executable.read_text()
+    assert "kind: Deployment" in before_executable.read_text()
+    assert "kind: Deployment" in after_executable.read_text()
     index = json.loads((result.path / "artifact.json").read_text())
     assert index["artifact_id"] == result.artifact_id
     assert set(index["files"]) == set(result.files) - {"artifact.json"}
@@ -67,8 +73,12 @@ def test_loads_and_revalidates_published_bundle(tmp_path: Path) -> None:
     assert loaded.artifact_id == published.artifact_id
     assert loaded.source_path == "deploy/demo.yaml"
     assert loaded.target == patch.report.target
-    assert loaded.before_manifest.read_text() == patch.original_content
-    assert loaded.after_manifest.read_text() == patch.patched_content
+    assert loaded.before_source_manifest.read_text() == patch.original_content
+    assert loaded.after_source_manifest.read_text() == patch.patched_content
+    assert loaded.before_manifest == published.path / "benchmark/manifests/before.yaml"
+    assert loaded.after_manifest == published.path / "benchmark/manifests/after.yaml"
+    assert "kind: Service" not in loaded.before_manifest.read_text()
+    assert "kind: Service" not in loaded.after_manifest.read_text()
     assert loaded.before_request_cost_usd == evaluation.cost.current.total_usd
     assert loaded.after_request_cost_usd == evaluation.cost.recommended.total_usd
 
@@ -189,3 +199,33 @@ def test_revalidates_mutated_report_path(tmp_path: Path) -> None:
 
     with pytest.raises(ProposalBundleError, match="repository-relative"):
         write_proposal_bundle(tmp_path / "proposals", patch, evaluation)
+
+
+def test_rejects_rehashed_benchmark_manifest_that_conflicts_with_source(
+    tmp_path: Path,
+) -> None:
+    _, evaluation, patch = proposal_inputs()
+    published = write_proposal_bundle(tmp_path / "proposals", patch, evaluation)
+    executable = published.path / "benchmark/manifests/before.yaml"
+    executable.write_text(executable.read_text().replace('cpu: "1000m"', 'cpu: "999m"'))
+
+    artifact_path = published.path / "artifact.json"
+    index = json.loads(artifact_path.read_text())
+    payloads = {
+        relative_path: (published.path / relative_path).read_bytes()
+        for relative_path in index["files"]
+    }
+    for relative_path, content in payloads.items():
+        index["files"][relative_path] = {
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "size_bytes": len(content),
+        }
+    digest = bundle_module._content_digest(payloads)
+    index["content_digest_sha256"] = digest
+    index["artifact_id"] = f"proposal-{digest[:32]}"
+    artifact_path.write_bytes(bundle_module._canonical_json(index))
+    renamed = published.path.with_name(index["artifact_id"])
+    published.path.rename(renamed)
+
+    with pytest.raises(ProposalBundleError, match="conflicts with its source"):
+        load_proposal_bundle(renamed)

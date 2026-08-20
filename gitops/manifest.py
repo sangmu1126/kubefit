@@ -72,6 +72,45 @@ class _Candidate:
     document: MappingNode
 
 
+def extract_target_document(
+    content: str,
+    document_index: int,
+    target: ManifestTarget,
+) -> str:
+    """Return one standalone target Deployment document without reserializing it."""
+    if document_index < 1:
+        raise ManifestPatchError("manifest document index must be at least 1")
+    source = ManifestSource(path="benchmark-target.yaml", content=content)
+    try:
+        documents = list(yaml.compose_all(content))
+    except yaml.YAMLError as exc:
+        raise ManifestPatchError(f"invalid YAML in {source.path}: {exc}") from exc
+    if document_index > len(documents):
+        raise ManifestPatchError(
+            f"manifest document {document_index} does not exist in {source.path}"
+        )
+    document = documents[document_index - 1]
+    if not isinstance(document, MappingNode):
+        raise ManifestPatchError(
+            f"manifest document {document_index} must be an object"
+        )
+
+    isolated = content[document.start_mark.index : document.end_mark.index]
+    if not isolated.endswith("\n"):
+        isolated += "\n"
+
+    candidates = _find_deployments(
+        ManifestSource(path="benchmark-target.yaml", content=isolated), target
+    )
+    if len(candidates) != 1:
+        raise ManifestPatchError(
+            "selected manifest document is not the expected apps/v1 Deployment "
+            f"{target.namespace}/{target.deployment}"
+        )
+    _target_container(candidates[0], target.container)
+    return isolated
+
+
 def generate_resource_patch(
     sources: list[ManifestSource],
     target: ManifestTarget,

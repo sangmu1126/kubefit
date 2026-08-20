@@ -23,6 +23,7 @@ class RecordingController:
         self.events: list[str] = []
         self.failures = failures or set()
         self.apply_counts = {"before": 0, "after": 0}
+        self.applied_manifests: list[Path] = []
         self.current_variant = "unknown"
 
     def verify_identity(self, target, workload_uid, workload_created_at) -> None:
@@ -32,7 +33,8 @@ class RecordingController:
             raise RuntimeError("verify")
 
     def apply(self, manifest: Path, target) -> None:
-        variant = "before" if "before" in manifest.parts else "after"
+        self.applied_manifests.append(manifest)
+        variant = manifest.stem
         self.current_variant = variant
         self.apply_counts[variant] += 1
         event = f"apply:{variant}:{self.apply_counts[variant]}"
@@ -114,6 +116,15 @@ def test_executes_fixed_order_and_restores_before_returning(tmp_path: Path) -> N
         "apply:before:2",
         "wait:before:2",
     ]
+    assert all(
+        manifest.parent.name == "manifests"
+        and manifest.parent.parent.name == "benchmark"
+        for manifest in controller.applied_manifests
+    )
+    assert all(
+        "kind: Service" not in manifest.read_text()
+        for manifest in controller.applied_manifests
+    )
 
 
 @pytest.mark.parametrize(

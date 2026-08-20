@@ -15,6 +15,7 @@ from gitops.manifest import (
     ManifestSource,
     ManifestTarget,
     ResourceChange,
+    extract_target_document,
     generate_resource_patch,
 )
 from gitops.source import ManifestSourceError, load_manifest_sources
@@ -31,6 +32,7 @@ __all__ = [
     "LoadedProposalBundle",
     "ProposalBundle",
     "ProposalBundleError",
+    "extract_target_document",
     "generate_resource_patch",
     "load_proposal_bundle",
     "load_manifest_sources",
