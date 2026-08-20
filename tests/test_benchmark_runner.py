@@ -1,4 +1,6 @@
 import hashlib
+import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -10,6 +12,7 @@ from benchmarks import (
     KubectlManifestController,
     execute_benchmark,
 )
+from evaluator import AnalysisArtifact, AnalysisTarget
 from gitops import ProposalBundleError, write_proposal_bundle
 from tests.test_benchmark import measurement
 from tests.test_bundle import proposal_inputs
@@ -21,6 +24,12 @@ class RecordingController:
         self.failures = failures or set()
         self.apply_counts = {"before": 0, "after": 0}
         self.current_variant = "unknown"
+
+    def verify_identity(self, target, workload_uid, workload_created_at) -> None:
+        self.events.append("verify")
+        if "verify" in self.failures:
+            self.failures.remove("verify")
+            raise RuntimeError("verify")
 
     def apply(self, manifest: Path, target) -> None:
         variant = "before" if "before" in manifest.parts else "after"
@@ -42,7 +51,13 @@ class RecordingController:
 
 def published_proposal(tmp_path: Path):
     _, evaluation, patch = proposal_inputs()
-    return write_proposal_bundle(tmp_path / "proposals", patch, evaluation)
+    analysis = AnalysisArtifact(
+        target=AnalysisTarget(**patch.report.target.model_dump()),
+        workload_uid="deployment-uid",
+        workload_created_at=datetime(2026, 8, 21, tzinfo=UTC),
+        evaluation=evaluation,
+    )
+    return write_proposal_bundle(tmp_path / "proposals", patch, evaluation, analysis=analysis)
 
 
 def collector(events: list[str], *, fail_variant: str | None = None):
@@ -89,6 +104,7 @@ def test_executes_fixed_order_and_restores_before_returning(tmp_path: Path) -> N
     assert result.restored is True
     assert result.before_k6_raw == b"raw:before"
     assert controller.events == [
+        "verify",
         "apply:before:1",
         "wait:before:1",
         "measure:before",
@@ -136,6 +152,17 @@ def test_restores_after_measurement_failure(tmp_path: Path) -> None:
     assert controller.events[-2:] == ["apply:before:2", "wait:before:2"]
 
 
+def test_identity_failure_never_applies_or_restores(tmp_path: Path) -> None:
+    proposal = published_proposal(tmp_path)
+    controller = RecordingController({"verify"})
+
+    with pytest.raises(BenchmarkExecutionError) as raised:
+        execute_benchmark(proposal.path, controller, collector(controller.events))
+
+    assert raised.value.stage == "verify_workload_identity"
+    assert controller.events == ["verify"]
+
+
 def test_reports_restoration_failure_after_successful_measurements(tmp_path: Path) -> None:
     proposal = published_proposal(tmp_path)
     controller = RecordingController({"wait:before:2"})
@@ -181,14 +208,41 @@ def test_kubectl_controller_uses_explicit_context_target_and_timeout(tmp_path: P
     target = proposal_inputs()[2].report.target
     controller = KubectlManifestController(
         context="kind-kubefit",
-        runner=lambda command: commands.append(list(command)) or "",
+        runner=lambda command: (
+            commands.append(list(command))
+            or json.dumps(
+                {
+                    "metadata": {
+                        "uid": "deployment-uid",
+                        "creationTimestamp": "2026-08-21T00:00:00Z",
+                    }
+                }
+            )
+        ),
         rollout_timeout_seconds=90,
     )
 
+    controller.verify_identity(
+        target,
+        "deployment-uid",
+        datetime(2026, 8, 21, tzinfo=UTC),
+    )
     controller.apply(manifest, target)
     controller.wait_for_rollout(target)
 
     assert commands == [
+        [
+            "kubectl",
+            "--context",
+            "kind-kubefit",
+            "get",
+            "deployment",
+            "demo",
+            "--namespace",
+            "demo",
+            "--output",
+            "json",
+        ],
         [
             "kubectl",
             "--context",
@@ -216,3 +270,24 @@ def test_kubectl_controller_uses_explicit_context_target_and_timeout(tmp_path: P
 def test_kubectl_controller_requires_explicit_context() -> None:
     with pytest.raises(ValueError, match="context must be explicit"):
         KubectlManifestController(context="")
+
+
+def test_kubectl_controller_rejects_recreated_deployment_identity() -> None:
+    controller = KubectlManifestController(
+        context="kind-kubefit",
+        runner=lambda command: json.dumps(
+            {
+                "metadata": {
+                    "uid": "different-uid",
+                    "creationTimestamp": "2026-08-21T00:00:00Z",
+                }
+            }
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="identity changed"):
+        controller.verify_identity(
+            proposal_inputs()[2].report.target,
+            "deployment-uid",
+            datetime(2026, 8, 21, tzinfo=UTC),
+        )

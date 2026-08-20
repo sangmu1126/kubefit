@@ -13,8 +13,14 @@ from benchmarks import (
     write_benchmark_result,
 )
 from collector import IdentitySnapshotStore, KubectlDeploymentCollector, PrometheusClient
-from evaluator import CostAssumptions, evaluate_resources
-from gitops import load_proposal_bundle
+from evaluator import AnalysisArtifact, AnalysisTarget, CostAssumptions, evaluate_resources
+from gitops import (
+    ManifestTarget,
+    generate_resource_patch,
+    load_manifest_sources,
+    load_proposal_bundle,
+    write_proposal_bundle,
+)
 from recommender import ObservedUsage
 
 
@@ -44,6 +50,13 @@ def build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("--memory-gib-hour-usd", required=True, type=_positive_decimal)
     analyze.add_argument("--monthly-hours", type=_positive_decimal, default=Decimal("730"))
     analyze.add_argument("--price-source", required=True)
+    propose = subcommands.add_parser(
+        "propose", help="create an immutable proposal from an analysis and YAML"
+    )
+    propose.add_argument("--analysis", required=True, type=Path)
+    propose.add_argument("--repository-root", type=Path, default=Path("."))
+    propose.add_argument("--manifest", required=True, nargs="+", type=Path)
+    propose.add_argument("--output-dir", type=Path, default=Path(".kubefit/proposals"))
     benchmark = subcommands.add_parser(
         "benchmark", help="benchmark a proposal on a disposable kind cluster"
     )
@@ -73,6 +86,9 @@ def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
     if args.command == "benchmark":
         _run_benchmark(args)
+        return
+    if args.command == "propose":
+        _run_propose(args)
         return
     _run_analyze(args)
 
@@ -127,7 +143,7 @@ def _run_analyze(args: argparse.Namespace) -> None:
         restart_count=workload.restart_count,
         oom_killed_count=workload.oom_killed_count,
     )
-    result = evaluate_resources(
+    evaluation = evaluate_resources(
         workload.resources,
         observed,
         CostAssumptions(
@@ -137,6 +153,16 @@ def _run_analyze(args: argparse.Namespace) -> None:
             price_source=args.price_source,
         ),
         workload.desired_replicas,
+    )
+    result = AnalysisArtifact(
+        target=AnalysisTarget(
+            namespace=workload.namespace,
+            deployment=workload.name,
+            container=workload.container,
+        ),
+        workload_uid=workload.uid,
+        workload_created_at=workload.created_at,
+        evaluation=evaluation,
     )
     print(result.model_dump_json(indent=2))
 
@@ -176,6 +202,42 @@ def _run_benchmark(args: argparse.Namespace) -> None:
                 "verdict": run.verdict.status,
                 "restored": run.restored,
                 "reused": artifact.reused,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+def _run_propose(args: argparse.Namespace) -> None:
+    if args.analysis.is_symlink() or not args.analysis.is_file():
+        raise SystemExit("analysis must be a regular, non-symlinked JSON file")
+    try:
+        analysis = AnalysisArtifact.model_validate_json(args.analysis.read_bytes())
+    except (OSError, ValueError) as exc:
+        raise SystemExit(f"analysis JSON is invalid: {exc}") from exc
+    sources = load_manifest_sources(args.repository_root, args.manifest)
+    target = ManifestTarget(
+        namespace=analysis.target.namespace,
+        deployment=analysis.target.deployment,
+        container=analysis.target.container,
+    )
+    patch = generate_resource_patch(sources, target, analysis.evaluation)
+    proposal = write_proposal_bundle(
+        args.output_dir,
+        patch,
+        analysis.evaluation,
+        analysis=analysis,
+    )
+    print(
+        json.dumps(
+            {
+                "artifact_id": proposal.artifact_id,
+                "path": str(proposal.path),
+                "reused": proposal.reused,
+                "target": target.model_dump(),
+                "change_count": len(patch.report.changes),
+                "warnings": patch.report.eligibility_warnings,
             },
             indent=2,
             sort_keys=True,

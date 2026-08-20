@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
@@ -7,7 +8,19 @@ import pytest
 
 import api.cli as cli_module
 from api.cli import build_parser
+from evaluator import AnalysisArtifact, AnalysisTarget
+from gitops import ManifestPatchError
 from tests.test_benchmark_artifact import completed_run
+from tests.test_manifest import FIXTURES, eligible_evaluation
+
+
+def eligible_analysis() -> AnalysisArtifact:
+    return AnalysisArtifact(
+        target=AnalysisTarget(namespace="demo", deployment="demo", container="api"),
+        workload_uid="deployment-uid",
+        workload_created_at=datetime(2026, 8, 21, tzinfo=UTC),
+        evaluation=eligible_evaluation(),
+    )
 
 
 def test_analyze_requires_and_parses_explicit_prices() -> None:
@@ -193,3 +206,90 @@ def test_benchmark_command_rejects_non_kind_context_before_loading_proposal(
                 "--confirm-disposable-cluster",
             ]
         )
+
+
+def test_propose_creates_and_reuses_immutable_bundle(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    analysis_path = tmp_path / "analysis.json"
+    analysis_path.write_text(eligible_analysis().model_dump_json(indent=2))
+    original = (FIXTURES / "input.yaml").read_bytes()
+    arguments = [
+        "propose",
+        "--analysis",
+        str(analysis_path),
+        "--repository-root",
+        str(FIXTURES),
+        "--manifest",
+        "input.yaml",
+        "--output-dir",
+        str(tmp_path / "proposals"),
+    ]
+
+    cli_module.main(arguments)
+    first = json.loads(capsys.readouterr().out)
+    cli_module.main(arguments)
+    second = json.loads(capsys.readouterr().out)
+
+    assert first["artifact_id"].startswith("proposal-")
+    assert first["change_count"] == 4
+    assert first["target"] == {
+        "namespace": "demo",
+        "deployment": "demo",
+        "container": "api",
+    }
+    assert first["reused"] is False
+    assert second["artifact_id"] == first["artifact_id"]
+    assert second["reused"] is True
+    assert (FIXTURES / "input.yaml").read_bytes() == original
+
+
+def test_propose_rejects_invalid_analysis_before_source_loading(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    analysis = tmp_path / "analysis.json"
+    analysis.write_text("not-json")
+    monkeypatch.setattr(
+        cli_module,
+        "load_manifest_sources",
+        lambda root, paths: pytest.fail("manifest must not be loaded"),
+    )
+
+    with pytest.raises(SystemExit, match="analysis JSON is invalid"):
+        cli_module.main(
+            [
+                "propose",
+                "--analysis",
+                str(analysis),
+                "--manifest",
+                "demo.yaml",
+            ]
+        )
+
+
+def test_propose_rejects_blocked_evaluation_without_output(tmp_path: Path) -> None:
+    analysis = eligible_analysis()
+    analysis.evaluation.patch_eligibility.status = "blocked"
+    analysis.evaluation.patch_eligibility.blocking_reasons = ["test block"]
+    analysis_path = tmp_path / "analysis.json"
+    analysis_path.write_text(analysis.model_dump_json())
+    output = tmp_path / "proposals"
+
+    with pytest.raises(ManifestPatchError, match="test block"):
+        cli_module.main(
+            [
+                "propose",
+                "--analysis",
+                str(analysis_path),
+                "--repository-root",
+                str(FIXTURES),
+                "--manifest",
+                "input.yaml",
+                "--output-dir",
+                str(output),
+            ]
+        )
+
+    assert not output.exists()

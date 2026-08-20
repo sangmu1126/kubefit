@@ -3,13 +3,14 @@ import json
 import os
 import shutil
 import tempfile
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from evaluator import EvaluationResult, compare_request_costs
+from evaluator import AnalysisArtifact, EvaluationResult, compare_request_costs
 from gitops.manifest import ManifestPatch, ManifestPatchReport, ManifestTarget
 from recommender import CurrentResources
 from recommender.models import ResourceValues
@@ -44,6 +45,8 @@ class LoadedProposalBundle(BaseModel):
     after_manifest: Path
     before_request_cost_usd: Decimal = Field(gt=0)
     after_request_cost_usd: Decimal = Field(gt=0)
+    workload_uid: str | None = None
+    workload_created_at: datetime | None = None
 
 
 class _FileMetadata(BaseModel):
@@ -63,11 +66,17 @@ def write_proposal_bundle(
     output_root: Path,
     patch: ManifestPatch,
     evaluation: EvaluationResult,
+    analysis: AnalysisArtifact | None = None,
 ) -> ProposalBundle:
+    source_path = _safe_relative_path(patch.report.source_path)
+    if analysis is not None:
+        if analysis.evaluation != evaluation:
+            raise ProposalBundleError("analysis evaluation conflicts with proposal evaluation")
+        if analysis.target.model_dump() != patch.report.target.model_dump():
+            raise ProposalBundleError("analysis target conflicts with proposal target")
     _validate_output_root(output_root)
     output_root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    source_path = _safe_relative_path(patch.report.source_path)
-    payloads = _payloads(patch, evaluation, source_path)
+    payloads = _payloads(patch, evaluation, source_path, analysis)
     content_digest = _content_digest(payloads)
     artifact_id = f"proposal-{content_digest[:32]}"
     index = {
@@ -98,9 +107,7 @@ def write_proposal_bundle(
                 files=sorted(payloads),
             )
 
-        staging = Path(
-            tempfile.mkdtemp(prefix=f".{artifact_id}-", dir=output_root)
-        )
+        staging = Path(tempfile.mkdtemp(prefix=f".{artifact_id}-", dir=output_root))
         staging.chmod(0o700)
         for relative_path, content in sorted(payloads.items()):
             _write_file(staging, relative_path, content)
@@ -151,6 +158,8 @@ def load_proposal_bundle(path: Path) -> LoadedProposalBundle:
         f"manifests/before/{source_path.as_posix()}",
         f"manifests/after/{source_path.as_posix()}",
     }
+    if "analysis.json" in index.files:
+        expected_payload_paths.add("analysis.json")
     if set(index.files) != expected_payload_paths:
         raise ProposalBundleError("proposal index does not contain the expected payload set")
 
@@ -196,6 +205,16 @@ def load_proposal_bundle(path: Path) -> LoadedProposalBundle:
     )
     if evaluation.cost != expected_cost:
         raise ProposalBundleError("proposal request cost conflicts with its resources")
+    analysis: AnalysisArtifact | None = None
+    if "analysis.json" in payloads:
+        try:
+            analysis = AnalysisArtifact.model_validate_json(payloads["analysis.json"])
+        except ValueError as exc:
+            raise ProposalBundleError("proposal analysis identity is invalid") from exc
+        if analysis.evaluation != evaluation:
+            raise ProposalBundleError("proposal analysis conflicts with its evaluation")
+        if analysis.target.model_dump() != context.target.model_dump():
+            raise ProposalBundleError("proposal analysis conflicts with its target")
 
     return LoadedProposalBundle(
         artifact_id=index.artifact_id,
@@ -206,6 +225,8 @@ def load_proposal_bundle(path: Path) -> LoadedProposalBundle:
         after_manifest=path / "manifests" / "after" / source_path,
         before_request_cost_usd=evaluation.cost.current.total_usd,
         after_request_cost_usd=evaluation.cost.recommended.total_usd,
+        workload_uid=analysis.workload_uid if analysis is not None else None,
+        workload_created_at=(analysis.workload_created_at if analysis is not None else None),
     )
 
 
@@ -213,6 +234,7 @@ def _payloads(
     patch: ManifestPatch,
     evaluation: EvaluationResult,
     source_path: PurePosixPath,
+    analysis: AnalysisArtifact | None,
 ) -> dict[str, bytes]:
     context = BenchmarkContext(
         target=patch.report.target.model_dump(),
@@ -236,7 +258,7 @@ def _payloads(
         eligibility_warnings=evaluation.patch_eligibility.warnings,
     )
     relative = source_path.as_posix()
-    return {
+    payloads = {
         "evaluation.json": _canonical_json(evaluation.model_dump(mode="json")),
         "patch.diff": patch.unified_diff.encode(),
         "patch-report.json": _canonical_json(patch.report.model_dump(mode="json")),
@@ -244,6 +266,9 @@ def _payloads(
         f"manifests/before/{relative}": patch.original_content.encode(),
         f"manifests/after/{relative}": patch.patched_content.encode(),
     }
+    if analysis is not None:
+        payloads["analysis.json"] = _canonical_json(analysis.model_dump(mode="json"))
+    return payloads
 
 
 def _canonical_json(value: object) -> bytes:
@@ -286,9 +311,7 @@ def _acquire_lock(lock_path: Path) -> int:
     try:
         return os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     except FileExistsError as exc:
-        raise ProposalBundleError(
-            f"another proposal publication holds {lock_path.name}"
-        ) from exc
+        raise ProposalBundleError(f"another proposal publication holds {lock_path.name}") from exc
 
 
 def _write_file(root: Path, relative_path: str, content: bytes) -> None:
@@ -330,6 +353,4 @@ def _validate_existing_bundle(path: Path, expected: dict[str, bytes]) -> None:
         raise ProposalBundleError("existing proposal file set does not match expected content")
     for relative_path, content in expected.items():
         if (path / relative_path).read_bytes() != content:
-            raise ProposalBundleError(
-                f"existing proposal file was modified: {relative_path}"
-            )
+            raise ProposalBundleError(f"existing proposal file was modified: {relative_path}")

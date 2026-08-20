@@ -1,11 +1,13 @@
 import hashlib
 import json
 import stat
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
 import gitops.bundle as bundle_module
+from evaluator import AnalysisArtifact, AnalysisTarget
 from gitops import (
     ManifestSource,
     ProposalBundleError,
@@ -39,9 +41,7 @@ def test_publishes_complete_hashed_proposal_bundle(tmp_path: Path) -> None:
     assert (result.path / "manifests/before/deploy/demo.yaml").read_text() == (
         patch.original_content
     )
-    assert (result.path / "manifests/after/deploy/demo.yaml").read_text() == (
-        patch.patched_content
-    )
+    assert (result.path / "manifests/after/deploy/demo.yaml").read_text() == (patch.patched_content)
     index = json.loads((result.path / "artifact.json").read_text())
     assert index["artifact_id"] == result.artifact_id
     assert set(index["files"]) == set(result.files) - {"artifact.json"}
@@ -71,6 +71,39 @@ def test_loads_and_revalidates_published_bundle(tmp_path: Path) -> None:
     assert loaded.after_manifest.read_text() == patch.patched_content
     assert loaded.before_request_cost_usd == evaluation.cost.current.total_usd
     assert loaded.after_request_cost_usd == evaluation.cost.recommended.total_usd
+
+
+def test_persists_and_loads_analysis_workload_identity(tmp_path: Path) -> None:
+    _, evaluation, patch = proposal_inputs()
+    analysis = AnalysisArtifact(
+        target=AnalysisTarget(**patch.report.target.model_dump()),
+        workload_uid="deployment-uid",
+        workload_created_at=datetime(2026, 8, 21, tzinfo=UTC),
+        evaluation=evaluation,
+    )
+
+    published = write_proposal_bundle(tmp_path / "proposals", patch, evaluation, analysis=analysis)
+    loaded = load_proposal_bundle(published.path)
+
+    assert "analysis.json" in published.files
+    assert loaded.workload_uid == "deployment-uid"
+    assert loaded.workload_created_at == datetime(2026, 8, 21, tzinfo=UTC)
+
+
+def test_rejects_analysis_target_mismatch_before_creating_output(tmp_path: Path) -> None:
+    _, evaluation, patch = proposal_inputs()
+    analysis = AnalysisArtifact(
+        target=AnalysisTarget(namespace="demo", deployment="other", container="api"),
+        workload_uid="deployment-uid",
+        workload_created_at=datetime(2026, 8, 21, tzinfo=UTC),
+        evaluation=evaluation,
+    )
+    output = tmp_path / "proposals"
+
+    with pytest.raises(ProposalBundleError, match="analysis target conflicts"):
+        write_proposal_bundle(output, patch, evaluation, analysis=analysis)
+
+    assert not output.exists()
 
 
 def test_reuses_byte_identical_bundle_idempotently(tmp_path: Path) -> None:

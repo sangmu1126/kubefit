@@ -1,5 +1,7 @@
+import json
 import subprocess
 from collections.abc import Callable, Sequence
+from datetime import datetime
 from pathlib import Path
 from typing import Literal, Protocol
 
@@ -35,6 +37,13 @@ class BenchmarkExecutionError(RuntimeError):
 
 
 class ManifestController(Protocol):
+    def verify_identity(
+        self,
+        target: ManifestTarget,
+        workload_uid: str,
+        workload_created_at: datetime,
+    ) -> None: ...
+
     def apply(self, manifest: Path, target: ManifestTarget) -> None: ...
 
     def wait_for_rollout(self, target: ManifestTarget) -> None: ...
@@ -104,6 +113,34 @@ class KubectlManifestController:
             )
         )
 
+    def verify_identity(
+        self,
+        target: ManifestTarget,
+        workload_uid: str,
+        workload_created_at: datetime,
+    ) -> None:
+        raw = self._runner(
+            self._command(
+                "get",
+                "deployment",
+                target.deployment,
+                "--namespace",
+                target.namespace,
+                "--output",
+                "json",
+            )
+        )
+        try:
+            metadata = json.loads(raw)["metadata"]
+            current_uid = metadata["uid"]
+            current_created_at = datetime.fromisoformat(
+                metadata["creationTimestamp"].replace("Z", "+00:00")
+            )
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+            raise RuntimeError("Deployment identity response is invalid") from exc
+        if current_uid != workload_uid or current_created_at != workload_created_at:
+            raise RuntimeError("Deployment identity changed after analysis; create a new proposal")
+
     def wait_for_rollout(self, target: ManifestTarget) -> None:
         self._runner(
             self._command(
@@ -129,6 +166,14 @@ def execute_benchmark(
     result: BenchmarkRun | None = None
 
     try:
+        if proposal.workload_uid is None or proposal.workload_created_at is None:
+            raise RuntimeError("proposal does not contain workload identity evidence")
+        primary_stage = "verify_workload_identity"
+        controller.verify_identity(
+            proposal.target,
+            proposal.workload_uid,
+            proposal.workload_created_at,
+        )
         primary_stage = "apply_before"
         restore_required = True
         controller.apply(proposal.before_manifest, proposal.target)

@@ -1,5 +1,6 @@
 """Cost and operational-risk evaluators."""
 
+from evaluator.analysis import AnalysisArtifact, AnalysisTarget
 from evaluator.cost import (
     CostAssumptions,
     CostComparison,
@@ -16,6 +17,8 @@ from evaluator.safety import (
 
 __all__ = [
     "CostAssumptions",
+    "AnalysisArtifact",
+    "AnalysisTarget",
     "CostComparison",
     "EvaluationResult",
     "EligibilityCheck",

@@ -17,12 +17,14 @@ from gitops.manifest import (
     ResourceChange,
     generate_resource_patch,
 )
+from gitops.source import ManifestSourceError, load_manifest_sources
 
 __all__ = [
     "ManifestPatch",
     "ManifestPatchError",
     "ManifestPatchReport",
     "ManifestSource",
+    "ManifestSourceError",
     "ManifestTarget",
     "ResourceChange",
     "BenchmarkContext",
@@ -31,5 +33,6 @@ __all__ = [
     "ProposalBundleError",
     "generate_resource_patch",
     "load_proposal_bundle",
+    "load_manifest_sources",
     "write_proposal_bundle",
 ]
