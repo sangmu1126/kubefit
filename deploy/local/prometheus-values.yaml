@@ -22,6 +22,17 @@ prometheus:
     scrapeInterval: 15s
     evaluationInterval: 30s
     retention: 2d
+    # Leave headroom for the WAL and temporary compaction data inside the 5 GiB PVC.
+    retentionSize: 4GB
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: standard
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi
     resources:
       requests:
         cpu: 100m

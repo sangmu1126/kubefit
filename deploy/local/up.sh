@@ -2,6 +2,7 @@
 set -euo pipefail
 
 cluster_name="${KUBEFIT_CLUSTER_NAME:-kubefit}"
+cluster_context="kind-${cluster_name}"
 chart_version="${KUBEFIT_PROMETHEUS_CHART_VERSION:-88.5.0}"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repository_root="$(cd "${script_dir}/../.." && pwd)"
@@ -24,13 +25,12 @@ if ! kind get clusters | grep -Fxq "${cluster_name}"; then
     --config "${script_dir}/kind-config.yaml"
 fi
 
-kubectl config use-context "kind-${cluster_name}" >/dev/null
-
 helm repo add prometheus-community \
   https://prometheus-community.github.io/helm-charts \
   --force-update
 helm repo update
 helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+  --kube-context "${cluster_context}" \
   --namespace monitoring \
   --create-namespace \
   --version "${chart_version}" \
@@ -38,11 +38,11 @@ helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
   --wait \
   --timeout 10m
 
-kubectl apply -f "${repository_root}/deploy/demo"
-kubectl rollout status deployment/overprovisioned-api \
+kubectl --context "${cluster_context}" apply -f "${repository_root}/deploy/demo"
+kubectl --context "${cluster_context}" rollout status deployment/overprovisioned-api \
   --namespace kubefit-demo \
   --timeout 5m
 
 echo
 echo "KubeFit local cluster is ready."
-echo "Prometheus: kubectl port-forward -n monitoring svc/monitoring-kube-prometheus-prometheus 9090:9090"
+echo "Prometheus: kubectl --context ${cluster_context} port-forward -n monitoring svc/monitoring-kube-prometheus-prometheus 9090:9090"
