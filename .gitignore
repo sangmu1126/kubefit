@@ -8,6 +8,7 @@ node_modules/
 dist/
 coverage/
 *.log
+*.tsbuildinfo
 
 # Generated benchmark and local cluster data
 benchmarks/results/
