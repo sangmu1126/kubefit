@@ -160,7 +160,21 @@ for its Deployment rollout. A successful result is returned only after restorati
 if execution and restoration both fail, both causes remain available to the caller.
 
 The kubectl adapter requires an explicit context and bounded rollout timeout. The
-measurement collector remains injected: it will later own k6 execution and aligned
+measurement collector remains injected and now composes k6 with aligned
 Prometheus/Kubernetes evidence. Until target-document isolation and cross-process
 locking are added, this mutation workflow is restricted to a disposable benchmark
 cluster.
+
+## Aligned measurement evidence
+
+One measurement brackets k6 execution with Pod-level runtime snapshots, then queries
+CPU throttling only from the recorded run interval. Stable Pod identity is required;
+replacement or decreasing counters invalidates collection. A custom raw k6 marker
+anchors five-second recovery windows, while the proposal's validated evaluation
+supplies the matching current or recommended monthly request cost.
+
+The typed provenance stores the run boundaries, Pod set, Prometheus rate window,
+and hashes of the k6 summary and raw stream. Candidate OOM is an absolute failure,
+incomplete candidate recovery is a failure, and incomplete baseline recovery makes
+the comparison invalid. Raw stream bytes are still temporary and must be retained
+by the upcoming immutable result publisher.

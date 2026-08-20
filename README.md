@@ -114,6 +114,13 @@ currently an internal building block for the disposable demo cluster, not a
 production automation interface; measurement collection and isolated result
 publication are still in progress.
 
+The aligned measurement collector brackets the fixed k6 run with Pod-level runtime
+snapshots, queries Prometheus throttling inside that run, derives recovery from raw
+timestamped samples, and selects the proposal-fixed monthly request cost. Its output
+records run timestamps, Pod identity, and raw/summary hashes. Raw evidence remains
+temporary until the result-artifact phase is completed, so the end-to-end benchmark
+is not yet exposed as a supported CLI command.
+
 The example prices are illustrative, not a cloud-provider price claim. Live
 analysis requires the caller to provide CPU and memory rates plus a source label.
 The output repeats those assumptions and separates current/recommended CPU and

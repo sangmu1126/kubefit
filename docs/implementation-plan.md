@@ -89,8 +89,10 @@ contract were completed on 2026-08-21 and are documented in development journal
 entries [0011](devlog/0011-reproducible-proposal-bundle.md),
 [0012](devlog/0012-fixed-load-profile.md), and
 [0013](devlog/0013-restoring-benchmark-runner.md). The restoring execution core is
-also complete. Measurement collection, target-document isolation, cross-process
-exclusivity, and result publication remain open.
+also complete. Entry [0014](devlog/0014-aligned-benchmark-measurement.md) adds the
+time-aligned k6, Prometheus, Kubernetes-delta, and proposal-cost collector.
+Target-document isolation, cross-process exclusivity, durable raw evidence, and
+result publication remain open.
 
 **Goal:** validate savings without concealing performance regressions.
 
