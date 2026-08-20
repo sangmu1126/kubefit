@@ -24,11 +24,13 @@ class ObservedUsage(BaseModel):
     cpu_max_millicores: float | None = Field(default=None, ge=0)
     memory_max_mib: float | None = Field(default=None, ge=0)
     observation_days: int = Field(default=7, ge=1)
+    step_seconds: int | None = Field(default=None, ge=1)
     sample_count: int | None = Field(default=None, ge=0)
     observation_coverage: float | None = Field(default=None, ge=0, le=1)
     desired_replicas: int | None = Field(default=None, ge=1)
     available_replicas: int | None = Field(default=None, ge=0)
     observed_replicas: int | None = Field(default=None, ge=0)
+    metric_pod_count: int | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def maxima_are_not_below_percentiles(self) -> "ObservedUsage":

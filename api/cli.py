@@ -13,6 +13,7 @@ def build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("--container")
     analyze.add_argument("--prometheus-url", default="http://localhost:9090")
     analyze.add_argument("--days", type=int, default=7)
+    analyze.add_argument("--step-seconds", type=int, default=300)
     analyze.add_argument("--context")
     return parser
 
@@ -24,9 +25,11 @@ def main() -> None:
     )
     metrics = PrometheusClient(args.prometheus_url).workload_metrics(
         workload.namespace,
+        workload.name,
         workload.pods,
         workload.container,
         observation_days=args.days,
+        step_seconds=args.step_seconds,
     )
     recommendation = recommend_resources(
         workload.resources,
@@ -36,11 +39,13 @@ def main() -> None:
             cpu_max_millicores=metrics.cpu_max_millicores,
             memory_max_mib=metrics.memory_max_mib,
             observation_days=metrics.observation_days,
+            step_seconds=metrics.step_seconds,
             sample_count=metrics.sample_count,
             observation_coverage=metrics.observation_coverage,
             desired_replicas=workload.desired_replicas,
             available_replicas=workload.available_replicas,
             observed_replicas=len(workload.pods),
+            metric_pod_count=metrics.metric_pod_count,
         ),
     )
     print(recommendation.model_dump_json(indent=2))

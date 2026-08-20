@@ -12,7 +12,9 @@ def test_percentile_interpolates_samples() -> None:
 
 def test_rejects_invalid_observation_window() -> None:
     with pytest.raises(ValueError, match="at least 1"):
-        PrometheusClient("http://prometheus").workload_metrics("demo", ["api"], "api", 0)
+        PrometheusClient("http://prometheus").workload_metrics(
+            "demo", "api", ["api-abc"], "api", 0
+        )
 
 
 def test_collects_workload_percentiles_and_units() -> None:
@@ -29,17 +31,26 @@ def test_collects_workload_percentiles_and_units() -> None:
 
     http = httpx.Client(base_url="http://prometheus", transport=httpx.MockTransport(handler))
     result = PrometheusClient("http://prometheus", client=http).workload_metrics(
-        "demo", ["api-abc", "api-def"], "api", now=datetime(2026, 1, 1, tzinfo=UTC)
+        "demo",
+        "overprovisioned-api",
+        ["api-abc", "api-def"],
+        "api",
+        now=datetime(2026, 1, 1, tzinfo=UTC),
     )
 
     assert result.cpu_p95_millicores == pytest.approx(290)
     assert result.memory_p99_mib == pytest.approx(199)
     assert result.cpu_max_millicores == pytest.approx(300)
     assert result.memory_max_mib == pytest.approx(200)
+    assert result.step_seconds == 300
     assert result.sample_count == 2
+    assert result.metric_pod_count == 1
     assert 0 < result.observation_coverage < 0.01
     assert all('namespace="demo"' in query for query in queries)
-    assert all("api-abc" in query for query in queries)
+    assert all("kube_pod_owner" in query for query in queries)
+    assert all("kube_replicaset_owner" in query for query in queries)
+    assert all('owner_name="overprovisioned-api"' in query for query in queries)
+    assert all('owner_is_controller="true"}}' not in query for query in queries)
     assert all("sum by (pod)" in query for query in queries)
 
 
@@ -66,9 +77,14 @@ def test_uses_the_busiest_pod_percentile_instead_of_summing_replicas() -> None:
 
     http = httpx.Client(base_url="http://prometheus", transport=httpx.MockTransport(handler))
     result = PrometheusClient("http://prometheus", client=http).workload_metrics(
-        "demo", ["api-abc", "api-def"], "api", now=datetime(2026, 1, 1, tzinfo=UTC)
+        "demo",
+        "overprovisioned-api",
+        ["api-new"],
+        "api",
+        now=datetime(2026, 1, 1, tzinfo=UTC),
     )
 
     assert result.cpu_p95_millicores == pytest.approx(590)
     assert result.memory_p99_mib == pytest.approx(499)
     assert result.cpu_p95_millicores < 790  # The two Pods were not summed together.
+    assert result.metric_pod_count == 2  # Includes a previous rollout Pod series.

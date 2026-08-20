@@ -88,6 +88,12 @@ def recommend_resources(
             f"{observed.sample_count} metric samples provide "
             f"{observed.observation_coverage:.1%} observation coverage"
         )
+    if observed.metric_pod_count is not None:
+        evidence.append(
+            f"metrics include {observed.metric_pod_count} Pod identities across the window"
+        )
+    if observed.step_seconds is not None:
+        evidence.append(f"Prometheus range query step is {observed.step_seconds} seconds")
 
     return ResourceRecommendation(
         recommended=ResourceValues(

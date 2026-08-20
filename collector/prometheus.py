@@ -1,5 +1,4 @@
 import math
-import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -17,8 +16,10 @@ class WorkloadMetrics:
     cpu_max_millicores: float
     memory_max_mib: float
     observation_days: int
+    step_seconds: int
     sample_count: int
     observation_coverage: float
+    metric_pod_count: int
 
 
 def percentile(values: list[float], quantile: float) -> float:
@@ -37,18 +38,8 @@ def percentile(values: list[float], quantile: float) -> float:
     return ordered[lower] + (ordered[upper] - ordered[lower]) * (rank - lower)
 
 
-def _pod_regex(pods: list[str]) -> str:
-    if not pods:
-        raise ValueError("at least one pod is required")
-    escaped = []
-    for pod in pods:
-        # Kubernetes names commonly contain hyphens, which are only special
-        # inside a regex character class. Python escapes them unnecessarily and
-        # PromQL rejects `\-` as an invalid string escape. Regex backslashes that
-        # remain (for example for a dot) must themselves be escaped for PromQL.
-        regex_value = re.escape(pod).replace(r"\-", "-")
-        escaped.append(regex_value.replace("\\", "\\\\"))
-    return "(?:" + "|".join(escaped) + ")"
+def _promql_string(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
 
 
 class PrometheusClient:
@@ -90,23 +81,51 @@ class PrometheusClient:
     def workload_metrics(
         self,
         namespace: str,
+        deployment: str,
         pods: list[str],
         container: str,
         observation_days: int = 7,
+        step_seconds: int = 300,
         now: datetime | None = None,
     ) -> WorkloadMetrics:
         if observation_days < 1:
             raise ValueError("observation_days must be at least 1")
+        if not pods:
+            raise ValueError("at least one current pod is required")
+        if step_seconds < 1:
+            raise ValueError("step_seconds must be at least 1")
         end = now or datetime.now(UTC)
         start = end - timedelta(days=observation_days)
-        labels = (
-            f'namespace="{namespace}",pod=~"{_pod_regex(pods)}",'
-            f'container="{container}"'
+        namespace_value = _promql_string(namespace)
+        deployment_value = _promql_string(deployment)
+        container_value = _promql_string(container)
+        container_labels = (
+            f'namespace="{namespace_value}",container="{container_value}"'
         )
-        cpu_query = f"sum by (pod) (rate(container_cpu_usage_seconds_total{{{labels}}}[5m]))"
-        memory_query = f"sum by (pod) (container_memory_working_set_bytes{{{labels}}})"
-        cpu_series = self.query_range_series(cpu_query, start, end)
-        memory_series = self.query_range_series(memory_query, start, end)
+        ownership = (
+            "label_replace("
+            "max by(namespace,pod,owner_name) ("
+            f'kube_pod_owner{{namespace="{namespace_value}",owner_kind="ReplicaSet",'
+            'owner_is_controller="true"}),'
+            '"replicaset","$1","owner_name","(.*)") '
+            "* on(namespace,replicaset) group_left() "
+            "max by(namespace,replicaset) ("
+            f'kube_replicaset_owner{{namespace="{namespace_value}",'
+            f'owner_kind="Deployment",owner_name="{deployment_value}",'
+            'owner_is_controller="true"})'
+        )
+        cpu_query = (
+            "sum by (pod) ("
+            f"rate(container_cpu_usage_seconds_total{{{container_labels}}}[5m]) "
+            f"* on(namespace,pod) group_left() ({ownership}))"
+        )
+        memory_query = (
+            "sum by (pod) ("
+            f"container_memory_working_set_bytes{{{container_labels}}} "
+            f"* on(namespace,pod) group_left() ({ownership}))"
+        )
+        cpu_series = self.query_range_series(cpu_query, start, end, step_seconds)
+        memory_series = self.query_range_series(memory_query, start, end, step_seconds)
         if not cpu_series or not memory_series:
             raise PrometheusError("Prometheus returned no samples for the workload")
 
@@ -116,7 +135,7 @@ class PrometheusClient:
         memory_p99_bytes = max(percentile(values, 0.99) for values in memory_series)
         cpu_sample_count = sum(len(values) for values in cpu_series)
         memory_sample_count = sum(len(values) for values in memory_series)
-        expected_per_pod = math.floor((end - start).total_seconds() / 300) + 1
+        expected_per_pod = math.floor((end - start).total_seconds() / step_seconds) + 1
         expected_total = expected_per_pod * len(pods)
         observed_samples = min(cpu_sample_count, memory_sample_count)
         return WorkloadMetrics(
@@ -125,6 +144,8 @@ class PrometheusClient:
             cpu_max_millicores=max(max(values) for values in cpu_series) * 1000,
             memory_max_mib=max(max(values) for values in memory_series) / (1024 * 1024),
             observation_days=observation_days,
+            step_seconds=step_seconds,
             sample_count=observed_samples,
             observation_coverage=min(1.0, observed_samples / expected_total),
+            metric_pod_count=min(len(cpu_series), len(memory_series)),
         )
