@@ -140,6 +140,35 @@ only the selected Deployment document is applied; the complete source remains in
 the proposal solely as review provenance. This sequence has not yet been claimed as
 a completed live benchmark.
 
+## Publish a verified Draft PR
+
+Publication requires a passing immutable benchmark result, a clean repository on an
+attached branch, and a credential-free public GitHub remote. Git push authentication
+must already be available through an SSH agent or Git credential helper. Supply the
+GitHub API token through an environment variable, never as a command argument. For
+example, an existing GitHub CLI login can provide it without placing the value in
+shell history:
+
+```bash
+GITHUB_TOKEN="$(gh auth token)" kubefit publish \
+  --proposal .kubefit/proposals/proposal-<digest> \
+  --benchmark benchmarks/results/benchmark-<digest> \
+  --repository-root . \
+  --remote origin \
+  --confirm-publish
+```
+
+The token needs repository pull-request write access, while Git push uses the
+repository's existing Git authentication. `--github-token-env NAME` can select a
+different environment variable by name; the token value is never a CLI option.
+
+The command creates or reuses the deterministic local commit, creates the remote
+branch only if absent, and opens or reuses an exact matching Draft PR. It prints
+only repository, branch, commit, PR URL/number, and reuse flags as JSON. It does not
+merge, approve, mark ready, deploy, persist credentials, or delete a remote branch.
+This workflow is covered by isolated local tests but has not yet been exercised
+against a disposable live GitHub repository.
+
 ## Remove the environment
 
 This permanently deletes the local kind cluster and its Prometheus data:

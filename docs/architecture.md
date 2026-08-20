@@ -318,3 +318,18 @@ mechanism and avoids unsafe remote rollback.
 and is placed only in the HTTP `Authorization` header, never in Git arguments,
 models, URLs, artifacts, or exception text. Publication does not merge, approve,
 mark ready, delete branches, or initiate deployment.
+
+## Publication CLI secret boundary
+
+`kubefit publish` composes verified artifact loading, local commit creation, and
+idempotent publication without accepting a literal token option. The command line
+contains only the name of an environment variable, defaulting to `GITHUB_TOKEN`.
+It requires `--confirm-publish`, validates that the named variable is non-empty
+before plan construction or repository mutation, and constructs the REST client in
+memory.
+
+Successful JSON contains identifiers and reuse state only. It excludes the token,
+PR body, and manifest contents. Known adapter failures are rendered as a concise
+CLI exit, and the token value is replaced defensively if an underlying exception
+unexpectedly includes it. This reduces accidental disclosure through normal output;
+the process environment remains the caller's secret-management responsibility.

@@ -125,7 +125,9 @@ deterministic, draft-only, one-file review contract. Entry
 commits with rollback and idempotent reuse. Entry
 [0023](devlog/0023-idempotent-draft-pull-request.md) adds compare-and-swap branch
 publication and exact-contract Draft PR creation with ambiguous-response recovery.
-CLI credential intake and a live disposable-repository demonstration remain open.
+Entry [0024](devlog/0024-publish-cli-secret-boundary.md) exposes the complete command
+with environment-only token intake, explicit mutation acknowledgement, and safe JSON
+output. A live disposable-repository demonstration remains open.
 
 **Goal:** deliver the validated change through the repository's review workflow.
 

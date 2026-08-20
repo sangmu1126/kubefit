@@ -168,7 +168,9 @@ with an absent-ref lease. It reuses only an identical remote ref and an exact op
 draft PR contract; conflicting refs, duplicate matches, and edited PRs fail closed.
 Ambiguous push or API responses are resolved by observing remote state again. The
 GitHub token is sent only as an HTTP authorization header. This library boundary is
-not yet exposed as a CLI command and never merges or deploys the change.
+exposed by `kubefit publish`, which requires `--confirm-publish` and reads the token
+only from a named environment variable. The command never merges or deploys the
+change.
 
 The example prices are illustrative, not a cloud-provider price claim. Live
 analysis requires the caller to provide CPU and memory rates plus a source label.
