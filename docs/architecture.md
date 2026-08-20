@@ -15,6 +15,18 @@ repository, and the initial pull request is a draft. Cluster rollout remains the
 responsibility of the repository's existing GitOps controller and human approval
 policy.
 
+## Historical workload identity
+
+Container usage is joined with `kube_pod_owner` and `kube_replicaset_owner` at each
+Prometheus range-query timestamp. This associates old and current ReplicaSets with
+the exact Deployment name while preserving a separate series per Pod. It avoids the
+false matches possible with Deployment-name prefixes and does not require deleted
+Pods to remain in the live Kubernetes API.
+
+kube-state-metrics ownership retention is therefore an explicit metric prerequisite.
+A same-name Deployment deletion and recreation cannot yet be distinguished without
+additional UID evidence.
+
 ## Recommendation policy v0
 
 - CPU request: observed P95 plus 25% margin, rounded up to 10 millicores
