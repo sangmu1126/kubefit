@@ -82,6 +82,7 @@ def test_keeps_cost_projection_separate_from_recommendation_readiness() -> None:
 
     assert result.recommendation.readiness.status == "insufficient_data"
     assert result.cost.savings_percent > 0
+    assert result.patch_eligibility.status == "blocked"
     assert any("do not guarantee" in caveat for caveat in result.cost.caveats)
 
 

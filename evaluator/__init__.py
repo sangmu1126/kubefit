@@ -8,12 +8,20 @@ from evaluator.cost import (
     compare_request_costs,
     evaluate_resources,
 )
+from evaluator.safety import (
+    EligibilityCheck,
+    PatchEligibility,
+    evaluate_patch_eligibility,
+)
 
 __all__ = [
     "CostAssumptions",
     "CostComparison",
     "EvaluationResult",
+    "EligibilityCheck",
     "MonthlyCost",
+    "PatchEligibility",
     "compare_request_costs",
     "evaluate_resources",
+    "evaluate_patch_eligibility",
 ]

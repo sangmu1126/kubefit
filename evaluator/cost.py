@@ -3,6 +3,7 @@ from typing import Literal, Protocol
 
 from pydantic import BaseModel, Field, field_validator
 
+from evaluator.safety import PatchEligibility, evaluate_patch_eligibility
 from recommender import CurrentResources, ObservedUsage, ResourceRecommendation
 from recommender.engine import recommend_resources
 
@@ -51,6 +52,7 @@ class CostComparison(BaseModel):
 class EvaluationResult(BaseModel):
     recommendation: ResourceRecommendation
     cost: CostComparison
+    patch_eligibility: PatchEligibility
 
 
 def _monthly_cost_exact(
@@ -126,4 +128,8 @@ def evaluate_resources(
     cost = compare_request_costs(
         current, recommendation.recommended, assumptions, replica_count
     )
-    return EvaluationResult(recommendation=recommendation, cost=cost)
+    return EvaluationResult(
+        recommendation=recommendation,
+        cost=cost,
+        patch_eligibility=evaluate_patch_eligibility(recommendation),
+    )

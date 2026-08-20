@@ -54,3 +54,5 @@ def test_create_evaluation_with_explicit_cost_assumptions() -> None:
     assert result["recommendation"]["readiness"]["status"] == "insufficient_data"
     assert result["cost"]["current"]["total_usd"] == "73.000000"
     assert result["cost"]["assumptions"]["price_source"] == "example://local-model"
+    assert result["patch_eligibility"]["status"] == "blocked"
+    assert result["patch_eligibility"]["checks"][0]["code"] == "recommendation_readiness"
