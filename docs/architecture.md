@@ -356,3 +356,22 @@ failures are explicit blockers rather than prompts or automatic repair attempts.
 The CLI prints the report before returning exit 2 for a blocked diagnostic; only a
 report without blockers returns exit 0. This lets shell control flow enforce the
 same gate without parsing JSON, while the JSON retains the reason.
+
+## Content-addressed publication evidence
+
+`kubefit verify-publication` consumes the immutable proposal and benchmark plus an
+exact directory containing `preflight.json`, `first-publish.json`,
+`second-publish.json`, `remote-ref.txt`, and `github-pr.json`. The directory and
+every entry must be regular and non-symlinked; any missing or additional name fails.
+
+The verifier rebuilds `PullRequestPlan`, then requires the ready preflight to bind
+the same artifact IDs, planned path, base, repository, remote, and initially absent
+local/remote branch. The first publication must report creation and the second must
+report reuse. Repository, branch, SHA, PR number, and URL must remain identical. The
+independent remote ref and GitHub PR evidence must prove the same SHA, open Draft
+state, head/base, planned title, and one changed file.
+
+Each source file is SHA-256 hashed. A canonical object containing the proposal ID,
+benchmark ID, and sorted hash map produces a deterministic `publication-<digest>`
+verification ID. This binds the locally verified bytes but does not authenticate who
+captured them or replace the live procedure.

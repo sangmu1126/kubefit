@@ -184,6 +184,11 @@ The authenticated two-run verification procedure is documented in
 private disposable repository, captures first-create and second-reuse evidence, and
 archives rather than deletes the target by default.
 
+`kubefit verify-publication` then validates the runbook's exact five-file evidence
+set without network access. It rebuilds the proposal/benchmark plan, checks the
+preflight, two publication outputs, remote ref, and GitHub Draft PR as one contract,
+hashes every file, and emits a deterministic `publication-<digest>` verification ID.
+
 The example prices are illustrative, not a cloud-provider price claim. Live
 analysis requires the caller to provide CPU and memory rates plus a source label.
 The output repeats those assumptions and separates current/recommended CPU and

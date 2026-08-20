@@ -205,6 +205,22 @@ github-pr.json
 Copy these secret-free files to the eventual benchmark/demo evidence location only
 after inspecting them. They intentionally contain identifiers and URLs but no token.
 
+Finally, bind the exact five-file set back to the immutable proposal and benchmark:
+
+```bash
+.venv/bin/kubefit verify-publication \
+  --proposal "$KUBEFIT_PROPOSAL" \
+  --benchmark "$KUBEFIT_BENCHMARK" \
+  --evidence-dir "$KUBEFIT_EVIDENCE_DIR" \
+  > "${KUBEFIT_EVIDENCE_DIR}.verified.json"
+```
+
+The verification result is deliberately written next to, not inside, the evidence
+directory. The verifier rejects missing and additional files, recalculates every
+SHA-256, rebuilds the pull request plan, and emits a deterministic
+`publication-<digest>` ID. Preserve the five-file directory and its sibling result
+together.
+
 ## 6. Preserve or explicitly remove the target
 
 Archiving is the default because it retains reviewer-visible evidence while stopping

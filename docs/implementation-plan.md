@@ -132,7 +132,10 @@ artifact, local Git, remote ref, and API readiness diagnostics. Authentication r
 a disposable target, and the live two-run demonstration remain open. Entry
 [0026](devlog/0026-live-demo-contract.md) makes blocked readiness fail closed for
 automation and defines the exact disposable setup, two-run assertions, independent
-GitHub evidence, and archive-first cleanup procedure.
+GitHub evidence, and archive-first cleanup procedure. Entry
+[0027](devlog/0027-publication-evidence-verifier.md) binds that exact five-file proof
+back to the immutable proposal/benchmark and emits a content-addressed verification
+result. The authenticated live run itself remains open.
 
 **Goal:** deliver the validated change through the repository's review workflow.
 

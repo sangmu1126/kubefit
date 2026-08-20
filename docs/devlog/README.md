@@ -48,6 +48,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0024](0024-publish-cli-secret-boundary.md) | Publish CLI secret boundary | Compose verified publication without accepting or printing a token value |
 | [0025](0025-live-publication-preflight.md) | Live publication preflight | Explain artifact, Git, remote, and credential blockers without mutation |
 | [0026](0026-live-demo-contract.md) | Live demo contract | Make readiness machine-enforceable and define disposable two-run evidence |
+| [0027](0027-publication-evidence-verifier.md) | Publication evidence verifier | Bind two-run GitHub proof back to immutable proposal and benchmark artifacts |
 
 ## Visual language
 
