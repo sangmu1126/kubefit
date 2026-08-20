@@ -1,4 +1,5 @@
 import math
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -20,6 +21,9 @@ class WorkloadMetrics:
     sample_count: int
     observation_coverage: float
     metric_pod_count: int
+    requested_start: datetime
+    query_start: datetime
+    history_clipped: bool
 
 
 def percentile(values: list[float], quantile: float) -> float:
@@ -40,6 +44,13 @@ def percentile(values: list[float], quantile: float) -> float:
 
 def _promql_string(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+
+
+def _promql_regex(values: list[str]) -> str:
+    if not values:
+        raise ValueError("at least one ReplicaSet is required")
+    escaped = [re.escape(value).replace(r"\-", "-") for value in values]
+    return _promql_string("(?:" + "|".join(escaped) + ")")
 
 
 class PrometheusClient:
@@ -81,9 +92,10 @@ class PrometheusClient:
     def workload_metrics(
         self,
         namespace: str,
-        deployment: str,
+        replica_sets: list[str],
         pods: list[str],
         container: str,
+        workload_created_at: datetime,
         observation_days: int = 7,
         step_seconds: int = 300,
         now: datetime | None = None,
@@ -95,23 +107,23 @@ class PrometheusClient:
         if step_seconds < 1:
             raise ValueError("step_seconds must be at least 1")
         end = now or datetime.now(UTC)
-        start = end - timedelta(days=observation_days)
+        if end.tzinfo is None or workload_created_at.tzinfo is None:
+            raise ValueError("metric timestamps must include timezone information")
+        requested_start = end - timedelta(days=observation_days)
+        created_at = workload_created_at.astimezone(UTC)
+        if created_at > end:
+            raise PrometheusError("workload creation timestamp is in the future")
+        query_start = max(requested_start, created_at)
         namespace_value = _promql_string(namespace)
-        deployment_value = _promql_string(deployment)
+        replica_set_pattern = _promql_regex(replica_sets)
         container_value = _promql_string(container)
         container_labels = (
             f'namespace="{namespace_value}",container="{container_value}"'
         )
         ownership = (
-            "label_replace("
-            "max by(namespace,pod,owner_name) ("
+            "max by(namespace,pod) ("
             f'kube_pod_owner{{namespace="{namespace_value}",owner_kind="ReplicaSet",'
-            'owner_is_controller="true"}),'
-            '"replicaset","$1","owner_name","(.*)") '
-            "* on(namespace,replicaset) group_left() "
-            "max by(namespace,replicaset) ("
-            f'kube_replicaset_owner{{namespace="{namespace_value}",'
-            f'owner_kind="Deployment",owner_name="{deployment_value}",'
+            f'owner_name=~"{replica_set_pattern}",'
             'owner_is_controller="true"})'
         )
         cpu_query = (
@@ -124,8 +136,8 @@ class PrometheusClient:
             f"container_memory_working_set_bytes{{{container_labels}}} "
             f"* on(namespace,pod) group_left() ({ownership}))"
         )
-        cpu_series = self.query_range_series(cpu_query, start, end, step_seconds)
-        memory_series = self.query_range_series(memory_query, start, end, step_seconds)
+        cpu_series = self.query_range_series(cpu_query, query_start, end, step_seconds)
+        memory_series = self.query_range_series(memory_query, query_start, end, step_seconds)
         if not cpu_series or not memory_series:
             raise PrometheusError("Prometheus returned no samples for the workload")
 
@@ -135,7 +147,9 @@ class PrometheusClient:
         memory_p99_bytes = max(percentile(values, 0.99) for values in memory_series)
         cpu_sample_count = sum(len(values) for values in cpu_series)
         memory_sample_count = sum(len(values) for values in memory_series)
-        expected_per_pod = math.floor((end - start).total_seconds() / step_seconds) + 1
+        expected_per_pod = (
+            math.floor((end - requested_start).total_seconds() / step_seconds) + 1
+        )
         expected_total = expected_per_pod * len(pods)
         observed_samples = min(cpu_sample_count, memory_sample_count)
         return WorkloadMetrics(
@@ -148,4 +162,7 @@ class PrometheusClient:
             sample_count=observed_samples,
             observation_coverage=min(1.0, observed_samples / expected_total),
             metric_pod_count=min(len(cpu_series), len(memory_series)),
+            requested_start=requested_start,
+            query_start=query_start,
+            history_clipped=query_start > requested_start,
         )

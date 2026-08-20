@@ -108,6 +108,27 @@ def test_blocks_recommendation_while_replicas_are_unstable() -> None:
     assert result.risk.oom == "unknown"
 
 
+def test_formats_singular_metric_evidence() -> None:
+    result = recommend_resources(
+        CurrentResources(
+            cpu_request_millicores=100,
+            cpu_limit_millicores=200,
+            memory_request_mib=128,
+            memory_limit_mib=256,
+        ),
+        ObservedUsage(
+            cpu_p95_millicores=10,
+            memory_p99_mib=32,
+            sample_count=1,
+            observation_coverage=0.01,
+            metric_pod_count=1,
+        ),
+    )
+
+    assert any("1 metric sample provides" in item for item in result.evidence)
+    assert any("1 Pod identity across" in item for item in result.evidence)
+
+
 def test_rejects_limit_below_request() -> None:
     with pytest.raises(ValidationError):
         CurrentResources(

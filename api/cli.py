@@ -25,9 +25,10 @@ def main() -> None:
     )
     metrics = PrometheusClient(args.prometheus_url).workload_metrics(
         workload.namespace,
-        workload.name,
+        workload.replica_sets,
         workload.pods,
         workload.container,
+        workload.created_at,
         observation_days=args.days,
         step_seconds=args.step_seconds,
     )
@@ -46,6 +47,9 @@ def main() -> None:
             available_replicas=workload.available_replicas,
             observed_replicas=len(workload.pods),
             metric_pod_count=metrics.metric_pod_count,
+            workload_uid=workload.uid,
+            workload_created_at=workload.created_at,
+            history_clipped=metrics.history_clipped,
         ),
     )
     print(recommendation.model_dump_json(indent=2))

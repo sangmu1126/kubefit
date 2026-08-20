@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -31,6 +32,9 @@ class ObservedUsage(BaseModel):
     available_replicas: int | None = Field(default=None, ge=0)
     observed_replicas: int | None = Field(default=None, ge=0)
     metric_pod_count: int | None = Field(default=None, ge=0)
+    workload_uid: str | None = None
+    workload_created_at: datetime | None = None
+    history_clipped: bool = False
 
     @model_validator(mode="after")
     def maxima_are_not_below_percentiles(self) -> "ObservedUsage":

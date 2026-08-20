@@ -84,16 +84,26 @@ def recommend_resources(
         "values are rounded upward to scheduler-friendly units",
     ]
     if observed.sample_count is not None and observed.observation_coverage is not None:
+        sample_label = "sample" if observed.sample_count == 1 else "samples"
+        provide_verb = "provides" if observed.sample_count == 1 else "provide"
         evidence.append(
-            f"{observed.sample_count} metric samples provide "
+            f"{observed.sample_count} metric {sample_label} {provide_verb} "
             f"{observed.observation_coverage:.1%} observation coverage"
         )
     if observed.metric_pod_count is not None:
+        identity_label = "identity" if observed.metric_pod_count == 1 else "identities"
         evidence.append(
-            f"metrics include {observed.metric_pod_count} Pod identities across the window"
+            f"metrics include {observed.metric_pod_count} Pod {identity_label} across the window"
         )
     if observed.step_seconds is not None:
         evidence.append(f"Prometheus range query step is {observed.step_seconds} seconds")
+    if observed.workload_uid is not None:
+        evidence.append(f"workload identity is Kubernetes UID {observed.workload_uid}")
+    if observed.history_clipped and observed.workload_created_at is not None:
+        evidence.append(
+            "metric history starts at current workload creation time "
+            f"{observed.workload_created_at.isoformat()}"
+        )
 
     return ResourceRecommendation(
         recommended=ResourceValues(

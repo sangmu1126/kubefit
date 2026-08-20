@@ -2,6 +2,7 @@ import json
 import subprocess
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 
 from recommender import CurrentResources
 
@@ -14,8 +15,11 @@ class KubernetesCollectionError(RuntimeError):
 class DeploymentResources:
     namespace: str
     name: str
+    uid: str
+    created_at: datetime
     container: str
     pods: list[str]
+    replica_sets: list[str]
     desired_replicas: int
     available_replicas: int
     resources: CurrentResources
@@ -66,6 +70,19 @@ class KubectlDeploymentCollector:
             self._command("get", "deployment", deployment, "-n", namespace, "-o", "json")
         )
         document = json.loads(raw)
+        metadata = document.get("metadata", {})
+        uid = metadata.get("uid")
+        created_at_value = metadata.get("creationTimestamp")
+        if not uid or not created_at_value:
+            raise KubernetesCollectionError(
+                "deployment must include metadata.uid and metadata.creationTimestamp"
+            )
+        try:
+            created_at = datetime.fromisoformat(created_at_value.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise KubernetesCollectionError(
+                f"deployment has an invalid creation timestamp: {created_at_value!r}"
+            ) from exc
         containers = document["spec"]["template"]["spec"]["containers"]
         if container_name is None and len(containers) != 1:
             names = ", ".join(item["name"] for item in containers)
@@ -98,11 +115,34 @@ class KubectlDeploymentCollector:
         pods = [item["metadata"]["name"] for item in json.loads(pods_raw)["items"]]
         if not pods:
             raise KubernetesCollectionError("deployment has no matching pods")
+
+        replica_sets_raw = self._runner(
+            self._command(
+                "get", "replicasets", "-n", namespace, "-l", label_selector, "-o", "json"
+            )
+        )
+        replica_sets = [
+            item["metadata"]["name"]
+            for item in json.loads(replica_sets_raw)["items"]
+            if any(
+                owner.get("controller") is True
+                and owner.get("kind") == "Deployment"
+                and owner.get("uid") == uid
+                for owner in item["metadata"].get("ownerReferences", [])
+            )
+        ]
+        if not replica_sets:
+            raise KubernetesCollectionError(
+                "deployment has no ReplicaSets owned by its current UID"
+            )
         return DeploymentResources(
             namespace=namespace,
             name=deployment,
+            uid=uid,
+            created_at=created_at,
             container=container["name"],
             pods=pods,
+            replica_sets=sorted(replica_sets),
             desired_replicas=document["spec"].get("replicas", 1),
             available_replicas=document.get("status", {}).get("availableReplicas", 0),
             resources=CurrentResources(
