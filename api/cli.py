@@ -38,6 +38,9 @@ def main() -> None:
             observation_days=metrics.observation_days,
             sample_count=metrics.sample_count,
             observation_coverage=metrics.observation_coverage,
+            desired_replicas=workload.desired_replicas,
+            available_replicas=workload.available_replicas,
+            observed_replicas=len(workload.pods),
         ),
     )
     print(recommendation.model_dump_json(indent=2))

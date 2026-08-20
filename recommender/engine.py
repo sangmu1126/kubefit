@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from recommender.models import (
     CurrentResources,
     ObservedUsage,
+    RecommendationReadiness,
     ResourceRecommendation,
     ResourceValues,
     RiskAssessment,
@@ -19,6 +20,8 @@ class RecommendationPolicy:
     memory_step_mib: int = 16
     minimum_cpu_millicores: int = 10
     minimum_memory_mib: int = 32
+    minimum_observation_coverage: float = 0.7
+    minimum_sample_count: int = 100
 
 
 def _round_up(value: float, step: int) -> int:
@@ -50,9 +53,8 @@ def recommend_resources(
     cpu_change = (cpu_request / current.cpu_request_millicores - 1) * 100
     memory_change = (memory_request / current.memory_request_mib - 1) * 100
 
-    coverage_is_sufficient = (
-        observed.observation_coverage is not None and observed.observation_coverage >= 0.7
-    )
+    readiness_reasons = _readiness_reasons(observed, policy)
+    evidence_is_sufficient = not readiness_reasons
     oom_headroom = (
         memory_limit / max(observed.memory_max_mib, 1)
         if observed.memory_max_mib is not None
@@ -63,16 +65,10 @@ def recommend_resources(
         if observed.cpu_max_millicores is not None
         else None
     )
-    oom_risk = _risk_from_headroom(oom_headroom, coverage_is_sufficient)
-    throttle_risk = _risk_from_headroom(cpu_headroom, coverage_is_sufficient)
+    oom_risk = _risk_from_headroom(oom_headroom, evidence_is_sufficient)
+    throttle_risk = _risk_from_headroom(cpu_headroom, evidence_is_sufficient)
 
-    risk_reasons = []
-    if observed.observation_coverage is None:
-        risk_reasons.append("observation coverage was not provided")
-    elif not coverage_is_sufficient:
-        risk_reasons.append(
-            f"observation coverage is {observed.observation_coverage:.1%}; at least 70% is required"
-        )
+    risk_reasons = readiness_reasons.copy()
     risk_reasons.extend(
         [
             _headroom_reason("memory limit", oom_headroom, "observed maximum"),
@@ -89,7 +85,7 @@ def recommend_resources(
     ]
     if observed.sample_count is not None and observed.observation_coverage is not None:
         evidence.append(
-            f"{observed.sample_count} paired samples provide "
+            f"{observed.sample_count} metric samples provide "
             f"{observed.observation_coverage:.1%} observation coverage"
         )
 
@@ -102,6 +98,10 @@ def recommend_resources(
         ),
         cpu_request_change_percent=round(cpu_change, 1),
         memory_request_change_percent=round(memory_change, 1),
+        readiness=RecommendationReadiness(
+            status="ready" if evidence_is_sufficient else "insufficient_data",
+            reasons=readiness_reasons,
+        ),
         risk=RiskAssessment(
             oom=oom_risk,
             cpu_throttling=throttle_risk,
@@ -111,8 +111,44 @@ def recommend_resources(
     )
 
 
-def _risk_from_headroom(headroom: float | None, coverage_is_sufficient: bool) -> str:
-    if headroom is None or not coverage_is_sufficient:
+def _readiness_reasons(
+    observed: ObservedUsage, policy: RecommendationPolicy
+) -> list[str]:
+    reasons = []
+    if observed.observation_coverage is None:
+        reasons.append("observation coverage was not provided")
+    elif observed.observation_coverage < policy.minimum_observation_coverage:
+        reasons.append(
+            f"observation coverage is {observed.observation_coverage:.1%}; at least "
+            f"{policy.minimum_observation_coverage:.0%} is required"
+        )
+
+    if observed.sample_count is None:
+        reasons.append("sample count was not provided")
+    elif observed.sample_count < policy.minimum_sample_count:
+        reasons.append(
+            f"sample count is {observed.sample_count}; at least "
+            f"{policy.minimum_sample_count} is required"
+        )
+
+    replica_values = (
+        observed.desired_replicas,
+        observed.available_replicas,
+        observed.observed_replicas,
+    )
+    if any(value is None for value in replica_values):
+        reasons.append("desired, available, and observed replica counts were not all provided")
+    elif len(set(replica_values)) != 1:
+        desired, available, metric_pods = replica_values
+        reasons.append(
+            "replica counts are unstable: "
+            f"desired={desired}, available={available}, observed={metric_pods}"
+        )
+    return reasons
+
+
+def _risk_from_headroom(headroom: float | None, evidence_is_sufficient: bool) -> str:
+    if headroom is None or not evidence_is_sufficient:
         return "unknown"
     if headroom >= 1.25:
         return "low"

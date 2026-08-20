@@ -25,4 +25,4 @@ def test_create_recommendation() -> None:
 
     assert response.status_code == 200
     assert response.json()["recommended"]["cpu_request_millicores"] == 290
-
+    assert response.json()["readiness"]["status"] == "insufficient_data"

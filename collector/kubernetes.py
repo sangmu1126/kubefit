@@ -16,6 +16,8 @@ class DeploymentResources:
     name: str
     container: str
     pods: list[str]
+    desired_replicas: int
+    available_replicas: int
     resources: CurrentResources
 
 
@@ -101,6 +103,8 @@ class KubectlDeploymentCollector:
             name=deployment,
             container=container["name"],
             pods=pods,
+            desired_replicas=document["spec"].get("replicas", 1),
+            available_replicas=document.get("status", {}).get("availableReplicas", 0),
             resources=CurrentResources(
                 cpu_request_millicores=_cpu_millicores(requests["cpu"]),
                 cpu_limit_millicores=_cpu_millicores(limits["cpu"]),

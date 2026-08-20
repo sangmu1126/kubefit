@@ -8,7 +8,9 @@ from collector.kubernetes import (
 )
 
 DEPLOYMENT = {
+    "status": {"availableReplicas": 1},
     "spec": {
+        "replicas": 1,
         "selector": {"matchLabels": {"app": "demo"}},
         "template": {
             "spec": {
@@ -41,6 +43,8 @@ def test_collects_deployment_resources_and_pods() -> None:
     assert result.resources.cpu_request_millicores == 1000
     assert result.resources.memory_request_mib == 2048
     assert result.pods == ["demo-abc"]
+    assert result.desired_replicas == 1
+    assert result.available_replicas == 1
     assert ["-l", "app=demo"] == commands[1][commands[1].index("-l") : commands[1].index("-l") + 2]
 
 
