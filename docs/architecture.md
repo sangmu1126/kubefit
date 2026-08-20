@@ -290,3 +290,31 @@ adapter-owned file, switches back, and deletes only the newly created branch. It
 does not reset or erase unrelated paths. Repository hooks are honored; their
 external side effects cannot be rolled back, and unexpected hook-created files are
 reported as cleanup failure instead of being deleted.
+
+## Idempotent GitHub publication
+
+Publication revalidates the clean base checkout, source bytes, local branch tree,
+and recorded commit SHA before contacting a remote. The production Git adapter
+accepts only credential-free public `github.com` HTTPS or SSH URLs and derives the
+owner/repository identity from that URL. Git credentials remain the responsibility
+of the configured credential helper or SSH agent; they are never inserted into a
+command by KubeFit.
+
+The publisher first observes the exact remote branch ref. An absent ref is created
+by pushing the verified commit with `--force-with-lease=<ref>:`: the empty expected
+value makes this a compare-and-swap that cannot update an existing ref. The ref is
+reused only when it already equals the verified SHA. A different SHA is neither
+overwritten nor deleted.
+
+The GitHub boundary then queries open pull requests for the exact repository owner,
+head branch, and base branch. One result is reused only if its title, body, open
+state, draft state, repository URL, head, and base all match the frozen plan. Zero
+results authorize one draft creation; multiple or divergent results fail closed.
+After an ambiguous push or create error, the publisher observes the boundary again
+and succeeds only if the exact intended state exists. This makes retry the recovery
+mechanism and avoids unsafe remote rollback.
+
+`GitHubRestClient` supports only `https://api.github.com`. Its token lives in memory
+and is placed only in the HTTP `Authorization` header, never in Git arguments,
+models, URLs, artifacts, or exception text. Publication does not merge, approve,
+mark ready, delete branches, or initiate deployment.

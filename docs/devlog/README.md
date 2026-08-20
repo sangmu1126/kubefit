@@ -44,6 +44,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0020](0020-readiness-cli.md) | Readiness CLI | Explain whether to wait or intervene before creating a proposal |
 | [0021](0021-pull-request-plan.md) | Pull request plan | Turn verified proposal and benchmark evidence into one review contract |
 | [0022](0022-transactional-git-commit.md) | Transactional Git commit | Commit one verified file without leaving the checkout on the generated branch |
+| [0023](0023-idempotent-draft-pull-request.md) | Idempotent draft pull request | Publish one verified commit without overwriting a remote branch or duplicate PR |
 
 ## Visual language
 

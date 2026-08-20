@@ -162,6 +162,14 @@ one-file commit on the deterministic branch, verifies the resulting Git tree, an
 returns to the original branch. An identical existing branch is reused; a collision
 fails closed. It does not push or contact GitHub.
 
+`publish_pull_request` revalidates that local handoff, derives the GitHub repository
+identity from a credential-free `github.com` remote, and publishes the exact commit
+with an absent-ref lease. It reuses only an identical remote ref and an exact open
+draft PR contract; conflicting refs, duplicate matches, and edited PRs fail closed.
+Ambiguous push or API responses are resolved by observing remote state again. The
+GitHub token is sent only as an HTTP authorization header. This library boundary is
+not yet exposed as a CLI command and never merges or deploys the change.
+
 The example prices are illustrative, not a cloud-provider price claim. Live
 analysis requires the caller to provide CPU and memory rates plus a source label.
 The output repeats those assumptions and separates current/recommended CPU and

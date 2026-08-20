@@ -122,8 +122,10 @@ commands and obtain a pass/fail safety verdict.
 load-time semantic verification for proposal/result artifacts and produces a
 deterministic, draft-only, one-file review contract. Entry
 [0022](devlog/0022-transactional-git-commit.md) adds stale-safe, one-file local branch
-commits with rollback and idempotent reuse. Push and the GitHub API adapter remain
-open.
+commits with rollback and idempotent reuse. Entry
+[0023](devlog/0023-idempotent-draft-pull-request.md) adds compare-and-swap branch
+publication and exact-contract Draft PR creation with ambiguous-response recovery.
+CLI credential intake and a live disposable-repository demonstration remain open.
 
 **Goal:** deliver the validated change through the repository's review workflow.
 
