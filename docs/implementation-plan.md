@@ -23,6 +23,10 @@ the time they are observed.
 
 ## Phase 1: trustworthy resource analysis
 
+**Status: complete for the MVP (2026-08-21).** Validation evidence is recorded in
+development journal entries [0001](devlog/0001-trustworthy-analysis.md) through
+[0006](devlog/0006-resource-input-boundary.md).
+
 **Goal:** produce a deterministic recommendation from correctly scoped metrics.
 
 - Read a Deployment, its target container, replicas, resources, and matching Pods.
@@ -30,6 +34,8 @@ the time they are observed.
 - Authorize ReplicaSets through the current Deployment owner UID.
 - Clip same-name history at the current Deployment creation timestamp.
 - Optionally retain observed ReplicaSet identity after API deletion.
+- Parse Kubernetes quantities exactly and support `matchLabels` plus
+  `matchExpressions` selectors.
 - Use the highest per-Pod CPU P95 and memory P99 so one busy replica is not hidden
   by an average.
 - Report sample count and observation coverage.
