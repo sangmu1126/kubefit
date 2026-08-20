@@ -18,6 +18,15 @@ from gitops.manifest import (
     extract_target_document,
     generate_resource_patch,
 )
+from gitops.publication import (
+    GitHubRepository,
+    GitHubRestClient,
+    PublishedPullRequest,
+    PullRequestPublicationError,
+    PullRequestRecord,
+    SubprocessGitRemote,
+    publish_pull_request,
+)
 from gitops.pull_request import (
     PullRequestPlan,
     PullRequestPlanError,
@@ -28,6 +37,7 @@ from gitops.repository import (
     RepositoryCommit,
     RepositoryCommitError,
     commit_pull_request_plan,
+    validate_repository_commit,
 )
 from gitops.source import ManifestSourceError, load_manifest_sources
 
@@ -48,8 +58,16 @@ __all__ = [
     "RepositoryFileChange",
     "RepositoryCommit",
     "RepositoryCommitError",
+    "GitHubRepository",
+    "GitHubRestClient",
+    "PublishedPullRequest",
+    "PullRequestPublicationError",
+    "PullRequestRecord",
+    "SubprocessGitRemote",
     "build_pull_request_plan",
     "commit_pull_request_plan",
+    "publish_pull_request",
+    "validate_repository_commit",
     "extract_target_document",
     "generate_resource_patch",
     "load_proposal_bundle",

@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 from pathlib import Path, PurePosixPath
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from gitops.pull_request import PullRequestPlan
 
@@ -21,12 +21,39 @@ class RepositoryCommitError(RuntimeError):
 
 
 class RepositoryCommit(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     branch_name: str
     commit_sha: str = Field(pattern=r"^[0-9a-f]{40}$")
     base_branch: str
     base_commit_sha: str = Field(pattern=r"^[0-9a-f]{40}$")
     file_path: str
     reused: bool
+
+
+def validate_repository_commit(
+    repository_root: Path,
+    plan: PullRequestPlan,
+    commit: RepositoryCommit,
+) -> Path:
+    """Revalidate a commit handoff immediately before an external publication."""
+    root = _validate_repository_root(repository_root)
+    _require_clean(root)
+    if _current_branch(root) != commit.base_branch:
+        raise RepositoryCommitError("repository is not on the recorded base branch")
+    if _git(root, "rev-parse", "HEAD") != commit.base_commit_sha:
+        raise RepositoryCommitError("repository base commit has moved since planning")
+    if commit.branch_name != plan.branch_name:
+        raise RepositoryCommitError("repository commit branch does not match the plan")
+    if commit.file_path != plan.file_change.path:
+        raise RepositoryCommitError("repository commit path does not match the plan")
+    _validate_planned_file(root, plan)
+    if not _branch_exists(root, plan.branch_name):
+        raise RepositoryCommitError("planned local branch no longer exists")
+    validated_sha = _validate_plan_commit(root, plan, commit.base_commit_sha)
+    if validated_sha != commit.commit_sha:
+        raise RepositoryCommitError("repository commit SHA does not match the local branch")
+    return root
 
 
 def commit_pull_request_plan(
