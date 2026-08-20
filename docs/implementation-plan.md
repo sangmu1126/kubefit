@@ -118,6 +118,11 @@ commands and obtain a pass/fail safety verdict.
 
 ## Phase 5: GitHub draft pull request
 
+**Status: in progress.** Entry [0021](devlog/0021-pull-request-plan.md) establishes
+load-time semantic verification for proposal/result artifacts and produces a
+deterministic, draft-only, one-file review contract. Repository mutation, branch
+publication, and the GitHub API adapter remain open.
+
 **Goal:** deliver the validated change through the repository's review workflow.
 
 - Create a dedicated branch and commit only the manifest patch and report.

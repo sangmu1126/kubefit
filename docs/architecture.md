@@ -254,3 +254,19 @@ The CLI accepts only an explicit `kind-*` context plus a required disposable-clu
 acknowledgement. This is a product boundary rather than a claim that lower-level
 adapters are production safe. Locks coordinate only local cooperating processes;
 distributed execution remains outside the MVP.
+
+## Verified pull request plan
+
+The GitHub boundary begins with a pure plan rather than a network request. Proposal
+loading regenerates the minimal patch from the full before source and evaluation,
+then requires the persisted after source, diff, report, and isolated benchmark files
+to agree. Result loading verifies its canonical index and exact file set, reparses
+measurements and raw k6 evidence, recomputes the verdict, and regenerates its
+Markdown report.
+
+Only a `pass` result referencing the exact proposal and the proposal-fixed before
+and after costs can produce a plan. The plan contains one repository-relative path,
+its expected before SHA-256, exact before/after bytes, deterministic branch/title,
+draft-only flag, evidence summary, and rollback guidance. A later repository adapter
+must compare the live file hash again before writing; planning itself performs no
+checkout, commit, push, or GitHub operation.

@@ -149,6 +149,13 @@ before any apply. Multi-document source files remain byte-exact review evidence,
 while benchmark apply and restoration use separately hashed, single-Deployment
 manifests so neighboring Services or workloads are never reconciled.
 
+After a passing benchmark, `build_pull_request_plan` independently reloads both
+artifact directories, regenerates their semantic relationships, and produces a
+deterministic one-file draft PR contract. It includes the exact expected repository
+source hash, patched content, benchmark metrics, cost caveats, warnings, and rollback
+guidance. This stage is read-only; branch creation and GitHub publication remain
+separate adapters.
+
 The example prices are illustrative, not a cloud-provider price claim. Live
 analysis requires the caller to provide CPU and memory rates plus a source label.
 The output repeats those assumptions and separates current/recommended CPU and
