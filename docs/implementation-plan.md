@@ -98,8 +98,10 @@ lock and local CLI composition. Entry
 [0017](devlog/0017-proposal-cli.md) completes the analysis-bound proposal command and
 live Deployment identity preflight. Entry
 [0018](devlog/0018-target-document-isolation.md) separates full review provenance
-from single-Deployment executable manifests. A real eligible disposable-cluster run
-remains open.
+from single-Deployment executable manifests. Entry
+[0019](devlog/0019-persistent-local-observation.md) preserves local Prometheus
+history across Pod recreation so readiness can accumulate honestly. A real eligible
+disposable-cluster run remains open while the new volume collects enough evidence.
 
 **Goal:** validate savings without concealing performance regressions.
 

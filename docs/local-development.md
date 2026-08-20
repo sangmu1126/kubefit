@@ -27,13 +27,20 @@ brew install kind helm
 The script is idempotent. It creates the `kubefit` kind cluster, installs pinned
 version `88.5.0` of `kube-prometheus-stack`, and applies the demo Deployment.
 Grafana, Alertmanager, and control-plane monitoring are disabled to keep local
-resource usage small.
+resource usage small. Prometheus stores its two-day history on a 5 GiB PVC with a
+4 GB retention-size ceiling, so Pod and Docker restarts do not reset observation
+coverage.
+
+Upgrading a cluster created before this storage configuration replaces the old
+emptyDir-backed Prometheus Pod once. Its existing metrics are not migrated, so the
+readiness accumulation window begins again after that first upgrade.
 
 Check the resulting workloads:
 
 ```bash
-kubectl get pods -n monitoring
-kubectl get pods -n kubefit-demo
+kubectl --context kind-kubefit get pods -n monitoring
+kubectl --context kind-kubefit get pods -n kubefit-demo
+kubectl --context kind-kubefit get pvc -n monitoring
 ```
 
 ## Analyze the demo Deployment
@@ -41,7 +48,7 @@ kubectl get pods -n kubefit-demo
 Keep this command running in one terminal:
 
 ```bash
-kubectl port-forward \
+kubectl --context kind-kubefit port-forward \
   -n monitoring \
   svc/monitoring-kube-prometheus-prometheus \
   9090:9090

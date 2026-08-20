@@ -35,6 +35,12 @@ a new UID replaces same-name history. Writes are atomic, and malformed or unsupp
 snapshot schemas fail closed. This single-process adapter is not a shared audit store
 or a replacement for a future controller-backed identity source.
 
+The disposable local environment gives Prometheus a 5 GiB `standard` PVC, keeps a
+two-day time horizon, and caps TSDB retention at 4 GB to leave WAL and compaction
+headroom. This preserves observation evidence across Prometheus Pod and Docker
+restarts. The volume belongs to the kind cluster and is not an external evidence
+archive; deleting the cluster deletes the claim and restarts coverage accumulation.
+
 ## Recommendation policy v0
 
 - CPU request: observed P95 plus 25% margin, rounded up to 10 millicores
