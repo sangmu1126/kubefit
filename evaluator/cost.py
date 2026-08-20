@@ -50,6 +50,7 @@ class CostComparison(BaseModel):
 
 
 class EvaluationResult(BaseModel):
+    current: CurrentResources
     recommendation: ResourceRecommendation
     cost: CostComparison
     patch_eligibility: PatchEligibility
@@ -129,6 +130,7 @@ def evaluate_resources(
         current, recommendation.recommended, assumptions, replica_count
     )
     return EvaluationResult(
+        current=current,
         recommendation=recommendation,
         cost=cost,
         patch_eligibility=evaluate_patch_eligibility(recommendation),

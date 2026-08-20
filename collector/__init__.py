@@ -1,7 +1,12 @@
 """Kubernetes and Prometheus collection adapters."""
 
 from collector.identity import IdentitySnapshotStore, WorkloadIdentity
-from collector.kubernetes import DeploymentResources, KubectlDeploymentCollector
+from collector.kubernetes import (
+    DeploymentResources,
+    KubectlDeploymentCollector,
+    parse_cpu_millicores,
+    parse_memory_mib,
+)
 from collector.prometheus import PrometheusClient, WorkloadMetrics
 
 __all__ = [
@@ -11,4 +16,6 @@ __all__ = [
     "PrometheusClient",
     "WorkloadIdentity",
     "WorkloadMetrics",
+    "parse_cpu_millicores",
+    "parse_memory_mib",
 ]

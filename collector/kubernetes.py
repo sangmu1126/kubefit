@@ -91,12 +91,16 @@ def _ceil_to_int(value: Decimal) -> int:
     return int(value.to_integral_value(rounding=ROUND_CEILING))
 
 
-def _cpu_millicores(value: str) -> int:
+def parse_cpu_millicores(value: str) -> int:
     return _ceil_to_int(_parse_quantity(value) * 1000)
 
 
-def _memory_mib(value: str) -> int:
+def parse_memory_mib(value: str) -> int:
     return _ceil_to_int(_parse_quantity(value) / Decimal(2**20))
+
+
+_cpu_millicores = parse_cpu_millicores
+_memory_mib = parse_memory_mib
 
 
 def _label_selector(selector: dict[str, object]) -> str:
@@ -268,10 +272,10 @@ class KubectlDeploymentCollector:
             restart_count=restart_count,
             oom_killed_count=oom_killed_count,
             resources=CurrentResources(
-                cpu_request_millicores=_cpu_millicores(requests["cpu"]),
-                cpu_limit_millicores=_cpu_millicores(limits["cpu"]),
-                memory_request_mib=_memory_mib(requests["memory"]),
-                memory_limit_mib=_memory_mib(limits["memory"]),
+                cpu_request_millicores=parse_cpu_millicores(requests["cpu"]),
+                cpu_limit_millicores=parse_cpu_millicores(limits["cpu"]),
+                memory_request_mib=parse_memory_mib(requests["memory"]),
+                memory_limit_mib=parse_memory_mib(limits["memory"]),
             ),
         )
 
