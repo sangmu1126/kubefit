@@ -346,3 +346,185 @@ def test_propose_rejects_blocked_evaluation_without_output(tmp_path: Path) -> No
         )
 
     assert not output.exists()
+
+
+def test_publish_requires_explicit_mutation_acknowledgement() -> None:
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(
+            [
+                "publish",
+                "--proposal",
+                "proposal",
+                "--benchmark",
+                "benchmark",
+            ]
+        )
+
+
+def test_publish_parser_accepts_only_an_environment_variable_name() -> None:
+    args = build_parser().parse_args(
+        [
+            "publish",
+            "--proposal",
+            "proposal",
+            "--benchmark",
+            "benchmark",
+            "--github-token-env",
+            "KUBEFIT_GITHUB_TOKEN",
+            "--confirm-publish",
+        ]
+    )
+
+    assert args.github_token_env == "KUBEFIT_GITHUB_TOKEN"
+    assert not hasattr(args, "github_token")
+
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(
+            [
+                "publish",
+                "--proposal",
+                "proposal",
+                "--benchmark",
+                "benchmark",
+                "--github-token-env",
+                "NOT-A-NAME",
+                "--confirm-publish",
+            ]
+        )
+
+
+def test_publish_rejects_missing_token_before_planning(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.setattr(
+        cli_module,
+        "build_pull_request_plan",
+        lambda *_: pytest.fail("plan must not be built without a token"),
+    )
+
+    with pytest.raises(SystemExit, match="non-empty GITHUB_TOKEN"):
+        cli_module.main(
+            [
+                "publish",
+                "--proposal",
+                "proposal",
+                "--benchmark",
+                "benchmark",
+                "--confirm-publish",
+            ]
+        )
+
+
+def test_publish_composes_verified_stages_and_prints_safe_json(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    token = "test-secret-token"
+    monkeypatch.setenv("KUBEFIT_TOKEN", token)
+    events: list[object] = []
+    plan = object()
+    commit = object()
+    github = object()
+
+    def client(value: str):
+        assert value == token
+        events.append("client")
+        return github
+
+    def build(proposal: Path, benchmark: Path):
+        events.append(("plan", proposal, benchmark))
+        return plan
+
+    def commit_plan(root: Path, value):
+        assert value is plan
+        events.append(("commit", root))
+        return commit
+
+    def publish(root: Path, plan_value, commit_value, client_value, *, remote: str):
+        assert (plan_value, commit_value, client_value) == (plan, commit, github)
+        events.append(("publish", root, remote))
+        return SimpleNamespace(
+            repository=SimpleNamespace(owner="acme", name="workloads"),
+            remote=remote,
+            branch_name="kubefit/demo",
+            commit_sha="a" * 40,
+            branch_reused=False,
+            pull_request_number=42,
+            pull_request_url="https://github.com/acme/workloads/pull/42",
+            pull_request_reused=False,
+        )
+
+    monkeypatch.setattr(cli_module, "GitHubRestClient", client)
+    monkeypatch.setattr(cli_module, "build_pull_request_plan", build)
+    monkeypatch.setattr(cli_module, "commit_pull_request_plan", commit_plan)
+    monkeypatch.setattr(cli_module, "publish_pull_request", publish)
+
+    cli_module.main(
+        [
+            "publish",
+            "--proposal",
+            "proposal-artifact",
+            "--benchmark",
+            "benchmark-artifact",
+            "--repository-root",
+            str(tmp_path),
+            "--remote",
+            "upstream",
+            "--github-token-env",
+            "KUBEFIT_TOKEN",
+            "--confirm-publish",
+        ]
+    )
+
+    output_text = capsys.readouterr().out
+    output = json.loads(output_text)
+    assert token not in output_text
+    assert output == {
+        "branch": "kubefit/demo",
+        "branch_reused": False,
+        "commit_sha": "a" * 40,
+        "draft": True,
+        "pull_request_number": 42,
+        "pull_request_reused": False,
+        "pull_request_url": "https://github.com/acme/workloads/pull/42",
+        "remote": "upstream",
+        "repository": "acme/workloads",
+    }
+    assert events == [
+        "client",
+        ("plan", Path("proposal-artifact"), Path("benchmark-artifact")),
+        ("commit", tmp_path),
+        ("publish", tmp_path, "upstream"),
+    ]
+
+
+def test_publish_redacts_token_from_boundary_error(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    token = "unexpected-secret-value"
+    monkeypatch.setenv("GITHUB_TOKEN", token)
+    monkeypatch.setattr(cli_module, "GitHubRestClient", lambda value: object())
+    monkeypatch.setattr(
+        cli_module,
+        "build_pull_request_plan",
+        lambda *_: (_ for _ in ()).throw(RuntimeError(f"failure included {token}")),
+    )
+
+    with pytest.raises(SystemExit) as captured:
+        cli_module.main(
+            [
+                "publish",
+                "--proposal",
+                "proposal",
+                "--benchmark",
+                "benchmark",
+                "--confirm-publish",
+            ]
+        )
+
+    assert token not in str(captured.value)
+    assert "[REDACTED]" in str(captured.value)
+    assert capsys.readouterr().out == ""

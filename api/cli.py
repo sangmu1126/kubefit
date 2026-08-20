@@ -1,5 +1,7 @@
 import argparse
 import json
+import os
+import re
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -28,10 +30,14 @@ from evaluator import (
     evaluate_resources,
 )
 from gitops import (
+    GitHubRestClient,
     ManifestTarget,
+    build_pull_request_plan,
+    commit_pull_request_plan,
     generate_resource_patch,
     load_manifest_sources,
     load_proposal_bundle,
+    publish_pull_request,
     write_proposal_bundle,
 )
 from recommender import ObservedUsage
@@ -45,6 +51,12 @@ def _positive_decimal(value: str) -> Decimal:
     if not parsed.is_finite() or parsed <= 0:
         raise argparse.ArgumentTypeError("must be a positive finite decimal number")
     return parsed
+
+
+def _environment_variable_name(value: str) -> str:
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", value):
+        raise argparse.ArgumentTypeError("must be a valid environment variable name")
+    return value
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -89,11 +101,34 @@ def build_parser() -> argparse.ArgumentParser:
     )
     benchmark.add_argument("--rollout-timeout-seconds", type=int, default=120)
     benchmark.add_argument("--k6-timeout-seconds", type=int, default=240)
+    publish = subcommands.add_parser(
+        "publish", help="commit a verified proposal and open or reuse a GitHub draft PR"
+    )
+    publish.add_argument("--proposal", required=True, type=Path)
+    publish.add_argument("--benchmark", required=True, type=Path)
+    publish.add_argument("--repository-root", type=Path, default=Path("."))
+    publish.add_argument("--remote", default="origin")
+    publish.add_argument(
+        "--github-token-env",
+        type=_environment_variable_name,
+        default="GITHUB_TOKEN",
+        metavar="NAME",
+        help="environment variable containing the GitHub token (default: GITHUB_TOKEN)",
+    )
+    publish.add_argument(
+        "--confirm-publish",
+        required=True,
+        action="store_true",
+        help="acknowledge that this command creates a branch and draft pull request",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
+    if args.command == "publish":
+        _run_publish(args)
+        return
     if args.command == "benchmark":
         _run_benchmark(args)
         return
@@ -284,6 +319,47 @@ def _run_propose(args: argparse.Namespace) -> None:
                 "target": target.model_dump(),
                 "change_count": len(patch.report.changes),
                 "warnings": patch.report.eligibility_warnings,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+def _run_publish(args: argparse.Namespace) -> None:
+    token = os.environ.get(args.github_token_env)
+    if token is None or not token.strip():
+        raise SystemExit(
+            f"publish requires a non-empty {args.github_token_env} environment variable"
+        )
+    try:
+        github = GitHubRestClient(token)
+        plan = build_pull_request_plan(args.proposal, args.benchmark)
+        commit = commit_pull_request_plan(args.repository_root, plan)
+        published = publish_pull_request(
+            args.repository_root,
+            plan,
+            commit,
+            github,
+            remote=args.remote,
+        )
+    except Exception as exc:
+        detail = str(exc).replace(token, "[REDACTED]")
+        raise SystemExit(f"publish failed: {detail}") from None
+    print(
+        json.dumps(
+            {
+                "repository": (
+                    f"{published.repository.owner}/{published.repository.name}"
+                ),
+                "remote": published.remote,
+                "branch": published.branch_name,
+                "commit_sha": published.commit_sha,
+                "branch_reused": published.branch_reused,
+                "pull_request_number": published.pull_request_number,
+                "pull_request_url": published.pull_request_url,
+                "pull_request_reused": published.pull_request_reused,
+                "draft": True,
             },
             indent=2,
             sort_keys=True,
