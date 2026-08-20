@@ -24,6 +24,9 @@ class DeploymentResources:
     replica_sets: list[str]
     desired_replicas: int
     available_replicas: int
+    container_status_count: int
+    restart_count: int
+    oom_killed_count: int
     resources: CurrentResources
 
 
@@ -201,13 +204,6 @@ class KubectlDeploymentCollector:
             )
 
         label_selector = _label_selector(document["spec"]["selector"])
-        pods_raw = self._runner(
-            self._command("get", "pods", "-n", namespace, "-l", label_selector, "-o", "json")
-        )
-        pods = [item["metadata"]["name"] for item in json.loads(pods_raw)["items"]]
-        if not pods:
-            raise KubernetesCollectionError("deployment has no matching pods")
-
         replica_sets_raw = self._runner(
             self._command(
                 "get", "replicasets", "-n", namespace, "-l", label_selector, "-o", "json"
@@ -227,6 +223,37 @@ class KubectlDeploymentCollector:
             raise KubernetesCollectionError(
                 "deployment has no ReplicaSets owned by its current UID"
             )
+
+        pods_raw = self._runner(
+            self._command("get", "pods", "-n", namespace, "-l", label_selector, "-o", "json")
+        )
+        replica_set_names = set(replica_sets)
+        pod_items = [
+            item
+            for item in json.loads(pods_raw)["items"]
+            if any(
+                owner.get("controller") is True
+                and owner.get("kind") == "ReplicaSet"
+                and owner.get("name") in replica_set_names
+                for owner in item["metadata"].get("ownerReferences", [])
+            )
+        ]
+        pods = [item["metadata"]["name"] for item in pod_items]
+        if not pods:
+            raise KubernetesCollectionError(
+                "deployment has no Pods owned by its current ReplicaSets"
+            )
+
+        container_statuses = [
+            status
+            for item in pod_items
+            for status in item.get("status", {}).get("containerStatuses", [])
+            if status.get("name") == container["name"]
+        ]
+        restart_count = sum(status.get("restartCount", 0) for status in container_statuses)
+        oom_killed_count = sum(
+            _was_oom_killed(status) for status in container_statuses
+        )
         return DeploymentResources(
             namespace=namespace,
             name=deployment,
@@ -237,6 +264,9 @@ class KubectlDeploymentCollector:
             replica_sets=sorted(replica_sets),
             desired_replicas=document["spec"].get("replicas", 1),
             available_replicas=document.get("status", {}).get("availableReplicas", 0),
+            container_status_count=len(container_statuses),
+            restart_count=restart_count,
+            oom_killed_count=oom_killed_count,
             resources=CurrentResources(
                 cpu_request_millicores=_cpu_millicores(requests["cpu"]),
                 cpu_limit_millicores=_cpu_millicores(limits["cpu"]),
@@ -244,3 +274,13 @@ class KubectlDeploymentCollector:
                 memory_limit_mib=_memory_mib(limits["memory"]),
             ),
         )
+
+
+def _was_oom_killed(status: dict[str, object]) -> bool:
+    for state_name in ("state", "lastState"):
+        state = status.get(state_name, {})
+        if isinstance(state, dict):
+            terminated = state.get("terminated", {})
+            if isinstance(terminated, dict) and terminated.get("reason") == "OOMKilled":
+                return True
+    return False

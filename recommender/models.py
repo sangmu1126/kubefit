@@ -37,6 +37,16 @@ class ObservedUsage(BaseModel):
     history_clipped: bool = False
     authorized_replica_set_count: int | None = Field(default=None, ge=0)
     identity_snapshot_enabled: bool = False
+    cpu_throttling_p95_percent: float | None = Field(default=None, ge=0, le=100)
+    cpu_throttling_max_percent: float | None = Field(default=None, ge=0, le=100)
+    cpu_throttling_sample_count: int | None = Field(default=None, ge=0)
+    cpu_throttling_pod_count: int | None = Field(default=None, ge=0)
+    cpu_throttling_observation_coverage: float | None = Field(
+        default=None, ge=0, le=1
+    )
+    container_status_count: int | None = Field(default=None, ge=0)
+    restart_count: int | None = Field(default=None, ge=0)
+    oom_killed_count: int | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def maxima_are_not_below_percentiles(self) -> "ObservedUsage":
@@ -47,6 +57,12 @@ class ObservedUsage(BaseModel):
             raise ValueError("CPU maximum must be greater than or equal to P95")
         if self.memory_max_mib is not None and self.memory_max_mib < self.memory_p99_mib:
             raise ValueError("memory maximum must be greater than or equal to P99")
+        if (
+            self.cpu_throttling_max_percent is not None
+            and self.cpu_throttling_p95_percent is not None
+            and self.cpu_throttling_max_percent < self.cpu_throttling_p95_percent
+        ):
+            raise ValueError("CPU throttling maximum must be greater than or equal to P95")
         return self
 
 

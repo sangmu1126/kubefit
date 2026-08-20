@@ -78,6 +78,16 @@ def main() -> None:
         history_clipped=metrics.history_clipped,
         authorized_replica_set_count=len(replica_sets),
         identity_snapshot_enabled=args.identity_store is not None,
+        cpu_throttling_p95_percent=metrics.cpu_throttling_p95_percent,
+        cpu_throttling_max_percent=metrics.cpu_throttling_max_percent,
+        cpu_throttling_sample_count=metrics.cpu_throttling_sample_count,
+        cpu_throttling_pod_count=metrics.cpu_throttling_pod_count,
+        cpu_throttling_observation_coverage=(
+            metrics.cpu_throttling_observation_coverage
+        ),
+        container_status_count=workload.container_status_count,
+        restart_count=workload.restart_count,
+        oom_killed_count=workload.oom_killed_count,
     )
     result = evaluate_resources(
         workload.resources,

@@ -22,6 +22,14 @@ def test_recommends_rounded_resources_with_explanations() -> None:
             desired_replicas=2,
             available_replicas=2,
             observed_replicas=2,
+            cpu_throttling_p95_percent=0.2,
+            cpu_throttling_max_percent=0.5,
+            cpu_throttling_sample_count=1900,
+            cpu_throttling_pod_count=2,
+            cpu_throttling_observation_coverage=0.95,
+            container_status_count=2,
+            restart_count=0,
+            oom_killed_count=0,
         ),
     )
 
@@ -35,7 +43,8 @@ def test_recommends_rounded_resources_with_explanations() -> None:
     assert result.readiness.reasons == []
     assert result.risk.oom == "low"
     assert result.risk.cpu_throttling == "low"
-    assert len(result.evidence) == 4
+    assert any("CPU throttled-period P95 is 0.20%" in item for item in result.evidence)
+    assert any("0 OOMKilled" in item for item in result.evidence)
 
 
 def test_enforces_minimum_resources_for_idle_workloads() -> None:
@@ -73,6 +82,14 @@ def test_recommends_upsize_when_observed_usage_exceeds_current_requests() -> Non
             desired_replicas=2,
             available_replicas=2,
             observed_replicas=2,
+            cpu_throttling_p95_percent=12,
+            cpu_throttling_max_percent=20,
+            cpu_throttling_sample_count=3000,
+            cpu_throttling_pod_count=2,
+            cpu_throttling_observation_coverage=0.9,
+            container_status_count=2,
+            restart_count=0,
+            oom_killed_count=0,
         ),
     )
 
@@ -81,6 +98,92 @@ def test_recommends_upsize_when_observed_usage_exceeds_current_requests() -> Non
     assert result.cpu_request_change_percent == 220.0
     assert result.memory_request_change_percent == 200.0
     assert result.readiness.status == "ready"
+    assert result.risk.cpu_throttling == "high"
+
+
+def test_observed_oom_is_high_risk_even_with_incomplete_observation() -> None:
+    result = recommend_resources(
+        CurrentResources(
+            cpu_request_millicores=500,
+            cpu_limit_millicores=1000,
+            memory_request_mib=512,
+            memory_limit_mib=1024,
+        ),
+        ObservedUsage(
+            cpu_p95_millicores=100,
+            memory_p99_mib=200,
+            sample_count=10,
+            observation_coverage=0.1,
+            desired_replicas=1,
+            available_replicas=1,
+            observed_replicas=1,
+            container_status_count=1,
+            restart_count=1,
+            oom_killed_count=1,
+        ),
+    )
+
+    assert result.readiness.status == "insufficient_data"
+    assert result.risk.oom == "high"
+    assert any("1 OOMKilled" in reason for reason in result.risk.reasons)
+
+
+def test_material_throttling_is_risky_even_with_incomplete_observation() -> None:
+    result = recommend_resources(
+        CurrentResources(
+            cpu_request_millicores=500,
+            cpu_limit_millicores=1000,
+            memory_request_mib=512,
+            memory_limit_mib=1024,
+        ),
+        ObservedUsage(
+            cpu_p95_millicores=100,
+            memory_p99_mib=200,
+            sample_count=10,
+            observation_coverage=0.1,
+            desired_replicas=1,
+            available_replicas=1,
+            observed_replicas=1,
+            cpu_throttling_p95_percent=5,
+            cpu_throttling_max_percent=8,
+            cpu_throttling_sample_count=10,
+            cpu_throttling_pod_count=1,
+            cpu_throttling_observation_coverage=0.1,
+            container_status_count=1,
+            restart_count=0,
+            oom_killed_count=0,
+        ),
+    )
+
+    assert result.readiness.status == "insufficient_data"
+    assert result.risk.cpu_throttling == "medium"
+
+
+def test_missing_runtime_signals_cannot_produce_low_risk() -> None:
+    result = recommend_resources(
+        CurrentResources(
+            cpu_request_millicores=500,
+            cpu_limit_millicores=1000,
+            memory_request_mib=512,
+            memory_limit_mib=1024,
+        ),
+        ObservedUsage(
+            cpu_p95_millicores=100,
+            memory_p99_mib=200,
+            cpu_max_millicores=150,
+            memory_max_mib=250,
+            sample_count=1000,
+            observation_coverage=0.9,
+            desired_replicas=1,
+            available_replicas=1,
+            observed_replicas=1,
+        ),
+    )
+
+    assert result.readiness.status == "insufficient_data"
+    assert result.risk.oom == "unknown"
+    assert result.risk.cpu_throttling == "unknown"
+    assert "CPU throttling metrics were not available" in result.readiness.reasons
 
 
 def test_marks_risk_unknown_when_observation_coverage_is_insufficient() -> None:

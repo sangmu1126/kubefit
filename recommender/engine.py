@@ -65,12 +65,18 @@ def recommend_resources(
         if observed.cpu_max_millicores is not None
         else None
     )
-    oom_risk = _risk_from_headroom(oom_headroom, evidence_is_sufficient)
-    throttle_risk = _risk_from_headroom(cpu_headroom, evidence_is_sufficient)
+    oom_risk = _oom_risk(observed, oom_headroom, evidence_is_sufficient)
+    throttle_risk = _cpu_throttling_risk(
+        observed.cpu_throttling_p95_percent,
+        cpu_headroom,
+        evidence_is_sufficient,
+    )
 
     risk_reasons = readiness_reasons.copy()
     risk_reasons.extend(
         [
+            _runtime_status_reason(observed),
+            _throttling_reason(observed),
             _headroom_reason("memory limit", oom_headroom, "observed maximum"),
             _headroom_reason("CPU limit", cpu_headroom, "observed maximum"),
         ]
@@ -112,6 +118,10 @@ def recommend_resources(
         evidence.append(
             f"{source} authorizes {observed.authorized_replica_set_count} {replica_set_label}"
         )
+    if observed.cpu_throttling_p95_percent is not None:
+        evidence.append(_throttling_reason(observed))
+    if observed.container_status_count is not None:
+        evidence.append(_runtime_status_reason(observed))
 
     return ResourceRecommendation(
         recommended=ResourceValues(
@@ -168,6 +178,55 @@ def _readiness_reasons(
             "replica counts are unstable: "
             f"desired={desired}, available={available}, observed={metric_pods}"
         )
+
+    if observed.cpu_throttling_p95_percent is None:
+        reasons.append("CPU throttling metrics were not available")
+    elif observed.cpu_throttling_sample_count is None:
+        reasons.append("CPU throttling sample count was not provided")
+    elif observed.cpu_throttling_sample_count < policy.minimum_sample_count:
+        reasons.append(
+            f"CPU throttling sample count is {observed.cpu_throttling_sample_count}; "
+            f"at least {policy.minimum_sample_count} is required"
+        )
+    if observed.cpu_throttling_observation_coverage is None:
+        reasons.append("CPU throttling observation coverage was not provided")
+    elif (
+        observed.cpu_throttling_observation_coverage
+        < policy.minimum_observation_coverage
+    ):
+        reasons.append(
+            "CPU throttling observation coverage is "
+            f"{observed.cpu_throttling_observation_coverage:.1%}; at least "
+            f"{policy.minimum_observation_coverage:.0%} is required"
+        )
+    if observed.cpu_throttling_pod_count is None:
+        reasons.append("CPU throttling Pod count was not provided")
+    elif (
+        observed.desired_replicas is not None
+        and observed.cpu_throttling_pod_count < observed.desired_replicas
+    ):
+        reasons.append(
+            "CPU throttling Pod coverage is incomplete: "
+            f"metric_pods={observed.cpu_throttling_pod_count}, "
+            f"desired={observed.desired_replicas}"
+        )
+
+    status_values = (
+        observed.container_status_count,
+        observed.restart_count,
+        observed.oom_killed_count,
+    )
+    if any(value is None for value in status_values):
+        reasons.append("Kubernetes container status signals were not all provided")
+    elif (
+        observed.desired_replicas is not None
+        and observed.container_status_count != observed.desired_replicas
+    ):
+        reasons.append(
+            "target container status coverage is incomplete: "
+            f"statuses={observed.container_status_count}, "
+            f"desired={observed.desired_replicas}"
+        )
     return reasons
 
 
@@ -179,6 +238,57 @@ def _risk_from_headroom(headroom: float | None, evidence_is_sufficient: bool) ->
     if headroom >= 1.05:
         return "medium"
     return "high"
+
+
+def _oom_risk(
+    observed: ObservedUsage,
+    headroom: float | None,
+    evidence_is_sufficient: bool,
+) -> str:
+    if observed.oom_killed_count is not None and observed.oom_killed_count > 0:
+        return "high"
+    return _risk_from_headroom(headroom, evidence_is_sufficient)
+
+
+def _cpu_throttling_risk(
+    throttling_p95_percent: float | None,
+    headroom: float | None,
+    evidence_is_sufficient: bool,
+) -> str:
+    if throttling_p95_percent is None:
+        return "unknown"
+    if throttling_p95_percent >= 10:
+        return "high"
+    if throttling_p95_percent >= 1:
+        return "medium"
+    return _risk_from_headroom(headroom, evidence_is_sufficient)
+
+
+def _runtime_status_reason(observed: ObservedUsage) -> str:
+    if (
+        observed.container_status_count is None
+        or observed.restart_count is None
+        or observed.oom_killed_count is None
+    ):
+        return "Kubernetes target container status was not available"
+    return (
+        f"Kubernetes reports {observed.restart_count} restarts and "
+        f"{observed.oom_killed_count} OOMKilled states across "
+        f"{observed.container_status_count} target container statuses"
+    )
+
+
+def _throttling_reason(observed: ObservedUsage) -> str:
+    if observed.cpu_throttling_p95_percent is None:
+        return "CPU throttling metrics were not available"
+    sample_count = observed.cpu_throttling_sample_count or 0
+    pod_count = observed.cpu_throttling_pod_count or 0
+    coverage = observed.cpu_throttling_observation_coverage or 0
+    return (
+        f"CPU throttled-period P95 is {observed.cpu_throttling_p95_percent:.2f}% "
+        f"across {sample_count} samples and {pod_count} Pod identities, providing "
+        f"{coverage:.1%} observation coverage"
+    )
 
 
 def _headroom_reason(label: str, headroom: float | None, baseline: str) -> str:

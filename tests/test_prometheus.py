@@ -28,8 +28,11 @@ def test_collects_workload_percentiles_and_units() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         queries.append(str(request.url.params["query"]))
         values = [[1, "0.1"], [2, "0.2"], [3, "0.3"]]
-        if "memory" in str(request.url.params["query"]):
+        query = str(request.url.params["query"])
+        if "memory" in query:
             values = [[1, str(100 * 1024 * 1024)], [2, str(200 * 1024 * 1024)]]
+        elif "cfs_throttled" in query:
+            values = [[1, "0.5"], [2, "1.5"], [3, "2.5"]]
         return httpx.Response(
             200, json={"status": "success", "data": {"result": [{"values": values}]}}
         )
@@ -51,6 +54,11 @@ def test_collects_workload_percentiles_and_units() -> None:
     assert result.step_seconds == 300
     assert result.sample_count == 2
     assert result.metric_pod_count == 1
+    assert result.cpu_throttling_p95_percent == pytest.approx(2.4)
+    assert result.cpu_throttling_max_percent == pytest.approx(2.5)
+    assert result.cpu_throttling_sample_count == 3
+    assert result.cpu_throttling_pod_count == 1
+    assert 0 < result.cpu_throttling_observation_coverage < 0.01
     assert 0 < result.observation_coverage < 0.01
     assert all('namespace="demo"' in query for query in queries)
     assert all("kube_pod_owner" in query for query in queries)
@@ -124,7 +132,7 @@ def test_clips_query_at_current_workload_creation_but_keeps_requested_coverage()
         now=now,
     )
 
-    assert starts == [created_at.isoformat(), created_at.isoformat()]
+    assert starts == [created_at.isoformat()] * 3
     assert result.query_start == created_at
     assert result.requested_start == now - timedelta(days=7)
     assert result.history_clipped is True
@@ -162,3 +170,28 @@ def test_rejects_workload_when_prometheus_returns_no_samples() -> None:
             datetime(2025, 1, 1, tzinfo=UTC),
             now=datetime(2026, 1, 1, tzinfo=UTC),
         )
+
+
+def test_marks_cpu_throttling_unavailable_without_losing_usage_metrics() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        query = str(request.url.params["query"])
+        result = [] if "cfs_throttled" in query else [{"values": [[1, "1"]]}]
+        return httpx.Response(
+            200, json={"status": "success", "data": {"result": result}}
+        )
+
+    http = httpx.Client(base_url="http://prometheus", transport=httpx.MockTransport(handler))
+    result = PrometheusClient("http://prometheus", client=http).workload_metrics(
+        "demo",
+        ["api-current"],
+        ["api-current-pod"],
+        "api",
+        datetime(2025, 1, 1, tzinfo=UTC),
+        now=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+
+    assert result.cpu_p95_millicores == 1000
+    assert result.cpu_throttling_p95_percent is None
+    assert result.cpu_throttling_sample_count == 0
+    assert result.cpu_throttling_pod_count == 0
+    assert result.cpu_throttling_observation_coverage == 0

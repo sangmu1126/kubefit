@@ -64,6 +64,47 @@ REPLICA_SETS = {
     ]
 }
 
+PODS = {
+    "items": [
+        {
+            "metadata": {
+                "name": "demo-abc",
+                "ownerReferences": [
+                    {
+                        "controller": True,
+                        "kind": "ReplicaSet",
+                        "name": "demo-owned",
+                    }
+                ],
+            },
+            "status": {
+                "containerStatuses": [
+                    {
+                        "name": "api",
+                        "restartCount": 2,
+                        "state": {"running": {}},
+                        "lastState": {
+                            "terminated": {"reason": "OOMKilled"}
+                        },
+                    }
+                ]
+            },
+        },
+        {
+            "metadata": {
+                "name": "foreign-pod",
+                "ownerReferences": [
+                    {
+                        "controller": True,
+                        "kind": "ReplicaSet",
+                        "name": "demo-foreign",
+                    }
+                ],
+            }
+        },
+    ]
+}
+
 
 def test_collects_deployment_resources_and_pods() -> None:
     commands: list[list[str]] = []
@@ -74,7 +115,7 @@ def test_collects_deployment_resources_and_pods() -> None:
             return json.dumps(DEPLOYMENT)
         if "replicasets" in command:
             return json.dumps(REPLICA_SETS)
-        return json.dumps({"items": [{"metadata": {"name": "demo-abc"}}]})
+        return json.dumps(PODS)
 
     result = KubectlDeploymentCollector(runner=runner).collect("demo", "api")
 
@@ -86,6 +127,9 @@ def test_collects_deployment_resources_and_pods() -> None:
     assert result.created_at == datetime(2026, 8, 20, tzinfo=UTC)
     assert result.desired_replicas == 1
     assert result.available_replicas == 1
+    assert result.container_status_count == 1
+    assert result.restart_count == 2
+    assert result.oom_killed_count == 1
     assert ["-l", "app=demo"] == commands[1][
         commands[1].index("-l") : commands[1].index("-l") + 2
     ]
@@ -166,7 +210,7 @@ def test_compiles_match_labels_and_expressions_for_kubectl() -> None:
             return json.dumps(document)
         if "replicasets" in command:
             return json.dumps(REPLICA_SETS)
-        return json.dumps({"items": [{"metadata": {"name": "demo-abc"}}]})
+        return json.dumps(PODS)
 
     KubectlDeploymentCollector(runner=runner).collect("demo", "api")
 

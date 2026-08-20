@@ -21,6 +21,11 @@ class WorkloadMetrics:
     sample_count: int
     observation_coverage: float
     metric_pod_count: int
+    cpu_throttling_p95_percent: float | None
+    cpu_throttling_max_percent: float | None
+    cpu_throttling_sample_count: int
+    cpu_throttling_pod_count: int
+    cpu_throttling_observation_coverage: float
     requested_start: datetime
     query_start: datetime
     history_clipped: bool
@@ -136,8 +141,25 @@ class PrometheusClient:
             f"container_memory_working_set_bytes{{{container_labels}}} "
             f"* on(namespace,pod) group_left() ({ownership}))"
         )
+        throttled_periods = (
+            "sum by (pod) ("
+            f"rate(container_cpu_cfs_throttled_periods_total{{{container_labels}}}[5m]) "
+            f"* on(namespace,pod) group_left() ({ownership}))"
+        )
+        total_periods = (
+            "sum by (pod) ("
+            f"rate(container_cpu_cfs_periods_total{{{container_labels}}}[5m]) "
+            f"* on(namespace,pod) group_left() ({ownership}))"
+        )
+        throttling_query = (
+            f"clamp_max(100 * ({throttled_periods}) / "
+            f"clamp_min(({total_periods}), 1e-9), 100)"
+        )
         cpu_series = self.query_range_series(cpu_query, query_start, end, step_seconds)
         memory_series = self.query_range_series(memory_query, query_start, end, step_seconds)
+        throttling_series = self.query_range_series(
+            throttling_query, query_start, end, step_seconds
+        )
         if not cpu_series or not memory_series:
             raise PrometheusError("Prometheus returned no samples for the workload")
 
@@ -162,6 +184,24 @@ class PrometheusClient:
             sample_count=observed_samples,
             observation_coverage=min(1.0, observed_samples / expected_total),
             metric_pod_count=min(len(cpu_series), len(memory_series)),
+            cpu_throttling_p95_percent=(
+                max(percentile(values, 0.95) for values in throttling_series)
+                if throttling_series
+                else None
+            ),
+            cpu_throttling_max_percent=(
+                max(max(values) for values in throttling_series)
+                if throttling_series
+                else None
+            ),
+            cpu_throttling_sample_count=sum(
+                len(values) for values in throttling_series
+            ),
+            cpu_throttling_pod_count=len(throttling_series),
+            cpu_throttling_observation_coverage=min(
+                1.0,
+                sum(len(values) for values in throttling_series) / expected_total,
+            ),
             requested_start=requested_start,
             query_start=query_start,
             history_clipped=query_start > requested_start,
