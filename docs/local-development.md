@@ -43,7 +43,7 @@ kubectl --context kind-kubefit get pods -n kubefit-demo
 kubectl --context kind-kubefit get pvc -n monitoring
 ```
 
-## Analyze the demo Deployment
+## Check observation readiness
 
 Keep this command running in one terminal:
 
@@ -55,6 +55,25 @@ kubectl --context kind-kubefit port-forward \
 ```
 
 After Prometheus has collected several samples, run in another terminal:
+
+```bash
+kubefit readiness \
+  --context kind-kubefit \
+  --namespace kubefit-demo \
+  --deployment overprovisioned-api \
+  --prometheus-url http://localhost:9090 \
+  --identity-store .kubefit/identities.json \
+  --days 1
+```
+
+`collecting` includes an estimated readiness timestamp only when replicas, Pod
+metrics, and container statuses are complete. `blocked` requires intervention and
+does not include a time estimate. The estimate assumes the replica count and
+five-minute metric production remain stable.
+
+## Analyze the demo Deployment
+
+When readiness becomes `eligible`, create the priced analysis artifact:
 
 ```bash
 kubefit analyze \

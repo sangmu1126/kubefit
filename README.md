@@ -63,6 +63,11 @@ explicit request-cost comparison.
 Analyze a live Deployment (with Prometheus reachable locally):
 
 ```bash
+kubefit readiness --context kind-kubefit \
+  --namespace kubefit-demo --deployment overprovisioned-api \
+  --prometheus-url http://localhost:9090 \
+  --identity-store .kubefit/identities.json --days 1
+
 kubefit analyze --namespace kubefit-demo --deployment overprovisioned-api \
   --prometheus-url http://localhost:9090 \
   --identity-store .kubefit/identities.json \
@@ -77,6 +82,11 @@ Prometheus must scrape cAdvisor metrics plus `kube_pod_owner` from
 kube-state-metrics. KubeFit filters ReplicaSets through their Kubernetes controller
 owner UID and clips history to the current Deployment creation time, avoiding
 Pod-name prefixes and same-name workload history.
+
+`kubefit readiness` uses the same collection and policy path without requiring
+price inputs. It distinguishes evidence that only needs more collection time from
+unstable replicas, missing Pod signals, and already observed high-risk conditions.
+Time estimates state their stable-replica and continued-scrape assumptions.
 
 The evaluator also reads the cAdvisor CPU throttled-period counters and current
 Kubernetes target-container status. Missing throttling metrics or incomplete Pod
@@ -109,17 +119,15 @@ evaluated. Request-cost change is reported separately and cannot override safety
 
 The benchmark execution core revalidates every proposal hash before cluster access,
 requires an explicit kubectl context, executes before and after sequentially, and
-reapplies the before manifest on every exit path after mutation starts. It is
-currently an internal building block for the disposable demo cluster, not a
-production automation interface; measurement collection and isolated result
-publication are still in progress.
+reapplies the before manifest on every exit path after mutation starts. The CLI is
+restricted to an explicitly acknowledged disposable `kind-*` cluster and is not a
+production automation interface.
 
 The aligned measurement collector brackets the fixed k6 run with Pod-level runtime
 snapshots, queries Prometheus throttling inside that run, derives recovery from raw
 timestamped samples, and selects the proposal-fixed monthly request cost. Its output
-records run timestamps, Pod identity, and raw/summary hashes. Raw evidence remains
-temporary until the result-artifact phase is completed, so the end-to-end benchmark
-is not yet exposed as a supported CLI command.
+records run timestamps, Pod identity, and raw/summary hashes. The result publisher
+retains those inputs in a separate immutable benchmark artifact.
 
 Completed benchmark executions can now be published separately from their proposal
 as immutable `benchmark-<digest>` artifacts. Each result binds canonical before/after

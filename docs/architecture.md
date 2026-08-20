@@ -79,6 +79,24 @@ Resource calculation and change authorization are separate. An insufficient resu
 still includes its candidate and evidence for inspection, but future patch generation
 must accept only an evaluation whose `patch_eligibility.status` is `eligible`.
 
+## Observation readiness projection
+
+The read-only readiness command reuses the exact workload, Prometheus, identity,
+recommendation, and eligibility path used by analysis. For the requested window it
+converts the 70% coverage threshold into a required sample count and takes the
+larger of that value and the policy's 100-sample floor.
+
+```text
+required = max(100, ceil(points-per-Pod × desired replicas × 70%))
+remaining intervals = ceil(max(usage deficit, throttling deficit) / replicas)
+```
+
+An estimate is emitted only when replicas, usage/throttling Pod coverage, and
+container statuses are complete and no high-risk signal is already present.
+Otherwise the status is `blocked`, because passage of time alone is not a defensible
+remediation. Estimates remain projections: a rollout, scrape gap, OOM, throttling
+change, or replica change invalidates their assumptions.
+
 ## Patch eligibility policy v0
 
 ```text

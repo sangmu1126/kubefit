@@ -41,6 +41,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0017](0017-proposal-cli.md) | Proposal CLI | Bind analysis identity and repository YAML into an immutable proposal |
 | [0018](0018-target-document-isolation.md) | Target document isolation | Apply only the selected Deployment, never neighboring YAML documents |
 | [0019](0019-persistent-local-observation.md) | Persistent local observation | Preserve Prometheus evidence across Pod and Docker restarts |
+| [0020](0020-readiness-cli.md) | Readiness CLI | Explain whether to wait or intervene before creating a proposal |
 
 ## Visual language
 
