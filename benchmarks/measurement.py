@@ -18,7 +18,8 @@ from benchmarks.result import (
     RuntimeBenchmarkSignals,
 )
 from collector import KubectlDeploymentCollector
-from gitops import LoadedProposalBundle, ManifestTarget
+from gitops.bundle import LoadedProposalBundle
+from gitops.manifest import ManifestTarget
 
 RECOVERY_DURATION_SECONDS = 60
 RECOVERY_WINDOW_SECONDS = 5

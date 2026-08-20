@@ -18,6 +18,12 @@ from gitops.manifest import (
     extract_target_document,
     generate_resource_patch,
 )
+from gitops.pull_request import (
+    PullRequestPlan,
+    PullRequestPlanError,
+    RepositoryFileChange,
+    build_pull_request_plan,
+)
 from gitops.source import ManifestSourceError, load_manifest_sources
 
 __all__ = [
@@ -32,6 +38,10 @@ __all__ = [
     "LoadedProposalBundle",
     "ProposalBundle",
     "ProposalBundleError",
+    "PullRequestPlan",
+    "PullRequestPlanError",
+    "RepositoryFileChange",
+    "build_pull_request_plan",
     "extract_target_document",
     "generate_resource_patch",
     "load_proposal_bundle",

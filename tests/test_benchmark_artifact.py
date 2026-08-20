@@ -9,6 +9,7 @@ import benchmarks.artifact as artifact_module
 from benchmarks import (
     BenchmarkResultArtifactError,
     execute_benchmark,
+    load_benchmark_result,
     write_benchmark_result,
 )
 from tests.test_benchmark_runner import (
@@ -59,6 +60,20 @@ def test_publishes_complete_hashed_result_without_changing_proposal(
         if path.is_file()
     )
     assert proposal_files_after == proposal_files_before
+
+
+def test_loads_and_semantically_revalidates_result(tmp_path: Path) -> None:
+    proposal, run = completed_run(tmp_path)
+    published = write_benchmark_result(tmp_path / "results", run)
+
+    loaded = load_benchmark_result(published.path)
+
+    assert loaded.artifact_id == published.artifact_id
+    assert loaded.proposal_id == proposal.artifact_id
+    assert loaded.before == run.before
+    assert loaded.after == run.after
+    assert loaded.verdict == run.verdict
+    assert loaded.report_path.read_text().startswith("# KubeFit benchmark result\n")
 
 
 def test_reuses_identical_result_across_retries(tmp_path: Path) -> None:
@@ -164,3 +179,32 @@ def test_rejects_unrestored_execution(tmp_path: Path) -> None:
 
     with pytest.raises(BenchmarkResultArtifactError, match="restoration"):
         write_benchmark_result(tmp_path / "results", run)
+
+
+def test_loader_rejects_rehashed_report_that_conflicts_with_measurements(
+    tmp_path: Path,
+) -> None:
+    _, run = completed_run(tmp_path)
+    published = write_benchmark_result(tmp_path / "results", run)
+    (published.path / "report.md").write_text("# Fabricated report\n")
+
+    index_path = published.path / "result.json"
+    index = json.loads(index_path.read_text())
+    payloads = {
+        relative_path: (published.path / relative_path).read_bytes()
+        for relative_path in index["files"]
+    }
+    for relative_path, content in payloads.items():
+        index["files"][relative_path] = {
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "size_bytes": len(content),
+        }
+    digest = artifact_module._content_digest(payloads)
+    index["content_digest_sha256"] = digest
+    index["artifact_id"] = f"benchmark-{digest[:32]}"
+    index_path.write_bytes(artifact_module._canonical_json(index))
+    renamed = published.path.with_name(index["artifact_id"])
+    published.path.rename(renamed)
+
+    with pytest.raises(BenchmarkResultArtifactError, match="Markdown report conflicts"):
+        load_benchmark_result(renamed)

@@ -13,7 +13,8 @@ from benchmarks.result import (
     BenchmarkVerdict,
     compare_benchmarks,
 )
-from gitops import LoadedProposalBundle, ManifestTarget, load_proposal_bundle
+from gitops.bundle import LoadedProposalBundle, load_proposal_bundle
+from gitops.manifest import ManifestTarget
 
 
 class BenchmarkExecutionError(RuntimeError):

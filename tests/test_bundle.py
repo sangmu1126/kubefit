@@ -229,3 +229,37 @@ def test_rejects_rehashed_benchmark_manifest_that_conflicts_with_source(
 
     with pytest.raises(ProposalBundleError, match="conflicts with its source"):
         load_proposal_bundle(renamed)
+
+
+def test_rejects_rehashed_after_source_that_conflicts_with_regenerated_patch(
+    tmp_path: Path,
+) -> None:
+    _, evaluation, patch = proposal_inputs()
+    published = write_proposal_bundle(tmp_path / "proposals", patch, evaluation)
+    paths = [
+        published.path / "manifests/after/deploy/demo.yaml",
+        published.path / "benchmark/manifests/after.yaml",
+    ]
+    for path in paths:
+        path.write_text(path.read_text().replace('cpu: "290m"', 'cpu: "300m"'))
+
+    artifact_path = published.path / "artifact.json"
+    index = json.loads(artifact_path.read_text())
+    payloads = {
+        relative_path: (published.path / relative_path).read_bytes()
+        for relative_path in index["files"]
+    }
+    for relative_path, content in payloads.items():
+        index["files"][relative_path] = {
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "size_bytes": len(content),
+        }
+    digest = bundle_module._content_digest(payloads)
+    index["content_digest_sha256"] = digest
+    index["artifact_id"] = f"proposal-{digest[:32]}"
+    artifact_path.write_bytes(bundle_module._canonical_json(index))
+    renamed = published.path.with_name(index["artifact_id"])
+    published.path.rename(renamed)
+
+    with pytest.raises(ProposalBundleError, match="after source conflicts"):
+        load_proposal_bundle(renamed)

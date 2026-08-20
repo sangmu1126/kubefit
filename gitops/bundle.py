@@ -15,8 +15,10 @@ from gitops.manifest import (
     ManifestPatch,
     ManifestPatchError,
     ManifestPatchReport,
+    ManifestSource,
     ManifestTarget,
     extract_target_document,
+    generate_resource_patch,
 )
 from recommender import CurrentResources
 from recommender.models import ResourceValues
@@ -47,6 +49,8 @@ class LoadedProposalBundle(BaseModel):
     path: Path
     source_path: str
     target: ManifestTarget
+    patch_report: ManifestPatchReport
+    evaluation: EvaluationResult
     before_source_manifest: Path
     after_source_manifest: Path
     before_manifest: Path
@@ -231,14 +235,26 @@ def load_proposal_bundle(path: Path) -> LoadedProposalBundle:
     try:
         before_source = payloads[before_source_path].decode("utf-8")
         after_source = payloads[after_source_path].decode("utf-8")
+        persisted_diff = payloads["patch.diff"].decode("utf-8")
+        regenerated = generate_resource_patch(
+            [ManifestSource(path=source_path.as_posix(), content=before_source)],
+            report.target,
+            evaluation,
+        )
         expected_before = extract_target_document(
             before_source, report.document_index, report.target
         ).encode()
         expected_after = extract_target_document(
             after_source, report.document_index, report.target
         ).encode()
-    except (UnicodeDecodeError, ManifestPatchError) as exc:
+    except (UnicodeDecodeError, ManifestPatchError, ValueError) as exc:
         raise ProposalBundleError("proposal source manifest is invalid") from exc
+    if regenerated.report != report:
+        raise ProposalBundleError("proposal patch report conflicts with regenerated patch")
+    if regenerated.patched_content != after_source:
+        raise ProposalBundleError("proposal after source conflicts with regenerated patch")
+    if regenerated.unified_diff != persisted_diff:
+        raise ProposalBundleError("proposal diff conflicts with regenerated patch")
     if payloads["benchmark/manifests/before.yaml"] != expected_before:
         raise ProposalBundleError(
             "proposal before benchmark manifest conflicts with its source"
@@ -253,6 +269,8 @@ def load_proposal_bundle(path: Path) -> LoadedProposalBundle:
         path=path,
         source_path=source_path.as_posix(),
         target=context.target,
+        patch_report=report,
+        evaluation=evaluation,
         before_source_manifest=path / "manifests" / "before" / source_path,
         after_source_manifest=path / "manifests" / "after" / source_path,
         before_manifest=path / "benchmark" / "manifests" / "before.yaml",

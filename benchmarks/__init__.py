@@ -3,6 +3,8 @@
 from benchmarks.artifact import (
     BenchmarkResultArtifact,
     BenchmarkResultArtifactError,
+    LoadedBenchmarkResult,
+    load_benchmark_result,
     write_benchmark_result,
 )
 from benchmarks.lock import BenchmarkExecutionLock, BenchmarkLockError
@@ -47,6 +49,7 @@ __all__ = [
     "BenchmarkRun",
     "BenchmarkResultArtifact",
     "BenchmarkResultArtifactError",
+    "LoadedBenchmarkResult",
     "BenchmarkVerdict",
     "AlignedMeasurementCollector",
     "DeploymentRuntimeSnapshotter",
@@ -62,5 +65,6 @@ __all__ = [
     "compare_benchmarks",
     "execute_benchmark",
     "recovery_from_k6_raw",
+    "load_benchmark_result",
     "write_benchmark_result",
 ]

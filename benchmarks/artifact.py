@@ -9,7 +9,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from benchmarks.measurement import CollectedMeasurement
-from benchmarks.result import compare_benchmarks
+from benchmarks.result import BenchmarkMeasurement, BenchmarkVerdict, compare_benchmarks
 from benchmarks.runner import BenchmarkRun
 
 
@@ -23,6 +23,16 @@ class BenchmarkResultArtifact(BaseModel):
     path: Path
     reused: bool
     files: list[str]
+
+
+class LoadedBenchmarkResult(BaseModel):
+    artifact_id: str = Field(pattern=r"^benchmark-[0-9a-f]{32}$")
+    proposal_id: str = Field(pattern=r"^proposal-[0-9a-f]{32}$")
+    path: Path
+    before: BenchmarkMeasurement
+    after: BenchmarkMeasurement
+    verdict: BenchmarkVerdict
+    report_path: Path
 
 
 class _ResultFileMetadata(BaseModel):
@@ -99,6 +109,108 @@ def write_benchmark_result(
         os.close(lock_fd)
         lock_path.unlink(missing_ok=True)
         _fsync_directory(output_root)
+
+
+def load_benchmark_result(path: Path) -> LoadedBenchmarkResult:
+    """Load and semantically revalidate a persisted benchmark result."""
+    if path.is_symlink() or not path.is_dir():
+        raise BenchmarkResultArtifactError(f"result path is not a safe directory: {path}")
+    index_path = path / "result.json"
+    if index_path.is_symlink() or not index_path.is_file():
+        raise BenchmarkResultArtifactError("result is missing a regular result.json")
+    try:
+        index_bytes = index_path.read_bytes()
+        raw_index = json.loads(index_bytes)
+        index = _ResultIndex.model_validate(raw_index)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        raise BenchmarkResultArtifactError("result index is invalid") from exc
+    if index_bytes != _canonical_json(raw_index):
+        raise BenchmarkResultArtifactError("result index is not canonical JSON")
+    if path.name != index.artifact_id:
+        raise BenchmarkResultArtifactError("result directory name does not match artifact ID")
+    if index.content_digest_sha256[:32] != index.artifact_id.removeprefix("benchmark-"):
+        raise BenchmarkResultArtifactError(
+            "result artifact ID does not match its content digest"
+        )
+
+    expected_payload_paths = {
+        "measurements/before.json",
+        "measurements/after.json",
+        "evidence/k6/before-summary.json",
+        "evidence/k6/before-raw.json",
+        "evidence/k6/after-summary.json",
+        "evidence/k6/after-raw.json",
+        "verdict.json",
+        "report.md",
+    }
+    if set(index.files) != expected_payload_paths:
+        raise BenchmarkResultArtifactError(
+            "result index does not contain the expected payload set"
+        )
+
+    actual_files = []
+    payloads: dict[str, bytes] = {}
+    for item in path.rglob("*"):
+        if item.is_symlink():
+            raise BenchmarkResultArtifactError(f"result contains a symlink: {item}")
+        if item.is_file():
+            actual_files.append(item.relative_to(path).as_posix())
+    if set(actual_files) != expected_payload_paths | {"result.json"}:
+        raise BenchmarkResultArtifactError("result file set does not match its index")
+    for relative_path, metadata in index.files.items():
+        safe_path = _safe_relative_path(relative_path)
+        content = path.joinpath(*safe_path.parts).read_bytes()
+        if len(content) != metadata.size_bytes:
+            raise BenchmarkResultArtifactError(
+                f"result payload size changed: {relative_path}"
+            )
+        if hashlib.sha256(content).hexdigest() != metadata.sha256:
+            raise BenchmarkResultArtifactError(
+                f"result payload digest changed: {relative_path}"
+            )
+        payloads[relative_path] = content
+    if _content_digest(payloads) != index.content_digest_sha256:
+        raise BenchmarkResultArtifactError(
+            "result content digest does not match its payloads"
+        )
+
+    try:
+        before = BenchmarkMeasurement.model_validate_json(
+            payloads["measurements/before.json"]
+        )
+        after = BenchmarkMeasurement.model_validate_json(
+            payloads["measurements/after.json"]
+        )
+        verdict = BenchmarkVerdict.model_validate_json(payloads["verdict.json"])
+        run = BenchmarkRun(
+            proposal_id=index.proposal_id,
+            before=before,
+            after=after,
+            verdict=verdict,
+            before_k6_summary=payloads["evidence/k6/before-summary.json"],
+            before_k6_raw=payloads["evidence/k6/before-raw.json"],
+            after_k6_summary=payloads["evidence/k6/after-summary.json"],
+            after_k6_raw=payloads["evidence/k6/after-raw.json"],
+        )
+        _validate_run(run)
+    except (ValueError, BenchmarkResultArtifactError) as exc:
+        raise BenchmarkResultArtifactError(
+            "result evidence or verdict is inconsistent"
+        ) from exc
+    if payloads["report.md"] != _render_report(run).encode():
+        raise BenchmarkResultArtifactError(
+            "result Markdown report conflicts with its measurements"
+        )
+
+    return LoadedBenchmarkResult(
+        artifact_id=index.artifact_id,
+        proposal_id=index.proposal_id,
+        path=path,
+        before=before,
+        after=after,
+        verdict=verdict,
+        report_path=path / "report.md",
+    )
 
 
 def _validate_run(run: BenchmarkRun) -> None:
@@ -246,7 +358,14 @@ def _validate_output_root(output_root: Path) -> None:
 
 def _safe_relative_path(value: str) -> PurePosixPath:
     path = PurePosixPath(value)
-    if not value or not path.parts or path.is_absolute() or ".." in path.parts:
+    if (
+        not value
+        or not path.parts
+        or "\n" in value
+        or "\r" in value
+        or path.is_absolute()
+        or ".." in path.parts
+    ):
         raise BenchmarkResultArtifactError("result path must be artifact-relative")
     return path
 

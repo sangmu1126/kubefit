@@ -67,7 +67,16 @@ def collector(events: list[str], *, fail_variant: str | None = None):
         events.append(f"measure:{variant}")
         if variant == fail_variant:
             raise RuntimeError(f"measure:{variant}")
-        measured = measurement(variant, proposal_id=proposal.artifact_id)
+        request_cost = (
+            proposal.before_request_cost_usd
+            if variant == "before"
+            else proposal.after_request_cost_usd
+        )
+        measured = measurement(
+            variant,
+            proposal_id=proposal.artifact_id,
+            request_cost_usd=request_cost,
+        )
         summary_bytes = (
             K6RunSummary.model_validate(measured.model_dump()).model_dump_json().encode()
         )
