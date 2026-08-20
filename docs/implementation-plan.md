@@ -84,10 +84,11 @@ change and invalid or ambiguous manifests fail safely.
 
 ## Phase 4: reproducible before/after benchmark
 
-**Status: in progress.** Immutable, content-addressed before/after proposal inputs
-were completed on 2026-08-21 and are documented in development journal entry
-[0011](devlog/0011-reproducible-proposal-bundle.md). Load execution and verdict
-generation remain open.
+**Status: in progress.** Immutable proposal inputs and the fixed load/verdict
+contract were completed on 2026-08-21 and are documented in development journal
+entries [0011](devlog/0011-reproducible-proposal-bundle.md) and
+[0012](devlog/0012-fixed-load-profile.md). Cluster apply, evidence collection,
+restoration, and result publication remain open.
 
 **Goal:** validate savings without concealing performance regressions.
 

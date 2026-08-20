@@ -135,3 +135,18 @@ the existing bundle is reused; extra files, symlinks, and changed bytes fail clo
 Benchmark output does not belong inside this bundle. A benchmark run must create a
 separate result artifact that references the proposal ID, preserving the proposal as
 an immutable before/after input.
+
+## Benchmark comparison boundary
+
+The checked-in `kubefit-load-v1` k6 profile fixes warmup, steady, spike, and recovery
+arrival rates and timing. Its compact result records expected and completed
+iterations separately from HTTP request count, along with per-phase errors and tail
+latency. Before/after measurements add Prometheus throttling, Kubernetes OOM and
+restart evidence, recovery time, and request cost.
+
+The verdict first rejects results that do not reference the same proposal and fixed
+offered load. Only comparable runs reach the safety policy. Safety failures and cost
+change remain independent outputs, preventing projected savings from masking a
+latency, error, throttling, recovery, or OOM regression. The current module defines
+this pure contract; cluster mutation and result artifact publication belong to the
+next runner boundary.
