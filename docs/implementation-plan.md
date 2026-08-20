@@ -48,9 +48,10 @@ rounding, and both upsize and downsize recommendations.
 
 ## Phase 2: cost and safety evaluation
 
-**Status: in progress.** Explicit request-cost comparison and runtime throttling,
-restart, and OOM signal collection were completed on 2026-08-21. The downstream
-patch eligibility gate remains open.
+**Status: complete for the MVP (2026-08-21).** Explicit cost assumptions, runtime
+safety signals, and the patch eligibility gate are recorded in development journal
+entries [0007](devlog/0007-explicit-cost-model.md) through
+[0009](devlog/0009-patch-eligibility-gate.md).
 
 **Goal:** turn a capacity recommendation into a defensible decision.
 

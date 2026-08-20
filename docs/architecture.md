@@ -71,4 +71,20 @@ binary floating-point rounding.
 
 Resource calculation and change authorization are separate. An insufficient result
 still includes its candidate and evidence for inspection, but future patch generation
-must accept only a recommendation whose readiness status is `ready`.
+must accept only an evaluation whose `patch_eligibility.status` is `eligible`.
+
+## Patch eligibility policy v0
+
+```text
+recommendation readiness ─┐
+OOM risk                  ├─> structured checks ─> eligible | blocked
+CPU throttling risk       ┘
+```
+
+- Insufficient readiness blocks a proposal.
+- High or unknown OOM and throttling risk blocks a proposal.
+- Medium risk remains eligible for a draft proposal but emits a reviewer warning.
+- Projected savings and upsize/downsize direction do not grant or remove eligibility.
+
+This gate authorizes only manifest proposal generation. It does not authorize a
+merge, cluster mutation, or rollout.

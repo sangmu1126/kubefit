@@ -83,6 +83,11 @@ Kubernetes target-container status. Missing throttling metrics or incomplete Pod
 status coverage keeps the relevant risk `unknown`; an observed OOMKilled state is
 reported as high risk even when the wider observation window is incomplete.
 
+Every evaluation includes `patch_eligibility`. Future GitOps patch generation must
+require `eligible`; insufficient readiness and high or unknown safety risks produce
+stable machine-readable blocking checks. Medium risk remains an explicit reviewer
+warning and never becomes an invisible pass.
+
 The example prices are illustrative, not a cloud-provider price claim. Live
 analysis requires the caller to provide CPU and memory rates plus a source label.
 The output repeats those assumptions and separates current/recommended CPU and
