@@ -39,6 +39,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0015](0015-immutable-benchmark-result.md) | Immutable benchmark result | Retain raw evidence and publish a content-addressed, retry-safe result |
 | [0016](0016-locked-benchmark-cli.md) | Locked benchmark CLI | Serialize Deployment mutation and compose the full local workflow |
 | [0017](0017-proposal-cli.md) | Proposal CLI | Bind analysis identity and repository YAML into an immutable proposal |
+| [0018](0018-target-document-isolation.md) | Target document isolation | Apply only the selected Deployment, never neighboring YAML documents |
 
 ## Visual language
 

@@ -109,8 +109,10 @@ kubefit benchmark \
 
 The command locks the target Deployment, revalidates its analysis identity, restores
 the before manifest on every exit path, and publishes a separate immutable result
-under `benchmarks/results/`. This sequence has not yet been claimed as a completed
-live benchmark.
+under `benchmarks/results/`. If the repository YAML contains multiple documents,
+only the selected Deployment document is applied; the complete source remains in
+the proposal solely as review provenance. This sequence has not yet been claimed as
+a completed live benchmark.
 
 ## Remove the environment
 

@@ -137,7 +137,9 @@ see [`docs/local-development.md`](docs/local-development.md).
 UID and creation time. `kubefit propose` consumes that identity directly with
 repository-bounded YAML sources and publishes an immutable proposal; it does not
 allow the target to be retyped. Benchmark preflight rejects a recreated Deployment
-before any apply.
+before any apply. Multi-document source files remain byte-exact review evidence,
+while benchmark apply and restoration use separately hashed, single-Deployment
+manifests so neighboring Services or workloads are never reconciled.
 
 The example prices are illustrative, not a cloud-provider price claim. Live
 analysis requires the caller to provide CPU and memory rates plus a source label.

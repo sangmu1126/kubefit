@@ -150,6 +150,15 @@ Benchmark output does not belong inside this bundle. A benchmark run must create
 separate result artifact that references the proposal ID, preserving the proposal as
 an immutable before/after input.
 
+Full `manifests/before/<path>` and `manifests/after/<path>` payloads preserve the
+repository change for review. They are not executable benchmark inputs. The writer
+also slices the patch report's selected YAML document, reparses it, and verifies its
+`apps/v1 Deployment` target and container before storing
+`benchmark/manifests/before.yaml` and `after.yaml`. The loader derives those files
+again from the full sources and requires byte equality after all hashes pass. This
+prevents a multi-document source from expanding one benchmark into reconciliation
+of neighboring Kubernetes objects.
+
 ## Benchmark comparison boundary
 
 The checked-in `kubefit-load-v1` k6 profile fixes warmup, steady, spike, and recovery
@@ -172,10 +181,13 @@ soon as the first apply begins, every exit path attempts to reapply before and w
 for its Deployment rollout. A successful result is returned only after restoration;
 if execution and restoration both fail, both causes remain available to the caller.
 
-The kubectl adapter requires an explicit context and bounded rollout timeout. The
-measurement collector remains injected and now composes k6 with aligned
-Prometheus/Kubernetes evidence. Until target-document isolation is added, this
-mutation workflow is restricted to a disposable benchmark cluster.
+The kubectl adapter requires an explicit context and bounded rollout timeout. It
+receives only the isolated single-Deployment manifests; full multi-document source
+payloads remain reviewer evidence and are never passed to `kubectl apply`. The
+measurement collector remains injected and composes k6 with aligned
+Prometheus/Kubernetes evidence. This mutation workflow is still restricted to a
+disposable benchmark cluster because each apply reconciles the complete selected
+Deployment, not only its four resource scalars.
 
 ## Aligned measurement evidence
 
