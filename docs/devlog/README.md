@@ -23,6 +23,7 @@ evidence of engineering judgment than a final screenshot without context.
 | Entry | Focus | Main outcome |
 |---|---|---|
 | [0001](0001-trustworthy-analysis.md) | Trustworthy analysis foundation | Correct per-Pod metrics and a real kind/Prometheus validation path |
+| [0002](0002-observation-readiness.md) | Observation readiness | Block actionable changes when metric or replica evidence is incomplete |
 
 ## Visual language
 

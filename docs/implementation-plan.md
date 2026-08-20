@@ -30,6 +30,7 @@ the time they are observed.
 - Use the highest per-Pod CPU P95 and memory P99 so one busy replica is not hidden
   by an average.
 - Report sample count and observation coverage.
+- Gate actionable recommendations on metric coverage, sample count, and stable replicas.
 - Recommend CPU and memory requests with explicit margins and rounding rules.
 - Report CPU and memory request changes separately; never add millicores and MiB.
 

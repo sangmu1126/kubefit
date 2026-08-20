@@ -84,13 +84,17 @@ Example request:
     "cpu_max_millicores": 400,
     "memory_max_mib": 900,
     "sample_count": 1900,
-    "observation_coverage": 0.95
+    "observation_coverage": 0.95,
+    "desired_replicas": 2,
+    "available_replicas": 2,
+    "observed_replicas": 2
   }
 }
 ```
 
 When maxima or sufficient observation coverage are unavailable, KubeFit reports
 the related risk as `unknown` rather than presenting an unsupported low-risk claim.
+The recommendation is actionable only when its `readiness.status` is `ready`.
 
 ## Project origin
 

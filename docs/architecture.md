@@ -23,6 +23,8 @@ policy.
 - Memory limit: 1.5x recommended request
 - Enforce small non-zero floors for idle or incomplete observations
 - Calculate each percentile per Pod and retain the busiest Pod's value
+- Require 70% observation coverage and at least 100 metric samples
+- Require desired, available, and observed replica counts to match
 
 These defaults are deliberately transparent and deterministic. Before production
 use, the engine will also gate recommendations on observation coverage, workload
@@ -31,3 +33,7 @@ restarts, throttling, OOM events, latency, and traffic representativeness.
 CPU and memory request changes are reported separately because millicores and MiB
 cannot be combined into a meaningful percentage. Monetary savings will be produced
 by the evaluator from explicit CPU and memory prices, replica count, and time.
+
+Resource calculation and change authorization are separate. An insufficient result
+still includes its candidate and evidence for inspection, but future patch generation
+must accept only a recommendation whose readiness status is `ready`.
