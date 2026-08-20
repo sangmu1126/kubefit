@@ -178,3 +178,18 @@ and hashes of the k6 summary and raw stream. Candidate OOM is an absolute failur
 incomplete candidate recovery is a failure, and incomplete baseline recovery makes
 the comparison invalid. Raw stream bytes are still temporary and must be retained
 by the upcoming immutable result publisher.
+
+## Immutable benchmark results
+
+The restoring run carries exact k6 summary/raw bytes until publication. Before any
+write, the publisher checks those bytes against measurement provenance, reparses the
+summary, verifies proposal/variant identity, and recomputes the verdict. It then
+publishes canonical before/after measurements, exact raw evidence, verdict, and a
+generated Markdown report under a content-derived `benchmark-<digest>` ID.
+
+Result publication uses the same private staging, `fsync`, exclusive lock, atomic
+rename, and byte-exact retry principles as proposal publication, but writes to a
+separate root and never modifies proposal inputs. Restricted k6 system tags and URL
+validation keep common URL credentials out of retained evidence. The publication
+lock does not serialize cluster mutation; execution locking remains a separate CLI
+boundary.

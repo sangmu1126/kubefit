@@ -121,6 +121,12 @@ records run timestamps, Pod identity, and raw/summary hashes. Raw evidence remai
 temporary until the result-artifact phase is completed, so the end-to-end benchmark
 is not yet exposed as a supported CLI command.
 
+Completed benchmark executions can now be published separately from their proposal
+as immutable `benchmark-<digest>` artifacts. Each result binds canonical before/after
+measurements, exact k6 summaries and raw streams, the recomputed verdict, and a
+human-readable report with per-file hashes. Identical publication retries reuse the
+same result; tampered or partial existing content is never overwritten.
+
 The example prices are illustrative, not a cloud-provider price claim. Live
 analysis requires the caller to provide CPU and memory rates plus a source label.
 The output repeats those assumptions and separates current/recommended CPU and
