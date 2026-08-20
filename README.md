@@ -28,7 +28,7 @@ recommender/     Resource recommendation domain logic
 evaluator/       Cost, stability, and performance evaluation
 gitops/          YAML patch and GitHub pull request integration
 api/             FastAPI application
-dashboard/       React dashboard (after the core workflow)
+dashboard/       React recommendation review dashboard
 deploy/          Helm chart and demo manifests
 benchmarks/      Load tests and reproducible comparisons
 docs/            Architecture, security, and evaluation records
@@ -55,6 +55,12 @@ To run KubeFit against a disposable kind cluster with Prometheus, follow the
 
 Engineering decisions, failed assumptions, diagrams, and reproducible evidence are
 recorded in the [`docs/devlog/`](docs/devlog/README.md) development journal.
+
+The local dashboard sends editable example evidence to the existing evaluation API
+and visualizes its recommendation, request-cost estimate, risks, and GitOps patch
+gate. It contains no independent recommendation logic. Run it with the API using
+the commands in the [local development guide](docs/local-development.md). The Helm
+image does not include the frontend yet.
 
 ## Quick start
 

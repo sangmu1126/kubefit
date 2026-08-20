@@ -103,6 +103,39 @@ restart and OOMKilled counts from the current target-container statuses. A quiet
 cluster still reports `unknown` rather than `low` until both usage and throttling
 windows satisfy the readiness gates.
 
+## Review an evaluation in the dashboard
+
+The first dashboard slice is a local review surface over the existing evaluation
+API. Start the API in one terminal:
+
+```bash
+uvicorn api.main:app --reload
+```
+
+Install the locked frontend dependencies and start Vite in another terminal:
+
+```bash
+npm --prefix dashboard install
+npm --prefix dashboard run dev
+```
+
+Open `http://127.0.0.1:5173`. Vite proxies `/v1` and `/healthz` to
+`http://127.0.0.1:8000`, so no permissive CORS policy is required. Choose
+`검증 가능` to inspect an eligible example or `근거 부족` to see why a numerical
+cost projection remains blocked when coverage and safety signals are absent.
+
+The examples are editable API payloads, not live cluster collection. Price values
+use `example://local-model` and must not be presented as provider prices or measured
+invoice savings. The dashboard is not included in the Helm image yet.
+
+Verify the frontend independently with:
+
+```bash
+npm --prefix dashboard run build
+npm --prefix dashboard test
+npm --prefix dashboard audit
+```
+
 ## Run a published proposal benchmark
 
 The benchmark command is intentionally restricted to an explicit kind context and

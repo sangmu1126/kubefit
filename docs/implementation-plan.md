@@ -155,11 +155,16 @@ collected metrics and benchmark artifacts.
 Helm chart with tokenless defaults, explicit resources/probes, and namespace-scoped
 opt-in read-only RBAC. Entry [0029](devlog/0029-kind-helm-integration.md) completes the
 local image build, kind installation, live health probe, RBAC allow/deny matrix, and
-tokenless restoration evidence. External image/chart publication remains open.
+tokenless restoration evidence. Entry
+[0030](devlog/0030-explainable-review-dashboard.md) adds an API-backed review surface
+for recommendation evidence, cost, risk, and the patch gate without duplicating
+analysis logic. Serving that build from the packaged API and external image/chart
+publication remain open.
 
 **Goal:** make the completed workflow easy to install and demonstrate.
 
 - Add a small dashboard over the existing API after the CLI workflow is complete.
+  The local review slice is complete; packaged delivery remains open.
 - Package KubeFit with a Helm chart and least-privilege read-only RBAC.
 - Document security boundaries, metric prerequisites, limitations, and rollback.
 
