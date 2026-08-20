@@ -20,6 +20,7 @@ from gitops.manifest import (
 )
 from gitops.publication import (
     GitHubRepository,
+    GitHubRepositoryAccess,
     GitHubRestClient,
     PublishedPullRequest,
     PullRequestPublicationError,
@@ -36,7 +37,9 @@ from gitops.pull_request import (
 from gitops.repository import (
     RepositoryCommit,
     RepositoryCommitError,
+    RepositoryPlanInspection,
     commit_pull_request_plan,
+    inspect_repository_plan,
     validate_repository_commit,
 )
 from gitops.source import ManifestSourceError, load_manifest_sources
@@ -58,7 +61,9 @@ __all__ = [
     "RepositoryFileChange",
     "RepositoryCommit",
     "RepositoryCommitError",
+    "RepositoryPlanInspection",
     "GitHubRepository",
+    "GitHubRepositoryAccess",
     "GitHubRestClient",
     "PublishedPullRequest",
     "PullRequestPublicationError",
@@ -66,6 +71,7 @@ __all__ = [
     "SubprocessGitRemote",
     "build_pull_request_plan",
     "commit_pull_request_plan",
+    "inspect_repository_plan",
     "publish_pull_request",
     "validate_repository_commit",
     "extract_target_document",

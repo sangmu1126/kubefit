@@ -54,6 +54,16 @@ class PublishedPullRequest(BaseModel):
     pull_request_reused: bool
 
 
+class GitHubRepositoryAccess(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    repository: GitHubRepository
+    default_branch: str = Field(min_length=1)
+    private: bool
+    permissions_reported: bool
+    enabled_permissions: list[str]
+
+
 class GitRemoteGateway(Protocol):
     def repository(self, root: Path, remote: str) -> GitHubRepository: ...
 
@@ -223,6 +233,48 @@ class GitHubRestClient:
         self._token = token
         self._api_base_url = api_base_url.rstrip("/")
         self._timeout_seconds = timeout_seconds
+
+    def inspect_repository(
+        self, repository: GitHubRepository
+    ) -> GitHubRepositoryAccess:
+        payload = self._request(
+            "GET", f"/repos/{repository.owner}/{repository.name}"
+        )
+        if not isinstance(payload, dict):
+            raise PullRequestPublicationError("GitHub repository response is invalid")
+        try:
+            full_name = payload["full_name"]
+            default_branch = payload["default_branch"]
+            private = payload["private"]
+            permissions = payload.get("permissions")
+            if (
+                not isinstance(full_name, str)
+                or full_name.casefold()
+                != f"{repository.owner}/{repository.name}".casefold()
+                or not isinstance(default_branch, str)
+                or not default_branch
+                or not isinstance(private, bool)
+                or (permissions is not None and not isinstance(permissions, dict))
+            ):
+                raise TypeError
+            enabled_permissions = []
+            if permissions is not None:
+                for name, enabled in permissions.items():
+                    if not isinstance(name, str) or not isinstance(enabled, bool):
+                        raise TypeError
+                    if enabled:
+                        enabled_permissions.append(name)
+        except (KeyError, TypeError) as exc:
+            raise PullRequestPublicationError(
+                "GitHub repository response is invalid"
+            ) from exc
+        return GitHubRepositoryAccess(
+            repository=repository,
+            default_branch=default_branch,
+            private=private,
+            permissions_reported=permissions is not None,
+            enabled_permissions=sorted(enabled_permissions),
+        )
 
     def find_open(
         self,

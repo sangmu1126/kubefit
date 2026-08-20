@@ -5,7 +5,11 @@ from pathlib import Path
 import pytest
 
 from benchmarks import write_benchmark_result
-from gitops import RepositoryCommitError, commit_pull_request_plan
+from gitops import (
+    RepositoryCommitError,
+    commit_pull_request_plan,
+    inspect_repository_plan,
+)
 from gitops.pull_request import build_pull_request_plan
 from tests.test_benchmark_artifact import completed_run
 
@@ -66,6 +70,35 @@ def test_commits_exactly_one_file_and_returns_to_base_idempotently(
         capture_output=True,
     ).stdout
     assert committed == plan.file_change.after_content.encode()
+
+
+def test_inspects_absent_and_reusable_plan_without_mutating_checkout(
+    tmp_path: Path,
+) -> None:
+    plan = verified_plan(tmp_path / "artifacts")
+    repository = tmp_path / "repository"
+    initialize_repository(repository, plan.file_change.before_content)
+    before_head = git(repository, "rev-parse", "HEAD")
+    before_bytes = (repository / plan.file_change.path).read_bytes()
+
+    absent = inspect_repository_plan(repository, plan)
+
+    assert absent.local_branch_state == "absent"
+    assert absent.local_commit_sha is None
+    assert git(repository, "branch", "--show-current") == "main"
+    assert git(repository, "rev-parse", "HEAD") == before_head
+    assert git(repository, "status", "--porcelain") == ""
+    assert (repository / plan.file_change.path).read_bytes() == before_bytes
+
+    commit = commit_pull_request_plan(repository, plan)
+    reusable = inspect_repository_plan(repository, plan)
+
+    assert reusable.local_branch_state == "reusable"
+    assert reusable.local_commit_sha == commit.commit_sha
+    assert git(repository, "branch", "--show-current") == "main"
+    assert git(repository, "rev-parse", "HEAD") == before_head
+    assert git(repository, "status", "--porcelain") == ""
+    assert (repository / plan.file_change.path).read_bytes() == before_bytes
 
 
 def test_rejects_dirty_repository_without_creating_branch(tmp_path: Path) -> None:

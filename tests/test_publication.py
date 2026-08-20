@@ -382,6 +382,44 @@ def test_github_client_sends_token_only_in_header(monkeypatch: pytest.MonkeyPatc
     assert captured["headers"]["Authorization"] == f"Bearer {token}"
 
 
+def test_github_client_reports_read_only_repository_access(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def read(self) -> bytes:
+            return json.dumps(
+                {
+                    "full_name": "acme/workloads",
+                    "default_branch": "main",
+                    "private": True,
+                    "permissions": {
+                        "admin": False,
+                        "push": True,
+                        "pull": True,
+                    },
+                }
+            ).encode()
+
+    monkeypatch.setattr(
+        "gitops.publication.urlopen", lambda request, timeout: Response()
+    )
+
+    access = GitHubRestClient("test-token").inspect_repository(
+        GitHubRepository(owner="acme", name="workloads")
+    )
+
+    assert access.default_branch == "main"
+    assert access.private is True
+    assert access.permissions_reported is True
+    assert access.enabled_permissions == ["pull", "push"]
+
+
 def test_github_http_error_does_not_expose_token(monkeypatch: pytest.MonkeyPatch) -> None:
     token = "secret-test-token"
 

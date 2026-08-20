@@ -32,9 +32,11 @@ from evaluator import (
 from gitops import (
     GitHubRestClient,
     ManifestTarget,
+    SubprocessGitRemote,
     build_pull_request_plan,
     commit_pull_request_plan,
     generate_resource_patch,
+    inspect_repository_plan,
     load_manifest_sources,
     load_proposal_bundle,
     publish_pull_request,
@@ -56,6 +58,12 @@ def _positive_decimal(value: str) -> Decimal:
 def _environment_variable_name(value: str) -> str:
     if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", value):
         raise argparse.ArgumentTypeError("must be a valid environment variable name")
+    return value
+
+
+def _git_remote_name(value: str) -> str:
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", value):
+        raise argparse.ArgumentTypeError("must be a safe Git remote name")
     return value
 
 
@@ -107,7 +115,7 @@ def build_parser() -> argparse.ArgumentParser:
     publish.add_argument("--proposal", required=True, type=Path)
     publish.add_argument("--benchmark", required=True, type=Path)
     publish.add_argument("--repository-root", type=Path, default=Path("."))
-    publish.add_argument("--remote", default="origin")
+    publish.add_argument("--remote", type=_git_remote_name, default="origin")
     publish.add_argument(
         "--github-token-env",
         type=_environment_variable_name,
@@ -121,11 +129,28 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="acknowledge that this command creates a branch and draft pull request",
     )
+    publish_check = subcommands.add_parser(
+        "publish-check", help="inspect Draft PR publication prerequisites without mutation"
+    )
+    publish_check.add_argument("--proposal", required=True, type=Path)
+    publish_check.add_argument("--benchmark", required=True, type=Path)
+    publish_check.add_argument("--repository-root", type=Path, default=Path("."))
+    publish_check.add_argument("--remote", type=_git_remote_name, default="origin")
+    publish_check.add_argument(
+        "--github-token-env",
+        type=_environment_variable_name,
+        default="GITHUB_TOKEN",
+        metavar="NAME",
+        help="environment variable containing the GitHub token (default: GITHUB_TOKEN)",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
+    if args.command == "publish-check":
+        _run_publish_check(args)
+        return
     if args.command == "publish":
         _run_publish(args)
         return
@@ -365,6 +390,163 @@ def _run_publish(args: argparse.Namespace) -> None:
             sort_keys=True,
         )
     )
+
+
+def _run_publish_check(args: argparse.Namespace) -> None:
+    token = os.environ.get(args.github_token_env)
+    checks: list[dict[str, object]] = []
+    blockers: list[str] = []
+    warnings: list[str] = []
+    report: dict[str, object] = {
+        "schema_version": 1,
+        "status": "ready",
+        "mutation_performed": False,
+        "checks": checks,
+        "blockers": blockers,
+        "warnings": warnings,
+    }
+
+    try:
+        plan = build_pull_request_plan(args.proposal, args.benchmark)
+    except Exception as exc:
+        detail = _redact_secret(str(exc), token)
+        checks.append({"name": "artifacts", "status": "blocked", "detail": detail})
+        blockers.append(f"artifact verification failed: {detail}")
+        _print_publish_check(report)
+        return
+    checks.append(
+        {
+            "name": "artifacts",
+            "status": "ready",
+            "proposal_id": plan.proposal_id,
+            "benchmark_id": plan.benchmark_id,
+            "planned_branch": plan.branch_name,
+        }
+    )
+
+    try:
+        local = inspect_repository_plan(args.repository_root, plan)
+    except Exception as exc:
+        detail = _redact_secret(str(exc), token)
+        checks.append({"name": "local_repository", "status": "blocked", "detail": detail})
+        blockers.append(f"local repository check failed: {detail}")
+        _print_publish_check(report)
+        return
+    checks.append(
+        {
+            "name": "local_repository",
+            "status": "ready",
+            "base_branch": local.base_branch,
+            "base_commit_sha": local.base_commit_sha,
+            "planned_path": local.file_path,
+            "local_branch_state": local.local_branch_state,
+            "local_commit_sha": local.local_commit_sha,
+        }
+    )
+
+    git_remote = SubprocessGitRemote()
+    repository = None
+    try:
+        repository = git_remote.repository(local.repository_root, args.remote)
+        remote_sha = git_remote.branch_sha(
+            local.repository_root, args.remote, plan.branch_name
+        )
+        if remote_sha is None:
+            remote_state = "absent"
+        elif local.local_commit_sha == remote_sha:
+            remote_state = "reusable"
+        else:
+            remote_state = "collision"
+            blockers.append(
+                "remote branch exists but does not match a verified reusable local commit"
+            )
+        checks.append(
+            {
+                "name": "git_remote",
+                "status": "blocked" if remote_state == "collision" else "ready",
+                "repository": f"{repository.owner}/{repository.name}",
+                "remote": args.remote,
+                "remote_branch_state": remote_state,
+                "remote_commit_sha": remote_sha,
+            }
+        )
+    except Exception as exc:
+        detail = _redact_secret(str(exc), token)
+        checks.append({"name": "git_remote", "status": "blocked", "detail": detail})
+        blockers.append(f"Git remote check failed: {detail}")
+
+    if token is None or not token.strip():
+        checks.append(
+            {
+                "name": "github_api",
+                "status": "blocked",
+                "token_env": args.github_token_env,
+                "token_present": False,
+            }
+        )
+        blockers.append(
+            f"GitHub API token is missing from {args.github_token_env}"
+        )
+    elif repository is None:
+        checks.append(
+            {
+                "name": "github_api",
+                "status": "blocked",
+                "token_env": args.github_token_env,
+                "token_present": True,
+                "detail": "GitHub repository identity is unavailable",
+            }
+        )
+        blockers.append("GitHub API check requires a verified remote identity")
+    else:
+        try:
+            access = GitHubRestClient(token).inspect_repository(repository)
+            checks.append(
+                {
+                    "name": "github_api",
+                    "status": "ready",
+                    "token_env": args.github_token_env,
+                    "token_present": True,
+                    "repository_readable": True,
+                    "default_branch": access.default_branch,
+                    "private": access.private,
+                    "permissions_reported": access.permissions_reported,
+                    "enabled_permissions": access.enabled_permissions,
+                }
+            )
+            warnings.append(
+                "read-only API access does not prove branch or pull-request write permission"
+            )
+            if access.default_branch != local.base_branch:
+                warnings.append(
+                    "local base branch differs from the GitHub default branch"
+                )
+        except Exception as exc:
+            detail = _redact_secret(str(exc), token)
+            checks.append(
+                {
+                    "name": "github_api",
+                    "status": "blocked",
+                    "token_env": args.github_token_env,
+                    "token_present": True,
+                    "detail": detail,
+                }
+            )
+            blockers.append(f"GitHub API read check failed: {detail}")
+
+    _print_publish_check(report)
+
+
+def _redact_secret(detail: str, secret: str | None) -> str:
+    if secret:
+        return detail.replace(secret, "[REDACTED]")
+    return detail
+
+
+def _print_publish_check(report: dict[str, object]) -> None:
+    blockers = report["blockers"]
+    report["status"] = "blocked" if blockers else "ready"
+    print(json.dumps(report, indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":

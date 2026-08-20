@@ -4,6 +4,7 @@ import stat
 import subprocess
 import tempfile
 from pathlib import Path, PurePosixPath
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -29,6 +30,44 @@ class RepositoryCommit(BaseModel):
     base_commit_sha: str = Field(pattern=r"^[0-9a-f]{40}$")
     file_path: str
     reused: bool
+
+
+class RepositoryPlanInspection(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    repository_root: Path
+    base_branch: str
+    base_commit_sha: str = Field(pattern=r"^[0-9a-f]{40}$")
+    branch_name: str
+    file_path: str
+    local_branch_state: Literal["absent", "reusable"]
+    local_commit_sha: str | None = Field(default=None, pattern=r"^[0-9a-f]{40}$")
+
+
+def inspect_repository_plan(
+    repository_root: Path,
+    plan: PullRequestPlan,
+) -> RepositoryPlanInspection:
+    """Validate local publication prerequisites without mutating the repository."""
+    root = _validate_repository_root(repository_root)
+    _require_clean(root)
+    base_branch = _current_branch(root)
+    base_sha = _git(root, "rev-parse", "HEAD")
+    _validate_planned_file(root, plan)
+    local_commit_sha = None
+    local_branch_state: Literal["absent", "reusable"] = "absent"
+    if _branch_exists(root, plan.branch_name):
+        local_commit_sha = _validate_plan_commit(root, plan, base_sha)
+        local_branch_state = "reusable"
+    return RepositoryPlanInspection(
+        repository_root=root,
+        base_branch=base_branch,
+        base_commit_sha=base_sha,
+        branch_name=plan.branch_name,
+        file_path=plan.file_change.path,
+        local_branch_state=local_branch_state,
+        local_commit_sha=local_commit_sha,
+    )
 
 
 def validate_repository_commit(

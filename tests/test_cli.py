@@ -393,6 +393,23 @@ def test_publish_parser_accepts_only_an_environment_variable_name() -> None:
         )
 
 
+def test_publish_commands_reject_unsafe_remote_names_before_execution() -> None:
+    for command in ("publish", "publish-check"):
+        arguments = [
+            command,
+            "--proposal",
+            "proposal",
+            "--benchmark",
+            "benchmark",
+            "--remote",
+            "--upload-pack=malicious",
+        ]
+        if command == "publish":
+            arguments.append("--confirm-publish")
+        with pytest.raises(SystemExit):
+            build_parser().parse_args(arguments)
+
+
 def test_publish_rejects_missing_token_before_planning(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -528,3 +545,175 @@ def test_publish_redacts_token_from_boundary_error(
     assert token not in str(captured.value)
     assert "[REDACTED]" in str(captured.value)
     assert capsys.readouterr().out == ""
+
+
+def test_publish_check_reports_missing_token_without_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    plan = SimpleNamespace(
+        proposal_id="proposal-" + "a" * 32,
+        benchmark_id="benchmark-" + "b" * 32,
+        branch_name="kubefit/demo",
+    )
+    local = SimpleNamespace(
+        repository_root=tmp_path,
+        base_branch="main",
+        base_commit_sha="c" * 40,
+        file_path="deploy/demo.yaml",
+        local_branch_state="absent",
+        local_commit_sha=None,
+    )
+
+    class Remote:
+        def repository(self, root, remote):
+            return SimpleNamespace(owner="acme", name="workloads")
+
+        def branch_sha(self, root, remote, branch):
+            return None
+
+    monkeypatch.setattr(cli_module, "build_pull_request_plan", lambda *_: plan)
+    monkeypatch.setattr(cli_module, "inspect_repository_plan", lambda *_: local)
+    monkeypatch.setattr(cli_module, "SubprocessGitRemote", Remote)
+    monkeypatch.setattr(
+        cli_module,
+        "GitHubRestClient",
+        lambda *_: pytest.fail("API must not be called without a token"),
+    )
+    monkeypatch.setattr(
+        cli_module,
+        "commit_pull_request_plan",
+        lambda *_: pytest.fail("preflight must not create a commit"),
+    )
+
+    cli_module.main(
+        [
+            "publish-check",
+            "--proposal",
+            "proposal",
+            "--benchmark",
+            "benchmark",
+            "--repository-root",
+            str(tmp_path),
+        ]
+    )
+
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == "blocked"
+    assert output["mutation_performed"] is False
+    assert output["checks"][-1] == {
+        "name": "github_api",
+        "status": "blocked",
+        "token_env": "GITHUB_TOKEN",
+        "token_present": False,
+    }
+    assert output["blockers"] == [
+        "GitHub API token is missing from GITHUB_TOKEN"
+    ]
+
+
+def test_publish_check_reports_ready_without_claiming_write_permission(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "test-token")
+    plan = SimpleNamespace(
+        proposal_id="proposal-" + "a" * 32,
+        benchmark_id="benchmark-" + "b" * 32,
+        branch_name="kubefit/demo",
+    )
+    local = SimpleNamespace(
+        repository_root=tmp_path,
+        base_branch="main",
+        base_commit_sha="c" * 40,
+        file_path="deploy/demo.yaml",
+        local_branch_state="reusable",
+        local_commit_sha="d" * 40,
+    )
+    repository = SimpleNamespace(owner="acme", name="workloads")
+
+    class Remote:
+        def repository(self, root, remote):
+            return repository
+
+        def branch_sha(self, root, remote, branch):
+            return "d" * 40
+
+    class Client:
+        def __init__(self, token):
+            assert token == "test-token"
+
+        def inspect_repository(self, value):
+            assert value is repository
+            return SimpleNamespace(
+                default_branch="main",
+                private=True,
+                permissions_reported=True,
+                enabled_permissions=["pull", "push"],
+            )
+
+    monkeypatch.setattr(cli_module, "build_pull_request_plan", lambda *_: plan)
+    monkeypatch.setattr(cli_module, "inspect_repository_plan", lambda *_: local)
+    monkeypatch.setattr(cli_module, "SubprocessGitRemote", Remote)
+    monkeypatch.setattr(cli_module, "GitHubRestClient", Client)
+
+    cli_module.main(
+        [
+            "publish-check",
+            "--proposal",
+            "proposal",
+            "--benchmark",
+            "benchmark",
+            "--repository-root",
+            str(tmp_path),
+        ]
+    )
+
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == "ready"
+    assert output["mutation_performed"] is False
+    assert output["blockers"] == []
+    assert output["checks"][2]["remote_branch_state"] == "reusable"
+    assert output["checks"][3]["repository_readable"] is True
+    assert output["warnings"] == [
+        "read-only API access does not prove branch or pull-request write permission"
+    ]
+
+
+def test_publish_check_stops_after_artifact_failure_and_redacts_token(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    token = "diagnostic-secret"
+    monkeypatch.setenv("GITHUB_TOKEN", token)
+    monkeypatch.setattr(
+        cli_module,
+        "build_pull_request_plan",
+        lambda *_: (_ for _ in ()).throw(RuntimeError(f"invalid {token}")),
+    )
+    monkeypatch.setattr(
+        cli_module,
+        "inspect_repository_plan",
+        lambda *_: pytest.fail("local check must not follow invalid artifacts"),
+    )
+
+    cli_module.main(
+        [
+            "publish-check",
+            "--proposal",
+            "proposal",
+            "--benchmark",
+            "benchmark",
+        ]
+    )
+
+    output_text = capsys.readouterr().out
+    output = json.loads(output_text)
+    assert token not in output_text
+    assert output["status"] == "blocked"
+    assert output["checks"] == [
+        {"name": "artifacts", "status": "blocked", "detail": "invalid [REDACTED]"}
+    ]
