@@ -32,6 +32,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0008](0008-runtime-safety-signals.md) | Runtime safety signals | Ground risk in throttling, restarts, OOM, and signal coverage |
 | [0009](0009-patch-eligibility-gate.md) | Patch eligibility | Close Phase 2 with one structured GitOps safety gate |
 | [0010](0010-minimal-manifest-patch.md) | Minimal manifest patch | Generate a stale-safe four-scalar diff without reformatting YAML |
+| [0011](0011-reproducible-proposal-bundle.md) | Proposal bundle | Publish immutable, content-addressed benchmark inputs atomically |
 
 ## Visual language
 

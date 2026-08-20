@@ -111,3 +111,27 @@ invalid quantities, and repository values that differ from the evaluation all fa
 before an artifact is returned.
 
 The generator is pure: it does not write the repository or touch the cluster.
+
+## Immutable proposal artifacts
+
+The artifact writer turns a pure patch into stable input for benchmark and Git
+workflows without changing the source repository.
+
+```text
+evaluation + original/candidate manifest + diff/report
+  -> canonical payload bytes
+  -> content digest and per-file SHA-256 index
+  -> private staging directory
+  -> fsync
+  -> atomic directory rename
+  -> immutable proposal-<digest>
+```
+
+The bundle contains no generated timestamp, so identical inputs produce the same
+ID across output locations. A cooperative exclusive publication lock serializes
+writers. If the destination already exists, every file and byte must match before
+the existing bundle is reused; extra files, symlinks, and changed bytes fail closed.
+
+Benchmark output does not belong inside this bundle. A benchmark run must create a
+separate result artifact that references the proposal ID, preserving the proposal as
+an immutable before/after input.

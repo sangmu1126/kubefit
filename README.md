@@ -95,6 +95,12 @@ returns patched content, a unified diff, and a SHA-256-backed report without wri
 the file. Only the changed resource scalar ranges are replaced, preserving unrelated
 documents, fields, comments, order, and quoting.
 
+An eligible patch can be published as an immutable proposal bundle containing the
+before/after manifests, canonical evaluation, diff, report, and benchmark context.
+Its ID is derived from content, every payload is indexed by SHA-256 and byte size,
+and publication uses a private staging directory followed by one directory rename.
+Identical retries reuse the bundle; modified or partial existing content is rejected.
+
 The example prices are illustrative, not a cloud-provider price claim. Live
 analysis requires the caller to provide CPU and memory rates plus a source label.
 The output repeats those assumptions and separates current/recommended CPU and
