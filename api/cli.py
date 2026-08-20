@@ -40,6 +40,7 @@ from gitops import (
     load_manifest_sources,
     load_proposal_bundle,
     publish_pull_request,
+    verify_publication_evidence,
     write_proposal_bundle,
 )
 from recommender import ObservedUsage
@@ -143,11 +144,21 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="NAME",
         help="environment variable containing the GitHub token (default: GITHUB_TOKEN)",
     )
+    verify_publication = subcommands.add_parser(
+        "verify-publication",
+        help="verify captured two-run Draft PR evidence without network access",
+    )
+    verify_publication.add_argument("--proposal", required=True, type=Path)
+    verify_publication.add_argument("--benchmark", required=True, type=Path)
+    verify_publication.add_argument("--evidence-dir", required=True, type=Path)
     return parser
 
 
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
+    if args.command == "verify-publication":
+        _run_verify_publication(args)
+        return
     if args.command == "publish-check":
         if not _run_publish_check(args):
             raise SystemExit(2)
@@ -534,6 +545,18 @@ def _run_publish_check(args: argparse.Namespace) -> bool:
             blockers.append(f"GitHub API read check failed: {detail}")
 
     return _print_publish_check(report)
+
+
+def _run_verify_publication(args: argparse.Namespace) -> None:
+    try:
+        verified = verify_publication_evidence(
+            args.proposal,
+            args.benchmark,
+            args.evidence_dir,
+        )
+    except Exception as exc:
+        raise SystemExit(f"publication evidence verification failed: {exc}") from None
+    print(verified.model_dump_json(indent=2))
 
 
 def _redact_secret(detail: str, secret: str | None) -> str:

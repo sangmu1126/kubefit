@@ -8,6 +8,11 @@ from gitops.bundle import (
     load_proposal_bundle,
     write_proposal_bundle,
 )
+from gitops.evidence import (
+    PublicationEvidenceError,
+    VerifiedPublicationEvidence,
+    verify_publication_evidence,
+)
 from gitops.manifest import (
     ManifestPatch,
     ManifestPatchError,
@@ -56,6 +61,8 @@ __all__ = [
     "LoadedProposalBundle",
     "ProposalBundle",
     "ProposalBundleError",
+    "PublicationEvidenceError",
+    "VerifiedPublicationEvidence",
     "PullRequestPlan",
     "PullRequestPlanError",
     "RepositoryFileChange",
@@ -74,6 +81,7 @@ __all__ = [
     "inspect_repository_plan",
     "publish_pull_request",
     "validate_repository_commit",
+    "verify_publication_evidence",
     "extract_target_document",
     "generate_resource_patch",
     "load_proposal_bundle",
