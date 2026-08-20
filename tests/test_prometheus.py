@@ -143,3 +143,22 @@ def test_rejects_workload_creation_timestamp_in_the_future() -> None:
             now + timedelta(seconds=1),
             now=now,
         )
+
+
+def test_rejects_workload_when_prometheus_returns_no_samples() -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200, json={"status": "success", "data": {"result": []}}
+        )
+
+    http = httpx.Client(base_url="http://prometheus", transport=httpx.MockTransport(handler))
+
+    with pytest.raises(PrometheusError, match="no samples"):
+        PrometheusClient("http://prometheus", client=http).workload_metrics(
+            "demo",
+            ["api-current"],
+            ["api-current-pod"],
+            "api",
+            datetime(2025, 1, 1, tzinfo=UTC),
+            now=datetime(2026, 1, 1, tzinfo=UTC),
+        )

@@ -6,6 +6,8 @@ import pytest
 from collector.kubernetes import (
     KubectlDeploymentCollector,
     KubernetesCollectionError,
+    _cpu_millicores,
+    _memory_mib,
 )
 
 DEPLOYMENT = {
@@ -107,3 +109,90 @@ def test_rejects_when_no_replicaset_matches_current_deployment_uid() -> None:
 
     with pytest.raises(KubernetesCollectionError, match="current UID"):
         KubectlDeploymentCollector(runner=runner).collect("demo", "api")
+
+
+@pytest.mark.parametrize(
+    ("quantity", "expected"),
+    [
+        ("1", 1000),
+        (".5", 500),
+        ("500m", 500),
+        ("500u", 1),
+        ("1e-3", 1),
+        ("1.1e-3", 2),
+    ],
+)
+def test_parses_cpu_quantities_and_rounds_up(
+    quantity: str, expected: int
+) -> None:
+    assert _cpu_millicores(quantity) == expected
+
+
+@pytest.mark.parametrize(
+    ("quantity", "expected"),
+    [
+        ("1.5Gi", 1536),
+        ("100M", 96),
+        ("1Ki", 1),
+        ("1048577", 2),
+        ("2e6", 2),
+    ],
+)
+def test_parses_memory_quantities_and_rounds_up(
+    quantity: str, expected: int
+) -> None:
+    assert _memory_mib(quantity) == expected
+
+
+@pytest.mark.parametrize("quantity", ["", "1MB", "1K", "cpu", "1e"])
+def test_rejects_invalid_kubernetes_quantities(quantity: str) -> None:
+    with pytest.raises(KubernetesCollectionError, match="invalid Kubernetes quantity"):
+        _cpu_millicores(quantity)
+
+
+def test_compiles_match_labels_and_expressions_for_kubectl() -> None:
+    document = json.loads(json.dumps(DEPLOYMENT))
+    document["spec"]["selector"]["matchExpressions"] = [
+        {"key": "tier", "operator": "Exists"},
+        {"key": "environment", "operator": "In", "values": ["qa", "production"]},
+        {"key": "version", "operator": "NotIn", "values": ["beta", "alpha"]},
+        {"key": "debug", "operator": "DoesNotExist"},
+    ]
+    commands: list[list[str]] = []
+
+    def runner(command: list[str]) -> str:
+        commands.append(command)
+        if "deployment" in command:
+            return json.dumps(document)
+        if "replicasets" in command:
+            return json.dumps(REPLICA_SETS)
+        return json.dumps({"items": [{"metadata": {"name": "demo-abc"}}]})
+
+    KubectlDeploymentCollector(runner=runner).collect("demo", "api")
+
+    expected = (
+        "app=demo,!debug,environment in (production,qa),tier,"
+        "version notin (alpha,beta)"
+    )
+    assert [command[command.index("-l") + 1] for command in commands[1:]] == [
+        expected,
+        expected,
+    ]
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        {"key": "environment", "operator": "In"},
+        {"key": "debug", "operator": "Exists", "values": ["true"]},
+        {"key": "tier", "operator": "Unknown"},
+    ],
+)
+def test_rejects_invalid_selector_expressions(expression: dict[str, object]) -> None:
+    document = json.loads(json.dumps(DEPLOYMENT))
+    document["spec"]["selector"]["matchExpressions"] = [expression]
+
+    with pytest.raises(KubernetesCollectionError, match="selector"):
+        KubectlDeploymentCollector(runner=lambda _: json.dumps(document)).collect(
+            "demo", "api"
+        )

@@ -55,6 +55,34 @@ def test_enforces_minimum_resources_for_idle_workloads() -> None:
     assert result.risk.cpu_throttling == "unknown"
 
 
+def test_recommends_upsize_when_observed_usage_exceeds_current_requests() -> None:
+    result = recommend_resources(
+        CurrentResources(
+            cpu_request_millicores=100,
+            cpu_limit_millicores=200,
+            memory_request_mib=128,
+            memory_limit_mib=256,
+        ),
+        ObservedUsage(
+            cpu_p95_millicores=250,
+            memory_p99_mib=300,
+            cpu_max_millicores=350,
+            memory_max_mib=400,
+            sample_count=3000,
+            observation_coverage=0.9,
+            desired_replicas=2,
+            available_replicas=2,
+            observed_replicas=2,
+        ),
+    )
+
+    assert result.recommended.cpu_request_millicores == 320
+    assert result.recommended.memory_request_mib == 384
+    assert result.cpu_request_change_percent == 220.0
+    assert result.memory_request_change_percent == 200.0
+    assert result.readiness.status == "ready"
+
+
 def test_marks_risk_unknown_when_observation_coverage_is_insufficient() -> None:
     result = recommend_resources(
         CurrentResources(

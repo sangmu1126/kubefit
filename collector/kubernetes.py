@@ -1,8 +1,10 @@
 import json
+import re
 import subprocess
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import ROUND_CEILING, Decimal, InvalidOperation
 
 from recommender import CurrentResources
 
@@ -27,6 +29,31 @@ class DeploymentResources:
 
 Runner = Callable[[Sequence[str]], str]
 
+_QUANTITY_PATTERN = re.compile(
+    r"^([+-]?(?:\d+(?:\.\d*)?|\.\d+))"
+    r"((?:[eE][+-]?\d+)|(?:Ki|Mi|Gi|Ti|Pi|Ei)|(?:n|u|m|k|K|M|G|T|P|E)?)$"
+)
+_DECIMAL_SI = {
+    "": Decimal(1),
+    "n": Decimal("1e-9"),
+    "u": Decimal("1e-6"),
+    "m": Decimal("1e-3"),
+    "k": Decimal("1e3"),
+    "M": Decimal("1e6"),
+    "G": Decimal("1e9"),
+    "T": Decimal("1e12"),
+    "P": Decimal("1e15"),
+    "E": Decimal("1e18"),
+}
+_BINARY_SI = {
+    "Ki": Decimal(2**10),
+    "Mi": Decimal(2**20),
+    "Gi": Decimal(2**30),
+    "Ti": Decimal(2**40),
+    "Pi": Decimal(2**50),
+    "Ei": Decimal(2**60),
+}
+
 
 def _run(command: Sequence[str]) -> str:
     try:
@@ -37,18 +64,84 @@ def _run(command: Sequence[str]) -> str:
     return result.stdout
 
 
+def _parse_quantity(value: str) -> Decimal:
+    match = _QUANTITY_PATTERN.fullmatch(value)
+    if match is None:
+        raise KubernetesCollectionError(f"invalid Kubernetes quantity: {value!r}")
+
+    number, suffix = match.groups()
+    try:
+        if suffix in _DECIMAL_SI:
+            multiplier = _DECIMAL_SI[suffix]
+        elif suffix in _BINARY_SI:
+            multiplier = _BINARY_SI[suffix]
+        else:
+            multiplier = Decimal(10) ** int(suffix[1:])
+        return Decimal(number) * multiplier
+    except (InvalidOperation, ValueError, OverflowError) as exc:
+        raise KubernetesCollectionError(
+            f"invalid Kubernetes quantity: {value!r}"
+        ) from exc
+
+
+def _ceil_to_int(value: Decimal) -> int:
+    return int(value.to_integral_value(rounding=ROUND_CEILING))
+
+
 def _cpu_millicores(value: str) -> int:
-    if value.endswith("m"):
-        return int(value[:-1])
-    return int(float(value) * 1000)
+    return _ceil_to_int(_parse_quantity(value) * 1000)
 
 
 def _memory_mib(value: str) -> int:
-    units = {"Ki": 1 / 1024, "Mi": 1, "Gi": 1024}
-    for suffix, multiplier in units.items():
-        if value.endswith(suffix):
-            return round(float(value[: -len(suffix)]) * multiplier)
-    return round(float(value) / (1024 * 1024))
+    return _ceil_to_int(_parse_quantity(value) / Decimal(2**20))
+
+
+def _label_selector(selector: dict[str, object]) -> str:
+    match_labels = selector.get("matchLabels", {})
+    if not isinstance(match_labels, dict):
+        raise KubernetesCollectionError("selector matchLabels must be an object")
+    requirements = [
+        f"{key}={value}"
+        for key, value in sorted(match_labels.items())
+    ]
+    expressions = selector.get("matchExpressions", [])
+    if not isinstance(expressions, list) or not all(
+        isinstance(expression, dict) for expression in expressions
+    ):
+        raise KubernetesCollectionError("selector matchExpressions must be a list of objects")
+
+    for expression in sorted(
+        expressions,
+        key=lambda item: (
+            str(item.get("key", "")),
+            str(item.get("operator", "")),
+            tuple(str(value) for value in item.get("values", [])),
+        ),
+    ):
+        key = expression.get("key")
+        operator = expression.get("operator")
+        values = expression.get("values", [])
+        if not isinstance(key, str) or not key or not isinstance(values, list):
+            raise KubernetesCollectionError("selector expression has an invalid key or values")
+        if operator in {"In", "NotIn"}:
+            if not values or not all(isinstance(value, str) for value in values):
+                raise KubernetesCollectionError(
+                    f"selector operator {operator} requires string values"
+                )
+            keyword = "in" if operator == "In" else "notin"
+            requirements.append(f"{key} {keyword} ({','.join(sorted(values))})")
+        elif operator in {"Exists", "DoesNotExist"}:
+            if values:
+                raise KubernetesCollectionError(
+                    f"selector operator {operator} does not accept values"
+                )
+            requirements.append(key if operator == "Exists" else f"!{key}")
+        else:
+            raise KubernetesCollectionError(f"unsupported selector operator: {operator!r}")
+
+    if not requirements:
+        raise KubernetesCollectionError("deployment selector must not be empty")
+    return ",".join(requirements)
 
 
 class KubectlDeploymentCollector:
@@ -107,8 +200,7 @@ class KubectlDeploymentCollector:
                 "container must define CPU and memory requests and limits"
             )
 
-        selector = document["spec"]["selector"]["matchLabels"]
-        label_selector = ",".join(f"{key}={value}" for key, value in sorted(selector.items()))
+        label_selector = _label_selector(document["spec"]["selector"])
         pods_raw = self._runner(
             self._command("get", "pods", "-n", namespace, "-l", label_selector, "-o", "json")
         )
