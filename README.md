@@ -42,6 +42,11 @@ explicit resources. Optional observation access creates only namespace-scoped
 read-only Roles for explicitly named targets; see the
 [chart guide](deploy/helm/kubefit/README.md).
 
+`deploy/local/verify-kubefit-chart.sh` performs the complete disposable-kind proof:
+local image build/load, tokenless install, health probe, scoped RBAC allow/deny
+matrix, and restoration to tokenless defaults. It refuses non-kind targets and does
+not push an image or delete the cluster.
+
 The ordered delivery phases and their completion criteria are documented in
 [`docs/implementation-plan.md`](docs/implementation-plan.md).
 

@@ -70,3 +70,14 @@ pytest -q tests/test_helm_chart.py
 The tests inspect rendered resources and fail on cluster-scoped RBAC, unexpected
 verbs/resources, missing security context, invalid namespace values, and incomplete
 RBAC identity settings.
+
+For an end-to-end check against the existing disposable `kind-kubefit` cluster:
+
+```bash
+./deploy/local/verify-kubefit-chart.sh
+```
+
+The script builds and loads `kubefit:dev`, installs the tokenless release, probes
+`/healthz`, temporarily enables one namespace Role, verifies both allowed and denied
+actions with ServiceAccount impersonation, and restores the tokenless/no-RBAC release.
+An EXIT trap attempts restoration if the scoped-RBAC phase is interrupted.

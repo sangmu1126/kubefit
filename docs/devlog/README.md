@@ -50,6 +50,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0026](0026-live-demo-contract.md) | Live demo contract | Make readiness machine-enforceable and define disposable two-run evidence |
 | [0027](0027-publication-evidence-verifier.md) | Publication evidence verifier | Bind two-run GitHub proof back to immutable proposal and benchmark artifacts |
 | [0028](0028-least-privilege-helm-package.md) | Least-privilege Helm package | Package the API non-root and scope optional observation RBAC by namespace |
+| [0029](0029-kind-helm-integration.md) | kind Helm integration | Build, install, probe, verify RBAC denials, and restore tokenless defaults |
 
 ## Visual language
 

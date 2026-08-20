@@ -153,8 +153,9 @@ collected metrics and benchmark artifacts.
 **Status: in progress.** Entry
 [0028](devlog/0028-least-privilege-helm-package.md) adds a non-root API image and
 Helm chart with tokenless defaults, explicit resources/probes, and namespace-scoped
-opt-in read-only RBAC. Image build, kind installation, and live health evidence remain
-open because the local Docker daemon was unavailable.
+opt-in read-only RBAC. Entry [0029](devlog/0029-kind-helm-integration.md) completes the
+local image build, kind installation, live health probe, RBAC allow/deny matrix, and
+tokenless restoration evidence. External image/chart publication remains open.
 
 **Goal:** make the completed workflow easy to install and demonstrate.
 

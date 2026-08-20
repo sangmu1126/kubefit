@@ -400,3 +400,17 @@ This RBAC is a prepared boundary, not a claim that the current HTTP API performs
 in-cluster observation. The packaged image does not include kubectl and the API
 routes remain pure recommendation/evaluation endpoints; operator-side collection
 continues through the CLI.
+
+## Disposable kind package verification
+
+The local integration script is restricted to a derived `kind-*` context and passes
+that context to every Helm and kubectl operation. It builds a local-only image, loads
+it directly into kind, uses `imagePullPolicy: Never`, and never invokes registry push
+or cluster deletion.
+
+The test first installs reset chart values and proves the ServiceAccount cannot read
+the demo Deployment. After temporarily enabling one target namespace, Kubernetes
+impersonation must allow exactly Deployment `get`, ReplicaSet `list`, and Pod `list`.
+Pod watch, Secret get, Deployment update, and Pod list in `monitoring` must remain
+denied. A final reset removes Role/RoleBinding and token automount, then repeats the
+initial denial. An EXIT trap attempts the same restoration after interruption.

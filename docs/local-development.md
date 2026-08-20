@@ -203,3 +203,18 @@ This permanently deletes the local kind cluster and its Prometheus data:
 Set `KUBEFIT_CLUSTER_NAME` to use a different cluster name. The Prometheus chart
 version can be overridden temporarily with `KUBEFIT_PROMETHEUS_CHART_VERSION`, but
 changes should be validated before updating the pinned repository default.
+
+## Verify the packaged API
+
+With Docker and the disposable cluster running, execute:
+
+```bash
+./deploy/local/verify-kubefit-chart.sh
+```
+
+The script never changes the ambient kubectl context. It builds the local image,
+loads it into the explicit kind cluster, verifies the tokenless API health endpoint,
+temporarily exercises namespace-scoped observation RBAC, proves denied watch/Secret/
+update/cross-namespace operations, and restores tokenless defaults. It leaves the
+KubeFit API release installed in `kubefit-system` but does not change the demo or
+Prometheus releases.
