@@ -172,6 +172,13 @@ exposed by `kubefit publish`, which requires `--confirm-publish` and reads the t
 only from a named environment variable. The command never merges or deploys the
 change.
 
+`kubefit publish-check` runs the same artifact and local Git validation without
+creating a commit, then reads the configured GitHub remote ref and, when a token is
+present, repository metadata through a GET request. Its JSON separates blockers
+from warnings and always reports `mutation_performed: false`. A `ready` result means
+the observable preconditions passed; it does not prove effective branch or pull
+request write permission.
+
 The example prices are illustrative, not a cloud-provider price claim. Live
 analysis requires the caller to provide CPU and memory rates plus a source label.
 The output repeats those assumptions and separates current/recommended CPU and

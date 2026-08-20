@@ -333,3 +333,23 @@ PR body, and manifest contents. Known adapter failures are rendered as a concise
 CLI exit, and the token value is replaced defensively if an underlying exception
 unexpectedly includes it. This reduces accidental disclosure through normal output;
 the process environment remains the caller's secret-management responsibility.
+
+## Read-only publication preflight
+
+`kubefit publish-check` builds the same semantically verified pull request plan, but
+uses `inspect_repository_plan` instead of the commit adapter. The inspection requires
+the exact Git top-level, clean attached base, unchanged source bytes, and either an
+absent deterministic branch or a fully verified reusable commit. It does not switch
+HEAD, write the file, stage, commit, or create refs.
+
+After local validation, the command parses the credential-free GitHub remote and
+uses `git ls-remote` to classify the planned ref as absent, reusable, or colliding.
+It never pushes. A present API token authorizes one repository GET; the response
+records readability, default branch, visibility, and any permission flags GitHub
+chooses to report. Those flags remain evidence, not a guarantee that branch rules,
+SSO, or pull-request writes will succeed.
+
+The JSON report has ordered artifact, local repository, Git remote, and GitHub API
+checks plus blockers and warnings. It always includes `mutation_performed: false`.
+Artifact or local failures stop dependent checks; token absence and remote/API
+failures are explicit blockers rather than prompts or automatic repair attempts.

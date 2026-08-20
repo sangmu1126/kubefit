@@ -149,6 +149,24 @@ GitHub API token through an environment variable, never as a command argument. F
 example, an existing GitHub CLI login can provide it without placing the value in
 shell history:
 
+Run the read-only preflight first:
+
+```bash
+GITHUB_TOKEN="$(gh auth token)" kubefit publish-check \
+  --proposal .kubefit/proposals/proposal-<digest> \
+  --benchmark benchmarks/results/benchmark-<digest> \
+  --repository-root . \
+  --remote origin
+```
+
+It verifies the artifacts and clean checkout, inspects deterministic local and
+remote branch state, and performs only a GitHub repository GET when the token is
+present. It never creates a commit, branch, or PR. Resolve every `blockers` entry
+before publication. Treat `ready` as preflight evidence rather than proof of write
+permission; organization rules and token scopes are enforced only by the live write.
+
+Then publish with an explicit acknowledgement:
+
 ```bash
 GITHUB_TOKEN="$(gh auth token)" kubefit publish \
   --proposal .kubefit/proposals/proposal-<digest> \

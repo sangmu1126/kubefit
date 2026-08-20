@@ -127,7 +127,9 @@ commits with rollback and idempotent reuse. Entry
 publication and exact-contract Draft PR creation with ambiguous-response recovery.
 Entry [0024](devlog/0024-publish-cli-secret-boundary.md) exposes the complete command
 with environment-only token intake, explicit mutation acknowledgement, and safe JSON
-output. A live disposable-repository demonstration remains open.
+output. Entry [0025](devlog/0025-live-publication-preflight.md) adds mutation-free
+artifact, local Git, remote ref, and API readiness diagnostics. Authentication repair,
+a disposable target, and the live two-run demonstration remain open.
 
 **Goal:** deliver the validated change through the repository's review workflow.
 
