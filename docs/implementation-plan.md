@@ -67,6 +67,10 @@ and the signals that produced each risk classification.
 
 ## Phase 3: manifest patch generation
 
+**Status: complete for the MVP (2026-08-21).** Minimal scalar replacement, stale
+input protection, ambiguity rejection, and golden evidence are recorded in
+development journal entry [0010](devlog/0010-minimal-manifest-patch.md).
+
 **Goal:** create a minimal, reviewable GitOps change without touching the cluster.
 
 - Locate the selected Deployment and container in a repository manifest.

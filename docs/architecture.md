@@ -88,3 +88,26 @@ CPU throttling risk       ┘
 
 This gate authorizes only manifest proposal generation. It does not authorize a
 merge, cluster mutation, or rollout.
+
+## Manifest proposal boundary
+
+The manifest generator consumes the complete evaluation so the observed current
+resources, recommendation, eligibility, warnings, and evidence cannot be supplied
+as unrelated arguments.
+
+```text
+eligible evaluation + YAML sources + exact target
+  -> unique Deployment/container match
+  -> stale resource comparison
+  -> four scalar-span replacements
+  -> patched content + unified diff + SHA-256 report
+```
+
+PyYAML is used to compose a syntax tree and obtain scalar source positions. KubeFit
+does not serialize the tree back to YAML; it replaces only selected scalar spans in
+the original text. This preserves unrelated formatting and comments byte-for-byte.
+Blocked evaluations, duplicate targets or fields, aliases, missing resource maps,
+invalid quantities, and repository values that differ from the evaluation all fail
+before an artifact is returned.
+
+The generator is pure: it does not write the repository or touch the cluster.

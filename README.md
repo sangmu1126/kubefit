@@ -88,6 +88,13 @@ require `eligible`; insufficient readiness and high or unknown safety risks prod
 stable machine-readable blocking checks. Medium risk remains an explicit reviewer
 warning and never becomes an invisible pass.
 
+The `gitops` package can generate a stale-safe manifest proposal from an eligible
+evaluation. It matches one `apps/v1` Deployment and container across supplied YAML
+sources, verifies that repository resources still equal the evaluated workload, and
+returns patched content, a unified diff, and a SHA-256-backed report without writing
+the file. Only the changed resource scalar ranges are replaced, preserving unrelated
+documents, fields, comments, order, and quoting.
+
 The example prices are illustrative, not a cloud-provider price claim. Live
 analysis requires the caller to provide CPU and memory rates plus a source label.
 The output repeats those assumptions and separates current/recommended CPU and
