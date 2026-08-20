@@ -26,7 +26,8 @@ The query begins no earlier than the current Deployment creation time, while
 coverage remains relative to the full requested window. This prevents a same-name
 recreation from inheriting older evidence and keeps new workloads non-actionable.
 kube-state-metrics ownership retention remains an explicit prerequisite. ReplicaSets
-already removed from the Kubernetes API require a future persistent UID mapping.
+already removed from the Kubernetes API require the optional identity snapshot to
+have observed them before deletion.
 
 An optional local identity snapshot provides that mapping for ReplicaSets KubeFit
 has already observed. Records merge only while the Deployment UID remains identical;
@@ -50,8 +51,19 @@ use, the engine will also gate recommendations on observation coverage, workload
 restarts, throttling, OOM events, latency, and traffic representativeness.
 
 CPU and memory request changes are reported separately because millicores and MiB
-cannot be combined into a meaningful percentage. Monetary savings will be produced
-by the evaluator from explicit CPU and memory prices, replica count, and time.
+cannot be combined into a meaningful percentage. The evaluator converts both into
+USD only after the caller provides CPU and memory hourly prices, a price source,
+replica count, and monthly hours. It returns CPU and memory components separately
+and identifies the calculation basis as `resource_requests`.
+
+```text
+CPU cost    = request mCPU / 1000 × core-hour price × hours × replicas
+Memory cost = request MiB / 1024 × GiB-hour price × hours × replicas
+```
+
+The evaluator uses exact decimal arithmetic. Prices and calculated money are
+serialized as decimal strings so JSON transport does not silently reintroduce
+binary floating-point rounding.
 
 Resource calculation and change authorization are separate. An insufficient result
 still includes its candidate and evidence for inspection, but future patch generation

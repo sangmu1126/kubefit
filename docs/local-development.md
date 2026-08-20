@@ -55,12 +55,20 @@ kubefit analyze \
   --deployment overprovisioned-api \
   --prometheus-url http://localhost:9090 \
   --identity-store .kubefit/identities.json \
-  --days 1
+  --days 1 \
+  --cpu-core-hour-usd 0.04 \
+  --memory-gib-hour-usd 0.005 \
+  --price-source example://local-model
 ```
+
+These rates are deliberately labeled example inputs. Replace them and the source
+label with assumptions appropriate to the environment being evaluated. The default
+billing horizon is 730 hours and can be changed with `--monthly-hours`.
 
 A new cluster cannot provide a full one-day observation window, so KubeFit will
 correctly report low observation coverage and `unknown` risk until enough samples
-have accumulated.
+have accumulated. A mathematical cost projection is still shown for inspection,
+but it does not make an insufficient recommendation actionable.
 
 ## Remove the environment
 

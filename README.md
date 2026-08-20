@@ -56,14 +56,19 @@ pytest
 uvicorn api.main:app --reload
 ```
 
-Then open `http://localhost:8000/docs` and call `POST /v1/recommendations`.
+Then open `http://localhost:8000/docs`. Use `POST /v1/recommendations` for the
+capacity result alone or `POST /v1/evaluations` for a recommendation plus an
+explicit request-cost comparison.
 
 Analyze a live Deployment (with Prometheus reachable locally):
 
 ```bash
 kubefit analyze --namespace kubefit-demo --deployment overprovisioned-api \
   --prometheus-url http://localhost:9090 \
-  --identity-store .kubefit/identities.json
+  --identity-store .kubefit/identities.json \
+  --cpu-core-hour-usd 0.04 \
+  --memory-gib-hour-usd 0.005 \
+  --price-source example://local-model
 ```
 
 The CLI invokes `kubectl` using the current context, reads only Deployment and
@@ -72,6 +77,13 @@ Prometheus must scrape cAdvisor metrics plus `kube_pod_owner` from
 kube-state-metrics. KubeFit filters ReplicaSets through their Kubernetes controller
 owner UID and clips history to the current Deployment creation time, avoiding
 Pod-name prefixes and same-name workload history.
+
+The example prices are illustrative, not a cloud-provider price claim. Live
+analysis requires the caller to provide CPU and memory rates plus a source label.
+The output repeats those assumptions and separates current/recommended CPU and
+memory request costs. Projected request savings do not necessarily become invoice
+savings because node fragmentation, discounts, taxes, and autoscaling replica-hours
+are outside this model.
 
 The optional identity store retains observed ReplicaSet names after Kubernetes
 deletes their objects. It is an atomic local JSON snapshot containing identifiers
@@ -98,6 +110,20 @@ Example request:
     "available_replicas": 2,
     "observed_replicas": 2
   }
+}
+```
+
+For `/v1/evaluations`, add the following top-level fields to the same request:
+
+```json
+{
+  "cost_assumptions": {
+    "cpu_core_hour_usd": "0.04",
+    "memory_gib_hour_usd": "0.005",
+    "monthly_hours": "730",
+    "price_source": "example://local-model"
+  },
+  "replica_count": 2
 }
 ```
 
