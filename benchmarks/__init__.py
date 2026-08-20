@@ -5,6 +5,7 @@ from benchmarks.artifact import (
     BenchmarkResultArtifactError,
     write_benchmark_result,
 )
+from benchmarks.lock import BenchmarkExecutionLock, BenchmarkLockError
 from benchmarks.measurement import (
     AlignedMeasurementCollector,
     BenchmarkMeasurementError,
@@ -37,6 +38,8 @@ from benchmarks.runner import (
 __all__ = [
     "BenchmarkCheck",
     "BenchmarkExecutionError",
+    "BenchmarkExecutionLock",
+    "BenchmarkLockError",
     "BenchmarkMeasurement",
     "BenchmarkMeasurementError",
     "CollectedMeasurement",
