@@ -27,7 +27,15 @@ class DeploymentResources:
     container_status_count: int
     restart_count: int
     oom_killed_count: int
+    pod_runtime_statuses: tuple["PodContainerRuntimeStatus", ...]
     resources: CurrentResources
+
+
+@dataclass(frozen=True)
+class PodContainerRuntimeStatus:
+    pod: str
+    restart_count: int
+    oom_killed: bool
 
 
 Runner = Callable[[Sequence[str]], str]
@@ -248,12 +256,21 @@ class KubectlDeploymentCollector:
                 "deployment has no Pods owned by its current ReplicaSets"
             )
 
-        container_statuses = [
-            status
+        named_container_statuses = [
+            (item["metadata"]["name"], status)
             for item in pod_items
             for status in item.get("status", {}).get("containerStatuses", [])
             if status.get("name") == container["name"]
         ]
+        pod_runtime_statuses = tuple(
+            PodContainerRuntimeStatus(
+                pod=pod,
+                restart_count=status.get("restartCount", 0),
+                oom_killed=_was_oom_killed(status),
+            )
+            for pod, status in named_container_statuses
+        )
+        container_statuses = [status for _, status in named_container_statuses]
         restart_count = sum(status.get("restartCount", 0) for status in container_statuses)
         oom_killed_count = sum(
             _was_oom_killed(status) for status in container_statuses
@@ -271,6 +288,7 @@ class KubectlDeploymentCollector:
             container_status_count=len(container_statuses),
             restart_count=restart_count,
             oom_killed_count=oom_killed_count,
+            pod_runtime_statuses=pod_runtime_statuses,
             resources=CurrentResources(
                 cpu_request_millicores=parse_cpu_millicores(requests["cpu"]),
                 cpu_limit_millicores=parse_cpu_millicores(limits["cpu"]),

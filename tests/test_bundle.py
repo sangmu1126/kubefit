@@ -54,6 +54,8 @@ def test_publishes_complete_hashed_proposal_bundle(tmp_path: Path) -> None:
     assert context["before_resources"] == evaluation.current.model_dump()
     assert context["after_resources"] == evaluation.recommendation.recommended.model_dump()
     assert "latency_p99_ms" in context["required_metrics"]
+    assert "k6_raw_sha256" in context["required_metrics"]
+    assert "traffic_spike_recovered" in context["required_metrics"]
 
 
 def test_loads_and_revalidates_published_bundle(tmp_path: Path) -> None:
@@ -67,6 +69,8 @@ def test_loads_and_revalidates_published_bundle(tmp_path: Path) -> None:
     assert loaded.target == patch.report.target
     assert loaded.before_manifest.read_text() == patch.original_content
     assert loaded.after_manifest.read_text() == patch.patched_content
+    assert loaded.before_request_cost_usd == evaluation.cost.current.total_usd
+    assert loaded.after_request_cost_usd == evaluation.cost.recommended.total_usd
 
 
 def test_reuses_byte_identical_bundle_idempotently(tmp_path: Path) -> None:

@@ -3,12 +3,13 @@ import json
 import os
 import shutil
 import tempfile
+from decimal import Decimal
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from evaluator import EvaluationResult
+from evaluator import EvaluationResult, compare_request_costs
 from gitops.manifest import ManifestPatch, ManifestPatchReport, ManifestTarget
 from recommender import CurrentResources
 from recommender.models import ResourceValues
@@ -41,6 +42,8 @@ class LoadedProposalBundle(BaseModel):
     target: ManifestTarget
     before_manifest: Path
     after_manifest: Path
+    before_request_cost_usd: Decimal = Field(gt=0)
+    after_request_cost_usd: Decimal = Field(gt=0)
 
 
 class _FileMetadata(BaseModel):
@@ -174,12 +177,25 @@ def load_proposal_bundle(path: Path) -> LoadedProposalBundle:
     try:
         context = BenchmarkContext.model_validate_json(payloads["benchmark-context.json"])
         report = ManifestPatchReport.model_validate_json(payloads["patch-report.json"])
+        evaluation = EvaluationResult.model_validate_json(payloads["evaluation.json"])
     except ValueError as exc:
         raise ProposalBundleError("proposal context or patch report is invalid") from exc
     if report.source_path != source_path.as_posix():
         raise ProposalBundleError("proposal source path conflicts with its patch report")
     if report.target != context.target:
         raise ProposalBundleError("proposal target conflicts with its patch report")
+    if evaluation.current != context.before_resources:
+        raise ProposalBundleError("proposal current resources conflict with its context")
+    if evaluation.recommendation.recommended != context.after_resources:
+        raise ProposalBundleError("proposal recommended resources conflict with its context")
+    expected_cost = compare_request_costs(
+        evaluation.current,
+        evaluation.recommendation.recommended,
+        evaluation.cost.assumptions,
+        evaluation.cost.replica_count,
+    )
+    if evaluation.cost != expected_cost:
+        raise ProposalBundleError("proposal request cost conflicts with its resources")
 
     return LoadedProposalBundle(
         artifact_id=index.artifact_id,
@@ -188,6 +204,8 @@ def load_proposal_bundle(path: Path) -> LoadedProposalBundle:
         target=context.target,
         before_manifest=path / "manifests" / "before" / source_path,
         after_manifest=path / "manifests" / "after" / source_path,
+        before_request_cost_usd=evaluation.cost.current.total_usd,
+        after_request_cost_usd=evaluation.cost.recommended.total_usd,
     )
 
 
@@ -206,8 +224,14 @@ def _payloads(
             "latency_p99_ms",
             "cpu_throttling_p95_percent",
             "oom_killed_count",
+            "restart_count",
             "error_rate",
             "traffic_spike_recovery_seconds",
+            "traffic_spike_recovered",
+            "run_started_at",
+            "run_finished_at",
+            "k6_summary_sha256",
+            "k6_raw_sha256",
         ],
         eligibility_warnings=evaluation.patch_eligibility.warnings,
     )

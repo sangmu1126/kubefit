@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -28,6 +29,7 @@ def measurement(run_variant: str, **overrides: object) -> BenchmarkMeasurement:
             "restart_count": 0,
             "traffic_spike_recovery_seconds": 10,
         },
+        "provenance": provenance(),
         "request_cost_usd": Decimal("10"),
     }
     values.update(overrides)
@@ -109,9 +111,7 @@ def test_steady_latency_boundary(
         ("p99", 253.001, "fail"),
     ],
 )
-def test_spike_latency_boundary(
-    percentile: str, after_value: float, expected_status: str
-) -> None:
+def test_spike_latency_boundary(percentile: str, after_value: float, expected_status: str) -> None:
     before = measurement("before", spike=phase(750, 200, 220))
     after_values = (after_value, 260) if percentile == "p95" else (200, after_value)
     after = measurement("after", spike=phase(750, *after_values))
@@ -181,14 +181,40 @@ def test_new_oom_fails_and_restart_increase_warns() -> None:
     assert check_status(verdict, "new_restarts") == "warning"
 
 
-@pytest.mark.parametrize(
-    ("after_recovery", "expected_status"), [(12, "pass"), (12.001, "fail")]
-)
+def test_candidate_oom_fails_even_when_baseline_also_had_one() -> None:
+    verdict = compare_benchmarks(
+        measurement("before", runtime=runtime(oom_killed_count=1)),
+        measurement("after", runtime=runtime(oom_killed_count=1)),
+    )
+
+    assert verdict.status == "fail"
+    assert check_status(verdict, "new_oom_killed") == "fail"
+
+
+def test_incomplete_candidate_recovery_fails() -> None:
+    verdict = compare_benchmarks(
+        measurement("before"),
+        measurement("after", runtime=runtime(traffic_spike_recovered=False)),
+    )
+
+    assert verdict.status == "fail"
+    assert check_status(verdict, "traffic_spike_recovered") == "fail"
+
+
+def test_incomplete_baseline_recovery_invalidates_comparison() -> None:
+    verdict = compare_benchmarks(
+        measurement("before", runtime=runtime(traffic_spike_recovered=False)),
+        measurement("after"),
+    )
+
+    assert verdict.status == "invalid"
+    assert check_status(verdict, "baseline_recovered") == "invalid"
+
+
+@pytest.mark.parametrize(("after_recovery", "expected_status"), [(12, "pass"), (12.001, "fail")])
 def test_recovery_boundary(after_recovery: float, expected_status: str) -> None:
     before = measurement("before", runtime=runtime(traffic_spike_recovery_seconds=10))
-    after = measurement(
-        "after", runtime=runtime(traffic_spike_recovery_seconds=after_recovery)
-    )
+    after = measurement("after", runtime=runtime(traffic_spike_recovery_seconds=after_recovery))
 
     verdict = compare_benchmarks(before, after)
 
@@ -268,3 +294,15 @@ def runtime(**overrides: object) -> dict[str, object]:
     }
     values.update(overrides)
     return values
+
+
+def provenance() -> dict[str, object]:
+    started_at = datetime(2026, 8, 21, tzinfo=UTC)
+    return {
+        "run_started_at": started_at,
+        "run_finished_at": started_at + timedelta(seconds=160),
+        "pods": ["api-abc"],
+        "k6_summary_sha256": "a" * 64,
+        "k6_raw_sha256": "b" * 64,
+        "prometheus_rate_window_seconds": 30,
+    }

@@ -4,6 +4,7 @@ from collector.identity import IdentitySnapshotStore, WorkloadIdentity
 from collector.kubernetes import (
     DeploymentResources,
     KubectlDeploymentCollector,
+    PodContainerRuntimeStatus,
     parse_cpu_millicores,
     parse_memory_mib,
 )
@@ -14,6 +15,7 @@ __all__ = [
     "IdentitySnapshotStore",
     "KubectlDeploymentCollector",
     "PrometheusClient",
+    "PodContainerRuntimeStatus",
     "WorkloadIdentity",
     "WorkloadMetrics",
     "parse_cpu_millicores",

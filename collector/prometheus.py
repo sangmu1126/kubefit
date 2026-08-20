@@ -94,6 +94,54 @@ class PrometheusClient:
             for value in series
         ]
 
+    def benchmark_cpu_throttling_p95(
+        self,
+        namespace: str,
+        pods: list[str],
+        container: str,
+        start: datetime,
+        end: datetime,
+        step_seconds: int = 5,
+        rate_window_seconds: int = 30,
+    ) -> float:
+        if not pods:
+            raise ValueError("at least one benchmark Pod is required")
+        if start.tzinfo is None or end.tzinfo is None:
+            raise ValueError("benchmark timestamps must include timezone information")
+        if end <= start:
+            raise ValueError("benchmark end must be later than start")
+        if step_seconds < 1 or rate_window_seconds < 1:
+            raise ValueError("benchmark query intervals must be positive")
+        query_start = start + timedelta(seconds=rate_window_seconds)
+        if query_start >= end:
+            raise ValueError("benchmark window is too short for the Prometheus rate window")
+
+        namespace_value = _promql_string(namespace)
+        container_value = _promql_string(container)
+        pod_pattern = _promql_regex(pods)
+        labels = (
+            f'namespace="{namespace_value}",container="{container_value}",'
+            f'pod=~"{pod_pattern}"'
+        )
+        throttled = (
+            "sum by (pod) ("
+            "rate(container_cpu_cfs_throttled_periods_total"
+            f"{{{labels}}}[{rate_window_seconds}s]))"
+        )
+        periods = (
+            "sum by (pod) ("
+            "rate(container_cpu_cfs_periods_total"
+            f"{{{labels}}}[{rate_window_seconds}s]))"
+        )
+        query = (
+            f"clamp_max(100 * ({throttled}) / "
+            f"clamp_min(({periods}), 1e-9), 100)"
+        )
+        series = self.query_range_series(query, query_start, end, step_seconds)
+        if not series:
+            raise PrometheusError("Prometheus returned no throttling samples for benchmark")
+        return max(percentile(values, 0.95) for values in series)
+
     def workload_metrics(
         self,
         namespace: str,

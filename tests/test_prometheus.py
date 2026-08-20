@@ -10,6 +10,60 @@ def test_percentile_interpolates_samples() -> None:
     assert percentile([1, 2, 3, 4], 0.5) == 2.5
 
 
+def test_collects_benchmark_throttling_inside_aligned_window() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200,
+            json={
+                "status": "success",
+                "data": {
+                    "result": [
+                        {"values": [[1, "1"], [2, "3"], [3, "2"]]},
+                        {"values": [[1, "4"], [2, "5"], [3, "6"]]},
+                    ]
+                },
+            },
+        )
+
+    http = httpx.Client(
+        base_url="http://prometheus", transport=httpx.MockTransport(handler)
+    )
+    start = datetime(2026, 8, 21, tzinfo=UTC)
+
+    result = PrometheusClient(
+        "http://prometheus", client=http
+    ).benchmark_cpu_throttling_p95(
+        namespace="demo",
+        pods=["api-a", "api-b"],
+        container="api",
+        start=start,
+        end=start + timedelta(seconds=160),
+    )
+
+    assert result == pytest.approx(5.9)
+    params = requests[0].url.params
+    assert datetime.fromisoformat(params["start"]) == start + timedelta(seconds=30)
+    assert datetime.fromisoformat(params["end"]) == start + timedelta(seconds=160)
+    assert params["step"] == "5"
+    assert 'pod=~"(?:api-a|api-b)"' in params["query"]
+
+
+def test_rejects_benchmark_window_shorter_than_rate_window() -> None:
+    start = datetime(2026, 8, 21, tzinfo=UTC)
+
+    with pytest.raises(ValueError, match="too short"):
+        PrometheusClient("http://prometheus").benchmark_cpu_throttling_p95(
+            "demo",
+            ["api"],
+            "api",
+            start,
+            start + timedelta(seconds=30),
+        )
+
+
 def test_rejects_invalid_observation_window() -> None:
     with pytest.raises(ValueError, match="at least 1"):
         PrometheusClient("http://prometheus").workload_metrics(

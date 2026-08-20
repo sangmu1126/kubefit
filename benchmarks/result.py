@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -38,10 +39,31 @@ class RuntimeBenchmarkSignals(BaseModel):
     oom_killed_count: int = Field(ge=0)
     restart_count: int = Field(ge=0)
     traffic_spike_recovery_seconds: float = Field(ge=0)
+    traffic_spike_recovered: bool = True
+
+
+class MeasurementProvenance(BaseModel):
+    run_started_at: datetime
+    run_finished_at: datetime
+    pods: list[str] = Field(min_length=1)
+    k6_summary_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    k6_raw_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    prometheus_rate_window_seconds: int = Field(gt=0)
+
+    @model_validator(mode="after")
+    def evidence_is_ordered(self) -> "MeasurementProvenance":
+        if self.run_started_at.tzinfo is None or self.run_finished_at.tzinfo is None:
+            raise ValueError("measurement timestamps must include timezone information")
+        if self.run_finished_at <= self.run_started_at:
+            raise ValueError("measurement finish must be later than start")
+        if self.pods != sorted(set(self.pods)):
+            raise ValueError("measurement Pods must be sorted and unique")
+        return self
 
 
 class BenchmarkMeasurement(K6RunSummary):
     runtime: RuntimeBenchmarkSignals
+    provenance: MeasurementProvenance
     request_cost_usd: Decimal = Field(gt=0)
 
 
@@ -51,9 +73,7 @@ class BenchmarkPolicy(BaseModel):
     error_rate_after: Decimal = Field(default=Decimal("0.01"), ge=0, le=1)
     error_rate_increase: Decimal = Field(default=Decimal("0.005"), ge=0, le=1)
     throttling_after_percent: Decimal = Field(default=Decimal("5"), ge=0, le=100)
-    throttling_increase_percentage_points: Decimal = Field(
-        default=Decimal("1"), ge=0, le=100
-    )
+    throttling_increase_percentage_points: Decimal = Field(default=Decimal("1"), ge=0, le=100)
     recovery_regression_percent: Decimal = Field(default=Decimal("20"), ge=0)
 
 
@@ -152,15 +172,27 @@ def compare_benchmarks(
         )
     )
 
-    new_ooms = after.runtime.oom_killed_count - before.runtime.oom_killed_count
+    candidate_ooms = after.runtime.oom_killed_count
     checks.append(
         BenchmarkCheck(
             code="new_oom_killed",
-            status="fail" if new_ooms > 0 else "pass",
+            status="fail" if candidate_ooms > 0 else "pass",
             reason=(
-                f"candidate introduced {new_ooms} new OOMKilled event(s)"
-                if new_ooms > 0
-                else "candidate introduced no new OOMKilled events"
+                f"candidate run observed {candidate_ooms} OOMKilled event(s) "
+                f"(baseline: {before.runtime.oom_killed_count})"
+                if candidate_ooms > 0
+                else "candidate run observed no OOMKilled events"
+            ),
+        )
+    )
+    checks.append(
+        BenchmarkCheck(
+            code="traffic_spike_recovered",
+            status="pass" if after.runtime.traffic_spike_recovered else "fail",
+            reason=(
+                "candidate recovered during the fixed recovery phase"
+                if after.runtime.traffic_spike_recovered
+                else "candidate did not recover during the fixed recovery phase"
             ),
         )
     )
@@ -234,6 +266,11 @@ def _validity_checks(
             before.dropped_iterations == after.dropped_iterations == 0,
             "before and after runs must not drop offered iterations",
         ),
+        (
+            "baseline_recovered",
+            before.runtime.traffic_spike_recovered,
+            "baseline must recover during the fixed recovery phase",
+        ),
     )
     for code, valid, failure_reason in comparisons:
         checks.append(
@@ -248,12 +285,8 @@ def _validity_checks(
         before_phase = getattr(before, phase)
         after_phase = getattr(after, phase)
         valid = (
-            before_phase.expected_iterations
-            == after_phase.expected_iterations
-            == expected
-            and before_phase.completed_iterations
-            == after_phase.completed_iterations
-            == expected
+            before_phase.expected_iterations == after_phase.expected_iterations == expected
+            and before_phase.completed_iterations == after_phase.completed_iterations == expected
             and before_phase.requests >= before_phase.completed_iterations
             and after_phase.requests >= after_phase.completed_iterations
         )
@@ -284,10 +317,7 @@ def _regression_check(
         reason = f"{label} rose from a zero baseline to {after}"
     else:
         displayed = regression.quantize(Decimal("0.001"))
-        reason = (
-            f"{label} changed by {displayed}% "
-            f"(allowed regression: {allowed_percent}%)"
-        )
+        reason = f"{label} changed by {displayed}% (allowed regression: {allowed_percent}%)"
     return BenchmarkCheck(code=code, status="fail" if failed else "pass", reason=reason)
 
 
@@ -314,9 +344,7 @@ def _percent_change(before: float, after: float) -> Decimal | None:
     return (candidate - baseline) / baseline * Decimal("100")
 
 
-def _cost_change(
-    before: BenchmarkMeasurement, after: BenchmarkMeasurement
-) -> Decimal | None:
+def _cost_change(before: BenchmarkMeasurement, after: BenchmarkMeasurement) -> Decimal | None:
     baseline = before.request_cost_usd
     if baseline == 0:
         return None

@@ -130,6 +130,9 @@ def test_collects_deployment_resources_and_pods() -> None:
     assert result.container_status_count == 1
     assert result.restart_count == 2
     assert result.oom_killed_count == 1
+    assert result.pod_runtime_statuses[0].pod == "demo-abc"
+    assert result.pod_runtime_statuses[0].restart_count == 2
+    assert result.pod_runtime_statuses[0].oom_killed is True
     assert ["-l", "app=demo"] == commands[1][
         commands[1].index("-l") : commands[1].index("-l") + 2
     ]

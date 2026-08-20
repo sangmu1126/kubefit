@@ -1,11 +1,13 @@
 import http from "k6/http";
 import { check } from "k6";
+import { Counter } from "k6/metrics";
 
 const profileVersion = "kubefit-load-v1";
 const targetUrl = requiredEnv("KUBEFIT_TARGET_URL");
 const proposalId = requiredEnv("KUBEFIT_PROPOSAL_ID");
 const variant = requiredEnv("KUBEFIT_VARIANT");
 const summaryPath = requiredEnv("KUBEFIT_SUMMARY_PATH");
+const recoveryStart = new Counter("kubefit_recovery_start");
 
 if (!/^proposal-[0-9a-f]{32}$/.test(proposalId)) {
   throw new Error("KUBEFIT_PROPOSAL_ID must match proposal- followed by 32 lowercase hex digits");
@@ -70,6 +72,7 @@ export function spike() {
 }
 
 export function recovery() {
+  recoveryStart.add(1, { kubefit_phase: "recovery" });
   request("recovery");
 }
 
