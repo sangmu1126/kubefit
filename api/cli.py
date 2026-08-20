@@ -1,6 +1,7 @@
 import argparse
+from pathlib import Path
 
-from collector import KubectlDeploymentCollector, PrometheusClient
+from collector import IdentitySnapshotStore, KubectlDeploymentCollector, PrometheusClient
 from recommender import ObservedUsage, recommend_resources
 
 
@@ -14,6 +15,7 @@ def build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("--prometheus-url", default="http://localhost:9090")
     analyze.add_argument("--days", type=int, default=7)
     analyze.add_argument("--step-seconds", type=int, default=300)
+    analyze.add_argument("--identity-store", type=Path)
     analyze.add_argument("--context")
     return parser
 
@@ -23,9 +25,19 @@ def main() -> None:
     workload = KubectlDeploymentCollector(context=args.context).collect(
         args.namespace, args.deployment, args.container
     )
+    replica_sets = workload.replica_sets
+    if args.identity_store is not None:
+        identity = IdentitySnapshotStore(args.identity_store).remember(
+            namespace=workload.namespace,
+            name=workload.name,
+            uid=workload.uid,
+            created_at=workload.created_at,
+            replica_sets=workload.replica_sets,
+        )
+        replica_sets = list(identity.replica_sets)
     metrics = PrometheusClient(args.prometheus_url).workload_metrics(
         workload.namespace,
-        workload.replica_sets,
+        replica_sets,
         workload.pods,
         workload.container,
         workload.created_at,
@@ -50,6 +62,8 @@ def main() -> None:
             workload_uid=workload.uid,
             workload_created_at=workload.created_at,
             history_clipped=metrics.history_clipped,
+            authorized_replica_set_count=len(replica_sets),
+            identity_snapshot_enabled=args.identity_store is not None,
         ),
     )
     print(recommendation.model_dump_json(indent=2))

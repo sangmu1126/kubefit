@@ -104,6 +104,14 @@ def recommend_resources(
             "metric history starts at current workload creation time "
             f"{observed.workload_created_at.isoformat()}"
         )
+    if observed.authorized_replica_set_count is not None:
+        source = "identity snapshot" if observed.identity_snapshot_enabled else "Kubernetes API"
+        replica_set_label = (
+            "ReplicaSet" if observed.authorized_replica_set_count == 1 else "ReplicaSets"
+        )
+        evidence.append(
+            f"{source} authorizes {observed.authorized_replica_set_count} {replica_set_label}"
+        )
 
     return ResourceRecommendation(
         recommended=ResourceValues(

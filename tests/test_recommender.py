@@ -122,11 +122,13 @@ def test_formats_singular_metric_evidence() -> None:
             sample_count=1,
             observation_coverage=0.01,
             metric_pod_count=1,
+            authorized_replica_set_count=1,
         ),
     )
 
     assert any("1 metric sample provides" in item for item in result.evidence)
     assert any("1 Pod identity across" in item for item in result.evidence)
+    assert any("authorizes 1 ReplicaSet" in item for item in result.evidence)
 
 
 def test_rejects_limit_below_request() -> None:

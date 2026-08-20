@@ -35,6 +35,8 @@ class ObservedUsage(BaseModel):
     workload_uid: str | None = None
     workload_created_at: datetime | None = None
     history_clipped: bool = False
+    authorized_replica_set_count: int | None = Field(default=None, ge=0)
+    identity_snapshot_enabled: bool = False
 
     @model_validator(mode="after")
     def maxima_are_not_below_percentiles(self) -> "ObservedUsage":
