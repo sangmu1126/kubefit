@@ -1,5 +1,11 @@
 """Manifest patching and GitHub pull request adapters."""
 
+from gitops.bundle import (
+    BenchmarkContext,
+    ProposalBundle,
+    ProposalBundleError,
+    write_proposal_bundle,
+)
 from gitops.manifest import (
     ManifestPatch,
     ManifestPatchError,
@@ -17,5 +23,9 @@ __all__ = [
     "ManifestSource",
     "ManifestTarget",
     "ResourceChange",
+    "BenchmarkContext",
+    "ProposalBundle",
+    "ProposalBundleError",
     "generate_resource_patch",
+    "write_proposal_bundle",
 ]

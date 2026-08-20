@@ -58,6 +58,7 @@ class ManifestPatchReport(BaseModel):
 
 
 class ManifestPatch(BaseModel):
+    original_content: str
     patched_content: str
     unified_diff: str
     report: ManifestPatchReport
@@ -176,6 +177,7 @@ def generate_resource_patch(
         )
     )
     return ManifestPatch(
+        original_content=candidate.source.content,
         patched_content=patched,
         unified_diff=diff,
         report=ManifestPatchReport(
