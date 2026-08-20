@@ -588,19 +588,21 @@ def test_publish_check_reports_missing_token_without_mutation(
         lambda *_: pytest.fail("preflight must not create a commit"),
     )
 
-    cli_module.main(
-        [
-            "publish-check",
-            "--proposal",
-            "proposal",
-            "--benchmark",
-            "benchmark",
-            "--repository-root",
-            str(tmp_path),
-        ]
-    )
+    with pytest.raises(SystemExit) as captured:
+        cli_module.main(
+            [
+                "publish-check",
+                "--proposal",
+                "proposal",
+                "--benchmark",
+                "benchmark",
+                "--repository-root",
+                str(tmp_path),
+            ]
+        )
 
     output = json.loads(capsys.readouterr().out)
+    assert captured.value.code == 2
     assert output["status"] == "blocked"
     assert output["mutation_performed"] is False
     assert output["checks"][-1] == {
@@ -700,18 +702,20 @@ def test_publish_check_stops_after_artifact_failure_and_redacts_token(
         lambda *_: pytest.fail("local check must not follow invalid artifacts"),
     )
 
-    cli_module.main(
-        [
-            "publish-check",
-            "--proposal",
-            "proposal",
-            "--benchmark",
-            "benchmark",
-        ]
-    )
+    with pytest.raises(SystemExit) as captured:
+        cli_module.main(
+            [
+                "publish-check",
+                "--proposal",
+                "proposal",
+                "--benchmark",
+                "benchmark",
+            ]
+        )
 
     output_text = capsys.readouterr().out
     output = json.loads(output_text)
+    assert captured.value.code == 2
     assert token not in output_text
     assert output["status"] == "blocked"
     assert output["checks"] == [

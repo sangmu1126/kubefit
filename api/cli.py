@@ -149,7 +149,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
     if args.command == "publish-check":
-        _run_publish_check(args)
+        if not _run_publish_check(args):
+            raise SystemExit(2)
         return
     if args.command == "publish":
         _run_publish(args)
@@ -392,7 +393,7 @@ def _run_publish(args: argparse.Namespace) -> None:
     )
 
 
-def _run_publish_check(args: argparse.Namespace) -> None:
+def _run_publish_check(args: argparse.Namespace) -> bool:
     token = os.environ.get(args.github_token_env)
     checks: list[dict[str, object]] = []
     blockers: list[str] = []
@@ -412,8 +413,7 @@ def _run_publish_check(args: argparse.Namespace) -> None:
         detail = _redact_secret(str(exc), token)
         checks.append({"name": "artifacts", "status": "blocked", "detail": detail})
         blockers.append(f"artifact verification failed: {detail}")
-        _print_publish_check(report)
-        return
+        return _print_publish_check(report)
     checks.append(
         {
             "name": "artifacts",
@@ -430,8 +430,7 @@ def _run_publish_check(args: argparse.Namespace) -> None:
         detail = _redact_secret(str(exc), token)
         checks.append({"name": "local_repository", "status": "blocked", "detail": detail})
         blockers.append(f"local repository check failed: {detail}")
-        _print_publish_check(report)
-        return
+        return _print_publish_check(report)
     checks.append(
         {
             "name": "local_repository",
@@ -534,7 +533,7 @@ def _run_publish_check(args: argparse.Namespace) -> None:
             )
             blockers.append(f"GitHub API read check failed: {detail}")
 
-    _print_publish_check(report)
+    return _print_publish_check(report)
 
 
 def _redact_secret(detail: str, secret: str | None) -> str:
@@ -543,10 +542,11 @@ def _redact_secret(detail: str, secret: str | None) -> str:
     return detail
 
 
-def _print_publish_check(report: dict[str, object]) -> None:
+def _print_publish_check(report: dict[str, object]) -> bool:
     blockers = report["blockers"]
     report["status"] = "blocked" if blockers else "ready"
     print(json.dumps(report, indent=2, sort_keys=True))
+    return not bool(blockers)
 
 
 if __name__ == "__main__":
