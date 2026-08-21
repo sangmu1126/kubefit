@@ -43,18 +43,32 @@ kubectl --context kind-kubefit get pods -n kubefit-demo
 kubectl --context kind-kubefit get pvc -n monitoring
 ```
 
-## Check observation readiness
+## Collect a controlled local demo window
 
-Keep this command running in one terminal:
+Keep Prometheus and the demo Service port-forwards running in separate terminals:
 
 ```bash
 kubectl --context kind-kubefit port-forward \
   -n monitoring \
   svc/monitoring-kube-prometheus-prometheus \
   9090:9090
+
+kubectl --context kind-kubefit port-forward \
+  -n kubefit-demo \
+  service/overprovisioned-api \
+  8080:80
 ```
 
-After Prometheus has collected several samples, run in another terminal:
+Start the fixed one-hour traffic profile. Do not use old idle samples as controlled
+demo evidence:
+
+```bash
+KUBEFIT_TARGET_URL=http://localhost:8080/ \
+  k6 run benchmarks/k6/observation_profile.js
+```
+
+The profile runs 5 RPS warmup, 25 RPS steady traffic, a 100 RPS spike, then 25 RPS
+recovery across exactly one hour. After it finishes, check the same one-hour window:
 
 ```bash
 kubefit readiness \
@@ -63,13 +77,17 @@ kubefit readiness \
   --deployment overprovisioned-api \
   --prometheus-url http://localhost:9090 \
   --identity-store .kubefit/identities.json \
-  --days 1
+  --observation-profile demo
 ```
 
 `collecting` includes an estimated readiness timestamp only when replicas, Pod
 metrics, and container statuses are complete. `blocked` requires intervention and
-does not include a time estimate. The estimate assumes the replica count and
-five-minute metric production remain stable.
+does not include a time estimate. Demo mode fixes a one-hour window, 60-second step,
+90% coverage, and at least 100 samples; attempts to combine it with `--days` or
+`--step-seconds` fail. Its recommendation evidence is explicitly non-production.
+
+For a real environment, omit `--observation-profile` to retain the production
+default of seven days, a five-minute step, 70% coverage, and at least 100 samples.
 
 ## Analyze the demo Deployment
 
@@ -82,7 +100,7 @@ kubefit analyze \
   --deployment overprovisioned-api \
   --prometheus-url http://localhost:9090 \
   --identity-store .kubefit/identities.json \
-  --days 1 \
+  --observation-profile demo \
   --cpu-core-hour-usd 0.04 \
   --memory-gib-hour-usd 0.005 \
   --price-source example://local-model \
@@ -93,10 +111,11 @@ These rates are deliberately labeled example inputs. Replace them and the source
 label with assumptions appropriate to the environment being evaluated. The default
 billing horizon is 730 hours and can be changed with `--monthly-hours`.
 
-A new cluster cannot provide a full one-day observation window, so KubeFit will
-correctly report low observation coverage and `unknown` risk until enough samples
+A controlled demo cannot provide a complete one-hour window until its load profile
+finishes, so KubeFit reports low coverage and `unknown` risk until enough samples
 have accumulated. A mathematical cost projection is still shown for inspection,
-but it does not make an insufficient recommendation actionable.
+but it does not make an insufficient recommendation actionable. Do not present this
+short-window result as a production traffic recommendation.
 
 The analysis artifact also includes CPU throttling P95 and its independent coverage, plus
 restart and OOMKilled counts from the current target-container statuses. A quiet new

@@ -113,6 +113,12 @@ kube-state-metrics. KubeFit filters ReplicaSets through their Kubernetes control
 owner UID and clips history to the current Deployment creation time, avoiding
 Pod-name prefixes and same-name workload history.
 
+For the local competition demo, do not wait on a one-day mostly idle window. Run the
+fixed one-hour `benchmarks/k6/observation_profile.js` traffic profile and use
+`--observation-profile demo` for both readiness and analysis. This path requires 90%
+coverage and labels its result controlled-demo-only. The default `production`
+profile remains multi-day and is intended for representative real traffic.
+
 `kubefit readiness` uses the same collection and policy path without requiring
 price inputs. It distinguishes evidence that only needs more collection time from
 unstable replicas, missing Pod signals, and already observed high-risk conditions.

@@ -60,6 +60,13 @@ These defaults are deliberately transparent and deterministic. Restarts are expo
 as evidence but are not automatically attributed to memory pressure. Application
 latency and traffic representativeness still need to be added before production use.
 
+The CLI preserves those production defaults under the `production` observation
+profile. Its separate `demo` profile fixes a one-hour window, one-minute query step,
+90% coverage, and the same 100-sample floor. Short-window recommendation evidence
+is labeled controlled-demo-only. The matching checked-in k6 profile generates load
+throughout the hour; demo mode without that controlled traffic is mechanically valid
+but not representative evidence and must not be presented as such.
+
 CPU and memory request changes are reported separately because millicores and MiB
 cannot be combined into a meaningful percentage. The evaluator converts both into
 USD only after the caller provides CPU and memory hourly prices, a price source,

@@ -108,7 +108,11 @@ the offered-load contract with k6's observed boundary scheduling. Entry
 [0036](devlog/0036-k6-process-success-boundary.md) rejects k6's structured script
 exception even when the process exits zero, while preserving mandatory typed-output
 checks. A real eligible before/after disposable-cluster run remains open while the
-volume collects enough continuous evidence.
+volume collects enough continuous evidence. Entry
+[0037](devlog/0037-controlled-demo-observation.md) replaces the meaningless local
+24-hour idle wait with a fixed one-hour, loaded, explicitly non-production demo
+profile while preserving the multi-day production default. The first controlled
+run is in progress; its result is not yet claimed.
 
 **Goal:** validate savings without concealing performance regressions.
 
