@@ -85,3 +85,16 @@ packaged dashboard, temporarily enables one namespace Role, verifies both allowe
 and denied actions with ServiceAccount impersonation, and restores the
 tokenless/no-RBAC release. An EXIT trap attempts restoration if the scoped-RBAC
 phase is interrupted.
+
+## Local image inventory
+
+After building the image, generate a verified SPDX inventory with Docker Scout:
+
+```bash
+./deploy/local/generate-image-sbom.sh
+```
+
+The generated artifact is bound to the full local image ID and stored under the
+ignored `.kubefit/supply-chain/` directory. It verifies hashes and package
+assertions on reuse, but it is not a vulnerability scan, signature, or published
+release attestation.

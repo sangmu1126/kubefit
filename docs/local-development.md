@@ -251,8 +251,30 @@ With Docker and the disposable cluster running, execute:
 ```
 
 The script never changes the ambient kubectl context. It builds the local image,
-loads it into the explicit kind cluster, verifies the tokenless API health endpoint,
-temporarily exercises namespace-scoped observation RBAC, proves denied watch/Secret/
-update/cross-namespace operations, and restores tokenless defaults. It leaves the
-KubeFit API release installed in `kubefit-system` but does not change the demo or
-Prometheus releases.
+loads it into the explicit kind cluster, verifies the tokenless API health endpoint
+and packaged dashboard, temporarily exercises namespace-scoped observation RBAC,
+proves denied watch/Secret/update/cross-namespace operations, and restores tokenless
+defaults. It leaves the KubeFit release installed in `kubefit-system` but does not
+change the demo or Prometheus releases.
+
+## Generate a verified local image SBOM
+
+Docker Desktop with Docker Scout and `jq` are required. After building the image,
+run:
+
+```bash
+docker build --tag kubefit:dev .
+./deploy/local/generate-image-sbom.sh
+```
+
+The script resolves `kubefit:dev` to its full local image ID, generates SPDX 2.3
+against that ID, verifies the expected Python runtime and absence of Node/npm
+packages, then atomically publishes `artifact.json` and `sbom.spdx.json` under
+`.kubefit/supply-chain/image-sbom-<digest>/`. A second run validates the stored
+hash, byte size, SPDX structure, and package assertions before reporting
+`reused: true`.
+
+Set `KUBEFIT_IMAGE_REFERENCE` to inspect a different local reference and
+`KUBEFIT_SBOM_OUTPUT_DIR` to select another evidence directory. The output is a
+package inventory only. It does not apply a CVE policy, bind the image to a Git
+revision, sign evidence, or publish an OCI attachment.

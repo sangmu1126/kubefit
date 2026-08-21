@@ -63,6 +63,12 @@ the commands in the [local development guide](docs/local-development.md). The
 multi-stage Docker build packages its immutable production bundle into the same
 non-root API image used by Helm.
 
+After building `kubefit:dev`, `deploy/local/generate-image-sbom.sh` resolves the
+mutable tag to its complete local image ID and publishes a verified SPDX 2.3
+inventory under the ignored `.kubefit/supply-chain/` directory. Repeated runs
+rehash and reuse the existing artifact. This is package inventory evidence, not a
+vulnerability scan or signature.
+
 ## Quick start
 
 Requires Python 3.12+.

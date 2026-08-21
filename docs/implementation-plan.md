@@ -160,8 +160,10 @@ tokenless restoration evidence. Entry
 for recommendation evidence, cost, risk, and the patch gate without duplicating
 analysis logic. Entry [0031](devlog/0031-packaged-dashboard.md) builds that UI in a
 separate Node stage, serves it from the hardened API image, and verifies it through
-the kind Helm Service without expanding RBAC. External image/chart publication and
-supply-chain evidence remain open.
+the kind Helm Service without expanding RBAC. Entry
+[0032](devlog/0032-verified-image-sbom.md) binds a tamper-evident SPDX inventory to
+the exact local image ID. Vulnerability policy, source provenance, signing, and
+external image/chart publication remain open.
 
 **Goal:** make the completed workflow easy to install and demonstrate.
 
