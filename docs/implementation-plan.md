@@ -104,9 +104,11 @@ history across Pod recreation so readiness can accumulate honestly. Entry
 [0020](devlog/0020-readiness-cli.md) makes that progress and its time assumptions
 machine-readable. Entry [0035](devlog/0035-live-k6-evidence-boundary.md) runs the
 unchanged baseline against the real Service, fixes P99 summary export, and aligns
-the offered-load contract with k6's observed boundary scheduling. A real eligible
-before/after disposable-cluster run remains open while the volume collects enough
-continuous evidence.
+the offered-load contract with k6's observed boundary scheduling. Entry
+[0036](devlog/0036-k6-process-success-boundary.md) rejects k6's structured script
+exception even when the process exits zero, while preserving mandatory typed-output
+checks. A real eligible before/after disposable-cluster run remains open while the
+volume collects enough continuous evidence.
 
 **Goal:** validate savings without concealing performance regressions.
 

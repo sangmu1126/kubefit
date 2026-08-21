@@ -224,6 +224,12 @@ soon as the first apply begins, every exit path attempts to reapply before and w
 for its Deployment rollout. A successful result is returned only after restoration;
 if execution and restoration both fail, both causes remain available to the caller.
 
+The k6 subprocess boundary does not equate exit code zero with valid evidence. It
+rejects the structured `hint="script exception"` stderr marker observed from k6
+1.4.2, then independently requires summary/raw files, typed parsing, and exact
+proposal/variant identity. The file checks remain authoritative if k6 changes its
+textual diagnostic format.
+
 The kubectl adapter requires an explicit context and bounded rollout timeout. It
 receives only the isolated single-Deployment manifests; full multi-document source
 payloads remain reviewer evidence and are never passed to `kubectl apply`. The
