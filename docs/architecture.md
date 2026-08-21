@@ -216,9 +216,9 @@ recovery time, and request cost.
 
 The verdict first rejects results that do not reference the same proposal and fixed
 offered load. Completed iterations must meet the phase minimum and match exactly
-between before and after; this permits k6's one-iteration scheduling boundary
-overshoot without permitting unequal traffic. Only comparable runs reach the safety
-policy. Safety failures and cost change remain independent outputs, preventing
+or exceed it by one scheduler-boundary iteration in each run. A missing iteration or
+two-iteration overshoot invalidates the evidence. Only comparable runs reach the
+safety policy. Safety failures and cost change remain independent outputs, preventing
 projected savings from masking a latency, error, throttling, recovery, or OOM
 regression. The current module defines this policy as a pure contract, independently
 of cluster mutation and artifact I/O.
@@ -230,6 +230,10 @@ cluster controller. It then applies and measures before and after sequentially. 
 soon as the first apply begins, every exit path attempts to reapply before and wait
 for its Deployment rollout. A successful result is returned only after restoration;
 if execution and restoration both fail, both causes remain available to the caller.
+Rollout completion is followed by a stricter stabilization gate: exactly the desired
+number of selector-matching Pods must remain, none may be terminating, and the target
+container in every Pod must be Running and Ready. Runtime snapshots therefore begin
+after old ReplicaSet Pods leave, while identity changes during the load remain errors.
 
 The k6 subprocess boundary does not equate exit code zero with valid evidence. It
 rejects the structured `hint="script exception"` stderr marker observed from k6

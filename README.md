@@ -152,14 +152,18 @@ spike → recovery profile, plus typed before/after measurements and an explicit
 safety verdict. Results must reference the same proposal, profile, and complete
 offered load before latency, errors, throttling, OOM, and recovery regressions are
 evaluated. Per-phase completed iterations must meet the fixed minimum and match
-between before and after, so k6 boundary overshoot cannot make unequal traffic look
-comparable. Request-cost change is reported separately and cannot override safety.
+the minimum or its single scheduler-boundary overshoot in each run. Missing work or
+two extra iterations remains invalid. Request-cost change is reported separately and
+cannot override safety.
 
 The benchmark execution core revalidates every proposal hash before cluster access,
 requires an explicit kubectl context, executes before and after sequentially, and
 reapplies the before manifest on every exit path after mutation starts. The CLI is
 restricted to an explicitly acknowledged disposable `kind-*` cluster and is not a
-production automation interface.
+production automation interface. After Kubernetes reports rollout completion, the
+runner also waits until exactly the desired number of selected Pods remain and every
+target container is Running and Ready, preventing terminating rollout Pods from
+contaminating the runtime snapshot.
 
 The aligned measurement collector brackets the fixed k6 run with Pod-level runtime
 snapshots, queries Prometheus throttling inside that run, derives recovery from raw

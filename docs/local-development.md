@@ -194,15 +194,17 @@ kubefit propose \
 Then keep separate Service and Prometheus port-forwards running:
 
 ```bash
-kubectl --context kind-kubefit port-forward \
-  -n kubefit-demo service/overprovisioned-api 8080:80
+kubectl --context kind-kubefit proxy \
+  --port=8001 \
+  --address=127.0.0.1 \
+  --accept-hosts='^127\.0\.0\.1$'
 
 kubectl --context kind-kubefit port-forward \
   -n monitoring service/monitoring-kube-prometheus-prometheus 9090:9090
 
 kubefit benchmark \
   --proposal .kubefit/proposals/proposal-<digest> \
-  --target-url http://localhost:8080/ \
+  --target-url http://127.0.0.1:8001/api/v1/namespaces/kubefit-demo/services/http:overprovisioned-api:80/proxy/ \
   --prometheus-url http://localhost:9090 \
   --context kind-kubefit \
   --confirm-disposable-cluster
@@ -213,10 +215,11 @@ the before manifest on every exit path, and publishes a separate immutable resul
 under `benchmarks/results/`. If the repository YAML contains multiple documents,
 only the selected Deployment document is applied; the complete source remains in
 the proposal solely as review provenance. The fixed profile requires each phase to
-meet its promised iteration minimum and requires the before/after completed counts
-to match; a k6 scheduling-boundary overshoot is accepted only under both conditions.
-An unchanged live baseline has validated summary/raw output and recovery parsing,
-but this sequence has not yet been claimed as a completed before/after benchmark.
+meet its promised iteration minimum. Each run may contain at most one extra
+scheduling-boundary iteration; missing work or two extra iterations is invalid. Use
+the Kubernetes API Service proxy for the application target: `kubectl port-forward`
+selects one backing Pod and disconnects when the benchmark rollout replaces it.
+Prometheus can remain port-forwarded because the benchmark does not roll it out.
 
 ## Publish a verified Draft PR
 

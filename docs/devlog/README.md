@@ -59,6 +59,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0035](0035-live-k6-evidence-boundary.md) | Live k6 evidence boundary | Export P99 and accept only matching boundary overshoot in real fixed-load runs |
 | [0036](0036-k6-process-success-boundary.md) | k6 process success boundary | Reject script exceptions even when k6 returns exit code zero |
 | [0037](0037-controlled-demo-observation.md) | Controlled demo observation | Separate real multi-day evidence from a fixed one-hour loaded demo window |
+| [0038](0038-live-demo-benchmark.md) | Live demo benchmark | Turn three invalid harness runs into a restored, passing before/after result |
 
 ## Visual language
 
