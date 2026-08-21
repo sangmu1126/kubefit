@@ -194,14 +194,19 @@ aggregate observations and versioned policy inputs, replays the complete decisio
 and preserves v1 content identities. Entry
 [0041](devlog/0041-repository-quality-gates.md) adds independent Python, dashboard,
 Helm, and Docker CI jobs with read-only permissions, bounded execution, and
-commit-pinned external Actions. Raw percentile replay, vulnerability policy, source
-provenance, signing, and external image/chart publication remain open.
+commit-pinned external Actions. Entry
+[0042](devlog/0042-index-bound-benchmark-review.md) adds a compact API-replayed
+benchmark review and before/after visualization while explicitly separating indexed
+metadata binding from complete raw-evidence verification. Raw percentile replay,
+vulnerability policy, source provenance, signing, and external image/chart publication
+remain open.
 
 **Goal:** make the completed workflow easy to install and demonstrate.
 
 - Add a small dashboard over the existing API after the CLI workflow is complete.
   Example review, v1 integrity review, v2 recommendation replay, and packaged
-  delivery are complete. Raw percentile replay remains explicitly out of scope.
+  delivery are complete. Indexed benchmark verdict replay is complete; raw percentile
+  replay remains explicitly out of scope.
 - Package KubeFit with a Helm chart and least-privilege read-only RBAC.
 - Document security boundaries, metric prerequisites, limitations, and rollback.
 
