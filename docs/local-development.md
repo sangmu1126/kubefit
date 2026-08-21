@@ -124,8 +124,24 @@ Open `http://127.0.0.1:5173`. Vite proxies `/v1` and `/healthz` to
 `검증 가능` to inspect an eligible example or `근거 부족` to see why a numerical
 cost projection remains blocked when coverage and safety signals are absent.
 
-The examples are editable API payloads, not live cluster collection. Price values
-use `example://local-model` and must not be presented as provider prices or measured
+To review the artifact created in the previous section, choose
+`analysis.json 불러오기` and select `.kubefit/analysis.json`. The browser applies a
+1 MiB usability guard and sends the raw JSON to `POST /v1/analysis-reviews`. The API
+parses the typed artifact and recomputes resource deltas, request-cost comparison,
+and patch eligibility before the existing result view renders it. This operation
+does not contact Kubernetes, modify repository files, or create a proposal.
+
+The artifact context shows Deployment UID and creation time so a screenshot does
+not lose workload incarnation identity. A schema v1 result is deliberately labeled
+`INTEGRITY ONLY`: its internal relationships were checked, but raw observed usage
+and a recommendation-policy version are not retained, so the P95/P99 calculation
+cannot yet be replayed. Producer authentication and repository-byte binding are
+also outside this endpoint.
+
+The examples are editable API payloads, not live cluster collection. Uploaded
+artifacts can originate from collection, but the dashboard's integrity label must
+not be presented as proof of live collection or percentile replay. Price values use
+`example://local-model` and must not be presented as provider prices or measured
 invoice savings.
 
 Verify the frontend independently with:

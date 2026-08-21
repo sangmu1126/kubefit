@@ -162,13 +162,17 @@ analysis logic. Entry [0031](devlog/0031-packaged-dashboard.md) builds that UI i
 separate Node stage, serves it from the hardened API image, and verifies it through
 the kind Helm Service without expanding RBAC. Entry
 [0032](devlog/0032-verified-image-sbom.md) binds a tamper-evident SPDX inventory to
-the exact local image ID. Vulnerability policy, source provenance, signing, and
-external image/chart publication remain open.
+the exact local image ID. Entry
+[0033](devlog/0033-analysis-artifact-review.md) connects CLI analysis output to the
+dashboard through an API-owned integrity review while exposing schema v1 replay
+limits. Full recommendation replay, vulnerability policy, source provenance,
+signing, and external image/chart publication remain open.
 
 **Goal:** make the completed workflow easy to install and demonstrate.
 
 - Add a small dashboard over the existing API after the CLI workflow is complete.
-  The local review and packaged delivery slices are complete.
+  Example review, artifact integrity review, and packaged delivery are complete;
+  full percentile replay requires a versioned analysis schema update.
 - Package KubeFit with a Helm chart and least-privilege read-only RBAC.
 - Document security boundaries, metric prerequisites, limitations, and rollback.
 

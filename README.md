@@ -57,11 +57,14 @@ Engineering decisions, failed assumptions, diagrams, and reproducible evidence a
 recorded in the [`docs/devlog/`](docs/devlog/README.md) development journal.
 
 The local dashboard sends editable example evidence to the existing evaluation API
-and visualizes its recommendation, request-cost estimate, risks, and GitOps patch
-gate. It contains no independent recommendation logic. Run it with the API using
-the commands in the [local development guide](docs/local-development.md). The
-multi-stage Docker build packages its immutable production bundle into the same
-non-root API image used by Helm.
+or loads the JSON emitted by `kubefit analyze`. The API validates an uploaded
+artifact, recomputes its resource deltas, cost comparison, and patch eligibility,
+then returns the review model. The UI contains no independent recommendation logic.
+Schema v1 reviews are labeled `integrity_only` because the artifact does not retain
+raw percentile inputs. Run it with the API using the commands in the
+[local development guide](docs/local-development.md). The multi-stage Docker build
+packages its immutable production bundle into the same non-root API image used by
+Helm.
 
 After building `kubefit:dev`, `deploy/local/generate-image-sbom.sh` resolves the
 mutable tag to its complete local image ID and publishes a verified SPDX 2.3
