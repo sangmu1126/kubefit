@@ -1,12 +1,51 @@
+from pathlib import Path
+
+import pytest
 from fastapi.testclient import TestClient
 
-from api.main import app
+from api.main import app, create_app
 
 client = TestClient(app)
 
 
 def test_health() -> None:
     assert client.get("/healthz").json() == {"status": "ok"}
+
+
+def test_source_api_does_not_claim_an_unbuilt_dashboard() -> None:
+    response = client.get("/")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Not Found"}
+
+
+def test_app_serves_validated_dashboard_without_shadowing_api(tmp_path: Path) -> None:
+    assets = tmp_path / "assets"
+    assets.mkdir()
+    (tmp_path / "index.html").write_text(
+        '<!doctype html><title>KubeFit</title><script src="/assets/app.js"></script>'
+    )
+    (assets / "app.js").write_text("window.kubefit = true;")
+    packaged_client = TestClient(create_app(tmp_path))
+
+    dashboard = packaged_client.get("/")
+    assert dashboard.status_code == 200
+    assert dashboard.headers["content-type"].startswith("text/html")
+    assert "<title>KubeFit</title>" in dashboard.text
+    assert packaged_client.get("/assets/app.js").text == "window.kubefit = true;"
+    assert packaged_client.get("/healthz").json() == {"status": "ok"}
+    assert packaged_client.get("/v1/not-found").json() == {"detail": "Not Found"}
+
+
+@pytest.mark.parametrize("missing", ["index", "assets"])
+def test_app_rejects_an_incomplete_dashboard(tmp_path: Path, missing: str) -> None:
+    if missing != "index":
+        (tmp_path / "index.html").write_text("<!doctype html><title>KubeFit</title>")
+    if missing != "assets":
+        (tmp_path / "assets").mkdir()
+
+    with pytest.raises(RuntimeError, match=f"dashboard {missing}"):
+        create_app(tmp_path)
 
 
 def test_create_recommendation() -> None:

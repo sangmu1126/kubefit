@@ -160,8 +160,22 @@ def test_chart_schema_rejects_invalid_namespace() -> None:
 def test_container_image_runs_as_numeric_non_root_user() -> None:
     dockerfile = (ROOT / "Dockerfile").read_text()
 
+    assert "FROM node:24-alpine AS dashboard-builder" in dockerfile
+    assert "RUN npm ci --ignore-scripts" in dockerfile
+    assert "RUN npm run build" in dockerfile
     assert "FROM python:3.14-slim AS builder" in dockerfile
     assert "FROM python:3.14-slim AS runtime" in dockerfile
+    assert "KUBEFIT_DASHBOARD_DIRECTORY=/opt/kubefit/dashboard" in dockerfile
+    assert "COPY --from=dashboard-builder --chown=10001:10001" in dockerfile
+    assert "--no-index --find-links=/wheels" in dockerfile
     assert "USER 10001:10001" in dockerfile
     assert 'ENTRYPOINT ["uvicorn"]' in dockerfile
     assert "COPY tests" not in dockerfile
+
+
+def test_docker_context_excludes_generated_dashboard_files() -> None:
+    dockerignore = (ROOT / ".dockerignore").read_text().splitlines()
+
+    assert "**/node_modules" in dockerignore
+    assert "**/dist" in dockerignore
+    assert "**/*.tsbuildinfo" in dockerignore

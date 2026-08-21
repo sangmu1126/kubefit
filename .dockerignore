@@ -6,6 +6,9 @@
 .kubefit
 __pycache__
 *.py[cod]
+**/node_modules
+**/dist
+**/*.tsbuildinfo
 benchmarks/results
 docs
 tests

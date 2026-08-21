@@ -97,6 +97,9 @@ kind load docker-image --name "${cluster_name}" "${image_repository}:${image_tag
 default_release
 kubectl --context "${cluster_context}" \
   --namespace "${release_namespace}" \
+  rollout restart "deployment/${release_name}"
+kubectl --context "${cluster_context}" \
+  --namespace "${release_namespace}" \
   rollout status "deployment/${release_name}" --timeout 3m
 
 kubectl --context "${cluster_context}" \
@@ -116,6 +119,12 @@ for _ in {1..30}; do
 done
 curl --fail --silent --show-error "http://127.0.0.1:${local_port}/healthz"
 echo
+dashboard_html="$(curl --fail --silent --show-error "http://127.0.0.1:${local_port}/")"
+if [[ "${dashboard_html}" != *"<title>KubeFit · Recommendation Review</title>"* ]]; then
+  echo "packaged dashboard title was not found at the service root" >&2
+  exit 1
+fi
+echo "Dashboard root: packaged review UI"
 
 assert_can_i no get "deployment/overprovisioned-api" "${target_namespace}"
 

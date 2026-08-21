@@ -14,7 +14,7 @@ def test_chart_verification_script_is_kind_scoped_and_restores_defaults() -> Non
 
     assert 'cluster_context="kind-${cluster_name}"' in script
     assert "kubectl config use-context" not in script
-    assert script.count('--context "${cluster_context}"') == 3
+    assert script.count('--context "${cluster_context}"') == 4
     assert script.count('--kube-context "${cluster_context}"') >= 2
     assert "trap cleanup EXIT" in script
     assert "restore_needed=true" in script
@@ -25,6 +25,7 @@ def test_chart_verification_script_is_kind_scoped_and_restores_defaults() -> Non
     assert "command_status > 1" in script
     assert "kind delete" not in script
     assert "docker push" not in script
+    assert 'rollout restart "deployment/${release_name}"' in script
 
 
 def test_chart_verification_script_checks_allow_and_deny_matrix() -> None:
@@ -44,3 +45,10 @@ def test_chart_verification_script_checks_allow_and_deny_matrix() -> None:
     assert script.count(
         'assert_can_i no get "deployment/overprovisioned-api"'
     ) == 2
+
+
+def test_chart_verification_script_checks_packaged_dashboard() -> None:
+    script = SCRIPT.read_text()
+
+    assert 'curl --fail --silent --show-error "http://127.0.0.1:${local_port}/"' in script
+    assert "<title>KubeFit · Recommendation Review</title>" in script
