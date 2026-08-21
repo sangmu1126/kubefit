@@ -56,6 +56,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0032](0032-verified-image-sbom.md) | Verified image SBOM | Bind an immutable SPDX inventory to the exact local image ID and detect tampering |
 | [0033](0033-analysis-artifact-review.md) | Analysis artifact review | Validate and visualize CLI artifacts while exposing schema v1 replay limits |
 | [0034](0034-replayable-analysis-schema.md) | Replayable analysis schema | Replay v2 recommendations while preserving v1 identities and observation gates |
+| [0035](0035-live-k6-evidence-boundary.md) | Live k6 evidence boundary | Export P99 and accept only matching boundary overshoot in real fixed-load runs |
 
 ## Visual language
 

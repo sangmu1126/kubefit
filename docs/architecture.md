@@ -202,14 +202,19 @@ of neighboring Kubernetes objects.
 The checked-in `kubefit-load-v1` k6 profile fixes warmup, steady, spike, and recovery
 arrival rates and timing. Its compact result records expected and completed
 iterations separately from HTTP request count, along with per-phase errors and tail
-latency. Before/after measurements add Prometheus throttling, Kubernetes OOM and
-restart evidence, recovery time, and request cost.
+latency. The script explicitly exports P95 and P99 through `summaryTrendStats`;
+threshold calculation alone does not expose P99 to `handleSummary`. Before/after
+measurements add Prometheus throttling, Kubernetes OOM and restart evidence,
+recovery time, and request cost.
 
 The verdict first rejects results that do not reference the same proposal and fixed
-offered load. Only comparable runs reach the safety policy. Safety failures and cost
-change remain independent outputs, preventing projected savings from masking a
-latency, error, throttling, recovery, or OOM regression. The current module defines
-this policy as a pure contract, independently of cluster mutation and artifact I/O.
+offered load. Completed iterations must meet the phase minimum and match exactly
+between before and after; this permits k6's one-iteration scheduling boundary
+overshoot without permitting unequal traffic. Only comparable runs reach the safety
+policy. Safety failures and cost change remain independent outputs, preventing
+projected savings from masking a latency, error, throttling, recovery, or OOM
+regression. The current module defines this policy as a pure contract, independently
+of cluster mutation and artifact I/O.
 
 ## Restoring benchmark execution
 

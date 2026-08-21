@@ -102,8 +102,11 @@ from single-Deployment executable manifests. Entry
 [0019](devlog/0019-persistent-local-observation.md) preserves local Prometheus
 history across Pod recreation so readiness can accumulate honestly. Entry
 [0020](devlog/0020-readiness-cli.md) makes that progress and its time assumptions
-machine-readable. A real eligible disposable-cluster run remains open while the new
-volume collects enough evidence.
+machine-readable. Entry [0035](devlog/0035-live-k6-evidence-boundary.md) runs the
+unchanged baseline against the real Service, fixes P99 summary export, and aligns
+the offered-load contract with k6's observed boundary scheduling. A real eligible
+before/after disposable-cluster run remains open while the volume collects enough
+continuous evidence.
 
 **Goal:** validate savings without concealing performance regressions.
 

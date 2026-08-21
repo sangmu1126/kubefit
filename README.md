@@ -145,7 +145,9 @@ The `benchmarks` package defines `kubefit-load-v1`, a fixed k6 warmup → steady
 spike → recovery profile, plus typed before/after measurements and an explicit
 safety verdict. Results must reference the same proposal, profile, and complete
 offered load before latency, errors, throttling, OOM, and recovery regressions are
-evaluated. Request-cost change is reported separately and cannot override safety.
+evaluated. Per-phase completed iterations must meet the fixed minimum and match
+between before and after, so k6 boundary overshoot cannot make unequal traffic look
+comparable. Request-cost change is reported separately and cannot override safety.
 
 The benchmark execution core revalidates every proposal hash before cluster access,
 requires an explicit kubectl context, executes before and after sequentially, and

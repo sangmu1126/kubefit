@@ -193,8 +193,11 @@ The command locks the target Deployment, revalidates its analysis identity, rest
 the before manifest on every exit path, and publishes a separate immutable result
 under `benchmarks/results/`. If the repository YAML contains multiple documents,
 only the selected Deployment document is applied; the complete source remains in
-the proposal solely as review provenance. This sequence has not yet been claimed as
-a completed live benchmark.
+the proposal solely as review provenance. The fixed profile requires each phase to
+meet its promised iteration minimum and requires the before/after completed counts
+to match; a k6 scheduling-boundary overshoot is accepted only under both conditions.
+An unchanged live baseline has validated summary/raw output and recovery parsing,
+but this sequence has not yet been claimed as a completed before/after benchmark.
 
 ## Publish a verified Draft PR
 
