@@ -62,6 +62,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0038](0038-live-demo-benchmark.md) | Live demo benchmark | Turn three invalid harness runs into a restored, passing before/after result |
 | [0039](0039-authenticated-publication-preflight.md) | Authenticated publication preflight | Prove the PASS artifacts and GitHub read boundary are ready without mutation |
 | [0040](0040-live-origin-draft-pr.md) | Live origin Draft PR | Create once, reuse once, and independently verify the real one-file GitOps handoff |
+| [0041](0041-repository-quality-gates.md) | Repository quality gates | Make Python, dashboard, Helm, and Docker failures visible as independent CI checks |
 
 ## Visual language
 

@@ -191,8 +191,11 @@ the exact local image ID. Entry
 dashboard through an API-owned integrity review while exposing schema v1 replay
 limits. Entry [0034](devlog/0034-replayable-analysis-schema.md) adds schema v2
 aggregate observations and versioned policy inputs, replays the complete decision,
-and preserves v1 content identities. Raw percentile replay, vulnerability policy,
-source provenance, signing, and external image/chart publication remain open.
+and preserves v1 content identities. Entry
+[0041](devlog/0041-repository-quality-gates.md) adds independent Python, dashboard,
+Helm, and Docker CI jobs with read-only permissions, bounded execution, and
+commit-pinned external Actions. Raw percentile replay, vulnerability policy, source
+provenance, signing, and external image/chart publication remain open.
 
 **Goal:** make the completed workflow easy to install and demonstrate.
 
