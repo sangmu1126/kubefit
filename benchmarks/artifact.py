@@ -35,17 +35,31 @@ class LoadedBenchmarkResult(BaseModel):
     report_path: Path
 
 
-class _ResultFileMetadata(BaseModel):
+BENCHMARK_RESULT_PAYLOAD_PATHS = frozenset(
+    {
+        "measurements/before.json",
+        "measurements/after.json",
+        "evidence/k6/before-summary.json",
+        "evidence/k6/before-raw.json",
+        "evidence/k6/after-summary.json",
+        "evidence/k6/after-raw.json",
+        "verdict.json",
+        "report.md",
+    }
+)
+
+
+class BenchmarkResultFileMetadata(BaseModel):
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     size_bytes: int = Field(ge=0)
 
 
-class _ResultIndex(BaseModel):
+class BenchmarkResultIndex(BaseModel):
     schema_version: Literal[1]
     artifact_id: str = Field(pattern=r"^benchmark-[0-9a-f]{32}$")
     proposal_id: str = Field(pattern=r"^proposal-[0-9a-f]{32}$")
     content_digest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    files: dict[str, _ResultFileMetadata]
+    files: dict[str, BenchmarkResultFileMetadata]
 
 
 def write_benchmark_result(
@@ -71,7 +85,7 @@ def write_benchmark_result(
             for path, content in sorted(payloads.items())
         },
     }
-    validated_index = _ResultIndex.model_validate(index)
+    validated_index = BenchmarkResultIndex.model_validate(index)
     payloads["result.json"] = _canonical_json(validated_index.model_dump(mode="json"))
     final_path = output_root / artifact_id
     lock_path = output_root / ".publish.lock"
@@ -121,7 +135,7 @@ def load_benchmark_result(path: Path) -> LoadedBenchmarkResult:
     try:
         index_bytes = index_path.read_bytes()
         raw_index = json.loads(index_bytes)
-        index = _ResultIndex.model_validate(raw_index)
+        index = BenchmarkResultIndex.model_validate(raw_index)
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         raise BenchmarkResultArtifactError("result index is invalid") from exc
     if index_bytes != _canonical_json(raw_index):
@@ -133,16 +147,7 @@ def load_benchmark_result(path: Path) -> LoadedBenchmarkResult:
             "result artifact ID does not match its content digest"
         )
 
-    expected_payload_paths = {
-        "measurements/before.json",
-        "measurements/after.json",
-        "evidence/k6/before-summary.json",
-        "evidence/k6/before-raw.json",
-        "evidence/k6/after-summary.json",
-        "evidence/k6/after-raw.json",
-        "verdict.json",
-        "report.md",
-    }
+    expected_payload_paths = BENCHMARK_RESULT_PAYLOAD_PATHS
     if set(index.files) != expected_payload_paths:
         raise BenchmarkResultArtifactError(
             "result index does not contain the expected payload set"

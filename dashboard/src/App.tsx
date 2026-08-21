@@ -1,9 +1,11 @@
 import { ChangeEvent, FormEvent, useState } from "react";
-import { evaluateResources, reviewAnalysisArtifact } from "./api";
+import { evaluateResources, reviewAnalysisArtifact, reviewBenchmarkArtifact } from "./api";
 import { eligibleScenario, insufficientScenario } from "./scenarios";
 import type {
   CheckStatus,
   AnalysisReview,
+  BenchmarkMeasurement,
+  BenchmarkReview,
   EvaluationRequest,
   EvaluationResult,
   Resources,
@@ -11,7 +13,14 @@ import type {
   DecimalValue,
 } from "./types";
 
-const MAX_ARTIFACT_BYTES = 1024 * 1024;
+const MAX_ANALYSIS_ARTIFACT_BYTES = 1024 * 1024;
+const MAX_BENCHMARK_REVIEW_FILE_BYTES = 128 * 1024;
+const BENCHMARK_REVIEW_PATHS = [
+  "result.json",
+  "measurements/before.json",
+  "measurements/after.json",
+  "verdict.json",
+] as const;
 
 type NumericPath =
   | keyof EvaluationRequest["current"]
@@ -37,7 +46,7 @@ function readFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("analysis artifact 파일을 읽을 수 없습니다."));
+    reader.onerror = () => reject(new Error("선택한 파일을 읽을 수 없습니다."));
     reader.readAsText(file);
   });
 }
@@ -254,12 +263,128 @@ function Results({ result, review }: { result: EvaluationResult; review: Analysi
   );
 }
 
+type BenchmarkMetric = {
+  label: string;
+  before: number;
+  after: number;
+  unit: string;
+};
+
+function metricRows(
+  before: BenchmarkMeasurement,
+  after: BenchmarkMeasurement,
+): BenchmarkMetric[] {
+  return [
+    { label: "Steady P95", before: before.steady.latency_p95_ms, after: after.steady.latency_p95_ms, unit: "ms" },
+    { label: "Steady P99", before: before.steady.latency_p99_ms, after: after.steady.latency_p99_ms, unit: "ms" },
+    { label: "Spike P95", before: before.spike.latency_p95_ms, after: after.spike.latency_p95_ms, unit: "ms" },
+    { label: "Spike P99", before: before.spike.latency_p99_ms, after: after.spike.latency_p99_ms, unit: "ms" },
+    { label: "CPU throttling P95", before: before.runtime.cpu_throttling_p95_percent, after: after.runtime.cpu_throttling_p95_percent, unit: "%" },
+    { label: "Recovery", before: before.runtime.traffic_spike_recovery_seconds, after: after.runtime.traffic_spike_recovery_seconds, unit: "s" },
+  ];
+}
+
+function BenchmarkResults({ review }: { review: BenchmarkReview }) {
+  const verdict = review.verdict.status;
+  const rows = metricRows(review.before, review.after);
+  const candidateErrorRate = Math.max(
+    review.after.steady.error_rate,
+    review.after.spike.error_rate,
+    review.after.recovery.error_rate,
+  );
+  return (
+    <main className="results benchmark-results" aria-live="polite">
+      <section className="artifact-context" aria-labelledby="benchmark-artifact-title">
+        <div>
+          <p className="eyebrow">BENCHMARK RESULT · SCHEMA {review.schema_version}</p>
+          <h2 id="benchmark-artifact-title">Before / After 실행 근거</h2>
+          <p>proposal <strong>{review.proposal_id}</strong></p>
+        </div>
+        <div className="artifact-verification">
+          <span>인덱스 결합 검사 {review.checks.length}/{review.checks.length}</span>
+          <strong>INDEX-BOUND REPLAY</strong>
+          <code title={review.artifact_id}>{review.artifact_id}</code>
+        </div>
+        <details>
+          <summary>검증 범위와 한계</summary>
+          <ul>
+            {review.checks.map((check) => <li key={check.code}>✓ {check.reason}</li>)}
+            {review.limitations.map((limitation) => <li className="limitation" key={limitation}>△ {limitation}</li>)}
+          </ul>
+        </details>
+      </section>
+      <section className={`benchmark-verdict ${verdict}`}>
+        <div>
+          <p className="eyebrow">REPLAYED VERDICT</p>
+          <h2>{verdict.toUpperCase()}</h2>
+          <p>저장된 측정값으로 정책 판정을 서버에서 다시 계산했습니다.</p>
+        </div>
+        <span>{verdict === "pass" ? "✓" : "!"}</span>
+      </section>
+      <section className="metric-grid" aria-label="벤치마크 요약">
+        <article className="metric-card accent">
+          <p>request 비용 변화</p>
+          <strong>{review.verdict.cost_change_percent === null ? "—" : `${Number(review.verdict.cost_change_percent).toFixed(1)}%`}</strong>
+          <span>{formatMoney(review.before.request_cost_usd)} → {formatMoney(review.after.request_cost_usd)}</span>
+        </article>
+        <article className="metric-card">
+          <p>후보 최대 오류율</p>
+          <strong>{(candidateErrorRate * 100).toFixed(2)}%</strong>
+          <span>steady · spike · recovery 중 최대</span>
+        </article>
+        <article className="metric-card">
+          <p>후보 런타임 이상</p>
+          <strong>{review.after.runtime.oom_killed_count + review.after.runtime.restart_count}</strong>
+          <span>OOM {review.after.runtime.oom_killed_count} · restart {review.after.runtime.restart_count}</span>
+        </article>
+      </section>
+      <section className="panel comparison-panel" aria-labelledby="benchmark-comparison-title">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">MEASURED IMPACT</p>
+            <h2 id="benchmark-comparison-title">성능과 안정성 비교</h2>
+          </div>
+          <p>낮을수록 좋음</p>
+        </div>
+        <div className="comparison-head" aria-hidden="true"><span /><span>Before</span><span>After</span></div>
+        <div className="resource-rows">
+          {rows.map((row) => {
+            const max = Math.max(row.before, row.after, 0.001);
+            return (
+              <div className="resource-row" key={row.label}>
+                <strong>{row.label}</strong>
+                <div className="bar-cell"><span>{row.before.toFixed(3)}{row.unit}</span><i style={{ width: `${(row.before / max) * 100}%` }} /></div>
+                <div className="bar-cell recommended"><span>{row.after.toFixed(3)}{row.unit}</span><i style={{ width: `${(row.after / max) * 100}%` }} /></div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+      <section className="panel" aria-labelledby="verdict-checks-title">
+        <div className="section-heading">
+          <div><p className="eyebrow">POLICY CHECKS</p><h2 id="verdict-checks-title">판정 근거</h2></div>
+        </div>
+        <ul className="check-list benchmark-checks">
+          {review.verdict.checks.map((check) => (
+            <li key={check.code}>
+              <span className={`status-dot ${check.status}`} />
+              <div><strong>{check.status.toUpperCase()} · {check.code}</strong><p>{check.reason}</p></div>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </main>
+  );
+}
+
 export default function App() {
   const [request, setRequest] = useState(() => cloneScenario(eligibleScenario));
   const [result, setResult] = useState<EvaluationResult | null>(null);
   const [artifactReview, setArtifactReview] = useState<AnalysisReview | null>(null);
+  const [benchmarkReview, setBenchmarkReview] = useState<BenchmarkReview | null>(null);
   const [loading, setLoading] = useState(false);
   const [artifactLoading, setArtifactLoading] = useState(false);
+  const [benchmarkLoading, setBenchmarkLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const setCurrent = (key: keyof EvaluationRequest["current"], value: number) => {
@@ -280,6 +405,7 @@ export default function App() {
     setRequest(cloneScenario(scenario));
     setResult(null);
     setArtifactReview(null);
+    setBenchmarkReview(null);
     setError(null);
   };
 
@@ -289,7 +415,8 @@ export default function App() {
     setResult(null);
     setArtifactReview(null);
     setError(null);
-    if (file.size > MAX_ARTIFACT_BYTES) {
+    setBenchmarkReview(null);
+    if (file.size > MAX_ANALYSIS_ARTIFACT_BYTES) {
       setError("analysis artifact는 1 MiB 이하여야 합니다.");
       return;
     }
@@ -305,10 +432,56 @@ export default function App() {
     }
   };
 
+  const loadBenchmark = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    if (files.length === 0) return;
+    setResult(null);
+    setArtifactReview(null);
+    setBenchmarkReview(null);
+    setError(null);
+    const selected = new Map<string, File>();
+    for (const file of files) {
+      const parts = file.webkitRelativePath.split("/");
+      const relativePath = parts.slice(1).join("/");
+      if (BENCHMARK_REVIEW_PATHS.includes(relativePath as typeof BENCHMARK_REVIEW_PATHS[number])) {
+        selected.set(relativePath, file);
+      }
+    }
+    const missing = BENCHMARK_REVIEW_PATHS.filter((path) => !selected.has(path));
+    if (missing.length > 0) {
+      setError(`benchmark 결과 폴더에 필수 파일이 없습니다: ${missing.join(", ")}`);
+      return;
+    }
+    const oversized = BENCHMARK_REVIEW_PATHS.find(
+      (path) => (selected.get(path)?.size ?? 0) > MAX_BENCHMARK_REVIEW_FILE_BYTES,
+    );
+    if (oversized) {
+      setError(`benchmark 리뷰 파일은 각각 128 KiB 이하여야 합니다: ${oversized}`);
+      return;
+    }
+    setBenchmarkLoading(true);
+    try {
+      const [resultJson, beforeJson, afterJson, verdictJson] = await Promise.all(
+        BENCHMARK_REVIEW_PATHS.map((path) => readFile(selected.get(path)!)),
+      );
+      setBenchmarkReview(await reviewBenchmarkArtifact({
+        result_json: resultJson,
+        before_json: beforeJson,
+        after_json: afterJson,
+        verdict_json: verdictJson,
+      }));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "benchmark 결과 검증에 실패했습니다.");
+    } finally {
+      setBenchmarkLoading(false);
+    }
+  };
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setLoading(true);
     setArtifactReview(null);
+    setBenchmarkReview(null);
     setError(null);
     try {
       setResult(await evaluateResources(request));
@@ -386,6 +559,21 @@ export default function App() {
                 onChange={loadArtifact}
               />
             </label>
+            <label className="artifact-loader benchmark-loader">
+              <span className="artifact-loader-icon">↥</span>
+              <span>
+                <strong>{benchmarkLoading ? "benchmark 검증 중…" : "benchmark 결과 폴더 불러오기"}</strong>
+                <small>인덱스 결합 측정값 · raw k6 파일은 읽지 않음</small>
+              </span>
+              <input
+                aria-label="benchmark result directory"
+                type="file"
+                multiple
+                disabled={benchmarkLoading}
+                onChange={loadBenchmark}
+                {...{ webkitdirectory: "" }}
+              />
+            </label>
             <div className="input-divider"><span>또는 예제 입력</span></div>
             <div className="scenario-switch" aria-label="예제 시나리오">
               <button type="button" onClick={() => useScenario(eligibleScenario)}>검증 가능</button>
@@ -429,7 +617,7 @@ export default function App() {
             {error && <p className="error" role="alert">{error}</p>}
           </form>
         </aside>
-        {result ? <Results result={result} review={artifactReview} /> : (
+        {benchmarkReview ? <BenchmarkResults review={benchmarkReview} /> : result ? <Results result={result} review={artifactReview} /> : (
           <main className="empty-state">
             <span>↳</span>
             <h2>아직 계산하지 않았습니다.</h2>
