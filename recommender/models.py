@@ -24,7 +24,7 @@ class ObservedUsage(BaseModel):
     memory_p99_mib: float = Field(ge=0)
     cpu_max_millicores: float | None = Field(default=None, ge=0)
     memory_max_mib: float | None = Field(default=None, ge=0)
-    observation_days: int = Field(default=7, ge=1)
+    observation_days: int | float = Field(default=7, gt=0)
     step_seconds: int | None = Field(default=None, ge=1)
     sample_count: int | None = Field(default=None, ge=0)
     observation_coverage: float | None = Field(default=None, ge=0, le=1)

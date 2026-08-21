@@ -25,6 +25,19 @@ def test_k6_profile_exports_every_trend_used_by_handle_summary() -> None:
     )
 
 
+def test_demo_observation_profile_fills_the_fixed_one_hour_window() -> None:
+    profile = (
+        Path(__file__).parents[1] / "benchmarks" / "k6" / "observation_profile.js"
+    ).read_text()
+
+    assert 'profileVersion = "kubefit-observation-demo-v1"' in profile
+    assert 'phase("warmup", 5, "10m", "0s")' in profile
+    assert 'phase("steady", 25, "35m", "10m")' in profile
+    assert 'phase("spike", 100, "5m", "45m")' in profile
+    assert 'phase("recovery", 25, "10m", "50m")' in profile
+    assert 'dropped_iterations: ["count==0"]' in profile
+
+
 def measurement(run_variant: str, **overrides: object) -> BenchmarkMeasurement:
     values: dict[str, object] = {
         "schema_version": 1,

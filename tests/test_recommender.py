@@ -64,6 +64,25 @@ def test_enforces_minimum_resources_for_idle_workloads() -> None:
     assert result.risk.cpu_throttling == "unknown"
 
 
+def test_labels_short_window_as_controlled_demo_evidence() -> None:
+    result = recommend_resources(
+        CurrentResources(
+            cpu_request_millicores=100,
+            cpu_limit_millicores=200,
+            memory_request_mib=128,
+            memory_limit_mib=256,
+        ),
+        ObservedUsage(
+            cpu_p95_millicores=10,
+            memory_p99_mib=40,
+            observation_days=1 / 24,
+        ),
+    )
+
+    assert any("1-hour P95" in item for item in result.evidence)
+    assert any("controlled demo" in item for item in result.evidence)
+
+
 def test_recommends_upsize_when_observed_usage_exceeds_current_requests() -> None:
     result = recommend_resources(
         CurrentResources(

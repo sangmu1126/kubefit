@@ -82,13 +82,18 @@ def recommend_resources(
         ]
     )
 
+    observation_window = _observation_window_label(observed.observation_days)
     evidence = [
-        f"CPU request uses {observed.observation_days}-day P95 plus "
+        f"CPU request uses {observation_window} P95 plus "
         f"{policy.safety_margin:.0%} safety margin",
-        f"memory request uses {observed.observation_days}-day P99 plus "
+        f"memory request uses {observation_window} P99 plus "
         f"{policy.safety_margin:.0%} safety margin",
         "values are rounded upward to scheduler-friendly units",
     ]
+    if observed.observation_days < 1:
+        evidence.append(
+            "short observation window is for a controlled demo, not production traffic"
+        )
     if observed.sample_count is not None and observed.observation_coverage is not None:
         sample_label = "sample" if observed.sample_count == 1 else "samples"
         provide_verb = "provides" if observed.sample_count == 1 else "provide"
@@ -143,6 +148,16 @@ def recommend_resources(
         ),
         evidence=evidence,
     )
+
+
+def _observation_window_label(observation_days: float) -> str:
+    if observation_days >= 1:
+        displayed_days = f"{observation_days:g}"
+        return f"{displayed_days}-day"
+    hours = observation_days * 24
+    if hours >= 1:
+        return f"{hours:g}-hour"
+    return f"{hours * 60:g}-minute"
 
 
 def _readiness_reasons(

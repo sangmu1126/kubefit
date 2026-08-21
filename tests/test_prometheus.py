@@ -65,7 +65,7 @@ def test_rejects_benchmark_window_shorter_than_rate_window() -> None:
 
 
 def test_rejects_invalid_observation_window() -> None:
-    with pytest.raises(ValueError, match="at least 1"):
+    with pytest.raises(ValueError, match="positive"):
         PrometheusClient("http://prometheus").workload_metrics(
             "demo",
             ["api-rs"],
@@ -74,6 +74,38 @@ def test_rejects_invalid_observation_window() -> None:
             datetime(2025, 1, 1, tzinfo=UTC),
             0,
         )
+
+
+def test_accepts_one_hour_observation_window() -> None:
+    starts: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        starts.append(str(request.url.params["start"]))
+        return httpx.Response(
+            200,
+            json={
+                "status": "success",
+                "data": {"result": [{"values": [[1, "1"], [2, "2"]]}]},
+            },
+        )
+
+    now = datetime(2026, 8, 21, tzinfo=UTC)
+    http = httpx.Client(base_url="http://prometheus", transport=httpx.MockTransport(handler))
+
+    result = PrometheusClient("http://prometheus", client=http).workload_metrics(
+        "demo",
+        ["api-current"],
+        ["api-current-pod"],
+        "api",
+        now - timedelta(days=1),
+        observation_days=1 / 24,
+        step_seconds=60,
+        now=now,
+    )
+
+    assert starts == [(now - timedelta(hours=1)).isoformat()] * 3
+    assert result.observation_days == pytest.approx(1 / 24)
+    assert result.step_seconds == 60
 
 
 def test_collects_workload_percentiles_and_units() -> None:

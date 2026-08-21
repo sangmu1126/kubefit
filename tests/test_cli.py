@@ -126,6 +126,36 @@ def test_readiness_does_not_require_price_arguments() -> None:
     assert not hasattr(args, "cpu_core_hour_usd")
 
 
+def test_demo_observation_profile_has_fixed_short_window_and_strict_coverage() -> None:
+    args = build_parser().parse_args(
+        ["readiness", "--deployment", "demo", "--observation-profile", "demo"]
+    )
+
+    days, step_seconds, policy = cli_module._observation_configuration(args)
+
+    assert days == pytest.approx(1 / 24)
+    assert step_seconds == 60
+    assert policy.minimum_observation_coverage == 0.9
+    assert policy.minimum_sample_count == 100
+
+
+def test_demo_observation_profile_rejects_window_override() -> None:
+    args = build_parser().parse_args(
+        [
+            "readiness",
+            "--deployment",
+            "demo",
+            "--observation-profile",
+            "demo",
+            "--days",
+            "1",
+        ]
+    )
+
+    with pytest.raises(SystemExit, match="fixes a 1-hour window"):
+        cli_module._observation_configuration(args)
+
+
 def test_readiness_prints_machine_readable_collection_progress(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],

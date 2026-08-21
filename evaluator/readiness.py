@@ -41,7 +41,7 @@ class ObservationReadinessReport(BaseModel):
     observed_at: datetime
     status: Literal["eligible", "collecting", "blocked"]
     estimated_readiness_at: datetime | None
-    observation_days: int = Field(ge=1)
+    observation_days: int | float = Field(gt=0)
     step_seconds: int = Field(ge=1)
     usage: MetricReadinessProgress
     throttling: MetricReadinessProgress

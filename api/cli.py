@@ -44,7 +44,7 @@ from gitops import (
     verify_publication_evidence,
     write_proposal_bundle,
 )
-from recommender import ObservedUsage
+from recommender import ObservedUsage, RecommendationPolicy
 
 
 def _positive_decimal(value: str) -> Decimal:
@@ -184,8 +184,17 @@ def _add_observation_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--deployment", required=True)
     parser.add_argument("--container")
     parser.add_argument("--prometheus-url", default="http://localhost:9090")
-    parser.add_argument("--days", type=int, default=7)
-    parser.add_argument("--step-seconds", type=int, default=300)
+    parser.add_argument(
+        "--observation-profile",
+        choices=("production", "demo"),
+        default="production",
+        help=(
+            "production uses configurable multi-day evidence; "
+            "demo fixes a 1-hour controlled window"
+        ),
+    )
+    parser.add_argument("--days", type=int)
+    parser.add_argument("--step-seconds", type=int)
     parser.add_argument("--identity-store", type=Path)
     parser.add_argument("--context")
 
@@ -206,14 +215,15 @@ def _collect_observation(
             replica_sets=workload.replica_sets,
         )
         replica_sets = list(identity.replica_sets)
+    observation_days, step_seconds, _ = _observation_configuration(args)
     metrics = PrometheusClient(args.prometheus_url).workload_metrics(
         workload.namespace,
         replica_sets,
         workload.pods,
         workload.container,
         workload.created_at,
-        observation_days=args.days,
-        step_seconds=args.step_seconds,
+        observation_days=observation_days,
+        step_seconds=step_seconds,
     )
     observed = ObservedUsage(
         cpu_p95_millicores=metrics.cpu_p95_millicores,
@@ -245,8 +255,33 @@ def _collect_observation(
     return workload, metrics, observed
 
 
+def _observation_configuration(
+    args: argparse.Namespace,
+) -> tuple[int | float, int, RecommendationPolicy]:
+    if args.observation_profile == "demo":
+        if args.days is not None or args.step_seconds is not None:
+            raise SystemExit(
+                "demo observation profile fixes a 1-hour window and 60-second step; "
+                "do not combine it with --days or --step-seconds"
+            )
+        return (
+            1 / 24,
+            60,
+            RecommendationPolicy(
+                minimum_observation_coverage=0.9,
+                minimum_sample_count=100,
+            ),
+        )
+    return (
+        args.days if args.days is not None else 7,
+        args.step_seconds if args.step_seconds is not None else 300,
+        RecommendationPolicy(),
+    )
+
+
 def _run_analyze(args: argparse.Namespace) -> None:
     workload, _, observed = _collect_observation(args)
+    _, _, policy = _observation_configuration(args)
     evaluation = evaluate_resources(
         workload.resources,
         observed,
@@ -257,6 +292,7 @@ def _run_analyze(args: argparse.Namespace) -> None:
             price_source=args.price_source,
         ),
         workload.desired_replicas,
+        policy,
     )
     result = AnalysisArtifact(
         schema_version=2,
@@ -269,13 +305,14 @@ def _run_analyze(args: argparse.Namespace) -> None:
         workload_created_at=workload.created_at,
         evaluation=evaluation,
         observed_usage=observed,
-        recommendation_policy=RecommendationPolicySnapshot.from_policy(),
+        recommendation_policy=RecommendationPolicySnapshot.from_policy(policy),
     )
     print(result.model_dump_json(indent=2))
 
 
 def _run_readiness(args: argparse.Namespace) -> None:
     workload, metrics, observed = _collect_observation(args)
+    _, _, policy = _observation_configuration(args)
     report = assess_observation_readiness(
         target=AnalysisTarget(
             namespace=workload.namespace,
@@ -285,6 +322,7 @@ def _run_readiness(args: argparse.Namespace) -> None:
         current=workload.resources,
         observed=observed,
         observed_at=metrics.requested_start + timedelta(days=metrics.observation_days),
+        policy=policy,
     )
     print(report.model_dump_json(indent=2))
 

@@ -16,7 +16,7 @@ class WorkloadMetrics:
     memory_p99_mib: float
     cpu_max_millicores: float
     memory_max_mib: float
-    observation_days: int
+    observation_days: int | float
     step_seconds: int
     sample_count: int
     observation_coverage: float
@@ -149,12 +149,12 @@ class PrometheusClient:
         pods: list[str],
         container: str,
         workload_created_at: datetime,
-        observation_days: int = 7,
+        observation_days: int | float = 7,
         step_seconds: int = 300,
         now: datetime | None = None,
     ) -> WorkloadMetrics:
-        if observation_days < 1:
-            raise ValueError("observation_days must be at least 1")
+        if observation_days <= 0:
+            raise ValueError("observation_days must be positive")
         if not pods:
             raise ValueError("at least one current pod is required")
         if step_seconds < 1:

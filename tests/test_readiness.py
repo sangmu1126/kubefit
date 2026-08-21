@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from evaluator import AnalysisTarget, assess_observation_readiness
-from recommender import CurrentResources, ObservedUsage
+from recommender import CurrentResources, ObservedUsage, RecommendationPolicy
 
 OBSERVED_AT = datetime(2026, 8, 21, tzinfo=UTC)
 
@@ -65,6 +65,31 @@ def test_estimates_when_only_samples_and_coverage_need_time() -> None:
     assert report.estimated_readiness_at == OBSERVED_AT + timedelta(hours=14, minutes=15)
     assert report.estimate_assumptions
     assert report.patch_eligibility.status == "blocked"
+
+
+def test_demo_window_requires_ninety_percent_of_one_hour() -> None:
+    report = assess_observation_readiness(
+        target=AnalysisTarget(namespace="demo", deployment="demo", container="api"),
+        current=current_resources(),
+        observed=observed_usage(
+            observation_days=1 / 24,
+            step_seconds=60,
+            sample_count=80,
+            observation_coverage=80 / 122,
+            cpu_throttling_sample_count=80,
+            cpu_throttling_observation_coverage=80 / 122,
+        ),
+        observed_at=OBSERVED_AT,
+        policy=RecommendationPolicy(
+            minimum_observation_coverage=0.9,
+            minimum_sample_count=100,
+        ),
+    )
+
+    assert report.usage.required_sample_count == 110
+    assert report.throttling.required_sample_count == 110
+    assert report.usage.required_observation_coverage == 0.9
+    assert report.estimated_readiness_at == OBSERVED_AT + timedelta(minutes=15)
 
 
 def test_reports_eligible_without_wait_estimate() -> None:
