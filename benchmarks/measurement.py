@@ -394,4 +394,9 @@ def _run_k6(command: Sequence[str], timeout_seconds: int) -> str:
     except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
         detail = getattr(exc, "stderr", None) or str(exc)
         raise BenchmarkMeasurementError(f"k6 failed: {detail.strip()}") from exc
+    stderr = completed.stderr or ""
+    if 'hint="script exception"' in stderr:
+        raise BenchmarkMeasurementError(
+            f"k6 reported a script exception despite exit code 0: {stderr.strip()}"
+        )
     return completed.stdout

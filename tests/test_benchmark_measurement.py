@@ -1,5 +1,6 @@
 import hashlib
 import json
+import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from benchmarks import (
     TimedK6Result,
     recovery_from_k6_raw,
 )
+from benchmarks import measurement as measurement_module
 from gitops import load_proposal_bundle
 from tests.test_benchmark import phase
 from tests.test_benchmark_runner import published_proposal
@@ -136,6 +138,37 @@ def test_k6_executor_uses_isolated_outputs_and_typed_identity(tmp_path: Path) ->
     )
     assert "KUBEFIT_TARGET_URL=http://demo.local/" in commands[0]
     assert commands[0][:5] == ["k6", "run", "--quiet", "--no-color", "--out"]
+
+
+def test_k6_executor_rejects_success_without_summary_outputs(tmp_path: Path) -> None:
+    script = tmp_path / "profile.js"
+    script.write_text("export default function() {}")
+    executor = SubprocessK6Executor(
+        "http://demo.local/",
+        script,
+        runner=lambda command, timeout: "",
+    )
+
+    with pytest.raises(BenchmarkMeasurementError, match="output is missing"):
+        executor.run("proposal-0123456789abcdef0123456789abcdef", "before")
+
+
+def test_k6_runner_rejects_script_exception_with_zero_exit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    completed = subprocess.CompletedProcess(
+        args=["k6"],
+        returncode=0,
+        stdout="",
+        stderr=(
+            'time="2026-08-22T00:47:23+09:00" level=error '
+            'msg="summary failed" hint="script exception" source=stacktrace'
+        ),
+    )
+    monkeypatch.setattr(measurement_module.subprocess, "run", lambda *args, **kwargs: completed)
+
+    with pytest.raises(BenchmarkMeasurementError, match="despite exit code 0"):
+        measurement_module._run_k6(["k6", "run"], 240)
 
 
 def test_k6_executor_rejects_output_identity_mismatch(tmp_path: Path) -> None:
