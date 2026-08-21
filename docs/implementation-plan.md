@@ -148,7 +148,10 @@ automation and defines the exact disposable setup, two-run assertions, independe
 GitHub evidence, and archive-first cleanup procedure. Entry
 [0027](devlog/0027-publication-evidence-verifier.md) binds that exact five-file proof
 back to the immutable proposal/benchmark and emits a content-addressed verification
-result. The authenticated live run itself remains open.
+result. Entry [0039](devlog/0039-authenticated-publication-preflight.md) validates
+the passing live artifacts, clean repository, absent publication branch, GitHub
+repository identity, and authenticated read access without mutation. Creating the
+separate private target and performing the live two-run publication remain open.
 
 **Goal:** deliver the validated change through the repository's review workflow.
 

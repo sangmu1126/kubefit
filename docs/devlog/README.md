@@ -60,6 +60,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0036](0036-k6-process-success-boundary.md) | k6 process success boundary | Reject script exceptions even when k6 returns exit code zero |
 | [0037](0037-controlled-demo-observation.md) | Controlled demo observation | Separate real multi-day evidence from a fixed one-hour loaded demo window |
 | [0038](0038-live-demo-benchmark.md) | Live demo benchmark | Turn three invalid harness runs into a restored, passing before/after result |
+| [0039](0039-authenticated-publication-preflight.md) | Authenticated publication preflight | Prove the PASS artifacts and GitHub read boundary are ready without mutation |
 
 ## Visual language
 
