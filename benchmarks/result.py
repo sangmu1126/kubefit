@@ -286,19 +286,27 @@ def _validity_checks(
         after_phase = getattr(after, phase)
         valid = (
             before_phase.expected_iterations == after_phase.expected_iterations == expected
-            and before_phase.completed_iterations == after_phase.completed_iterations == expected
+            and before_phase.completed_iterations == after_phase.completed_iterations
+            and before_phase.completed_iterations >= expected
             and before_phase.requests >= before_phase.completed_iterations
             and after_phase.requests >= after_phase.completed_iterations
         )
+        if valid and before_phase.completed_iterations == expected:
+            reason = f"{phase} completed the fixed {expected}-iteration load"
+        elif valid:
+            reason = (
+                f"{phase} completed matching runs at or above the fixed "
+                f"{expected}-iteration minimum"
+            )
+        else:
+            reason = (
+                f"{phase} must complete the fixed {expected}-iteration load in both runs"
+            )
         checks.append(
             BenchmarkCheck(
                 code=f"{phase}_offered_load",
                 status="pass" if valid else "invalid",
-                reason=(
-                    f"{phase} completed the fixed {expected}-iteration load"
-                    if valid
-                    else f"{phase} must complete the fixed {expected}-iteration load in both runs"
-                ),
+                reason=reason,
             )
         )
     return checks

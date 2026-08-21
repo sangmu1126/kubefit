@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -11,6 +12,17 @@ from benchmarks import (
 )
 
 PROPOSAL_ID = "proposal-0123456789abcdef0123456789abcdef"
+
+
+def test_k6_profile_exports_every_trend_used_by_handle_summary() -> None:
+    profile = (
+        Path(__file__).parents[1] / "benchmarks" / "k6" / "resource_profile.js"
+    ).read_text()
+
+    assert (
+        'summaryTrendStats: ["avg", "min", "med", "max", "p(90)", "p(95)", '
+        '"p(99)"]' in profile
+    )
 
 
 def measurement(run_variant: str, **overrides: object) -> BenchmarkMeasurement:
@@ -229,6 +241,7 @@ def test_recovery_boundary(after_recovery: float, expected_status: str) -> None:
         {"variant": "before"},
         {"dropped_iterations": 1},
         {"steady": phase(300, 100, 110, completed=299)},
+        {"steady": phase(300, 100, 110, completed=301)},
         {"steady": phase(301, 100, 110, completed=301)},
         {"steady": phase(300, 100, 110, requests=299)},
     ],
@@ -239,6 +252,20 @@ def test_rejects_non_comparable_runs(after_overrides: dict[str, object]) -> None
     assert verdict.status == "invalid"
     assert verdict.invalid_reasons
     assert not any(check.status == "fail" for check in verdict.checks)
+
+
+def test_accepts_matching_boundary_overshoot_above_fixed_minimum() -> None:
+    steady = phase(300, 100, 110, completed=301, requests=301)
+    spike = phase(750, 200, 220, completed=751, requests=751)
+    recovery = phase(300, 120, 130, completed=301, requests=301)
+
+    verdict = compare_benchmarks(
+        measurement("before", steady=steady, spike=spike, recovery=recovery),
+        measurement("after", steady=steady, spike=spike, recovery=recovery),
+    )
+
+    assert verdict.status == "pass"
+    assert check_status(verdict, "steady_offered_load") == "pass"
 
 
 def test_cost_increase_warns_without_failing_safety() -> None:

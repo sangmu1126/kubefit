@@ -19,6 +19,7 @@ if (variant !== "before" && variant !== "after") {
 export const options = {
   discardResponseBodies: true,
   systemTags: ["status", "method", "scenario"],
+  summaryTrendStats: ["avg", "min", "med", "max", "p(90)", "p(95)", "p(99)"],
   scenarios: {
     warmup: phase("warmup", 1, "10s", "0s"),
     steady: phase("steady", 5, "60s", "10s"),
