@@ -8,7 +8,7 @@ import pytest
 
 import api.cli as cli_module
 from api.cli import build_parser
-from evaluator import AnalysisArtifact, AnalysisTarget
+from evaluator import AnalysisArtifact, AnalysisTarget, evaluate_patch_eligibility
 from gitops import ManifestPatchError
 from recommender import CurrentResources
 from tests.test_benchmark_artifact import completed_run
@@ -324,8 +324,11 @@ def test_propose_rejects_invalid_analysis_before_source_loading(
 
 def test_propose_rejects_blocked_evaluation_without_output(tmp_path: Path) -> None:
     analysis = eligible_analysis()
-    analysis.evaluation.patch_eligibility.status = "blocked"
-    analysis.evaluation.patch_eligibility.blocking_reasons = ["test block"]
+    analysis.evaluation.recommendation.readiness.status = "insufficient_data"
+    analysis.evaluation.recommendation.readiness.reasons = ["test block"]
+    analysis.evaluation.patch_eligibility = evaluate_patch_eligibility(
+        analysis.evaluation.recommendation
+    )
     analysis_path = tmp_path / "analysis.json"
     analysis_path.write_text(analysis.model_dump_json())
     output = tmp_path / "proposals"

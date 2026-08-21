@@ -87,3 +87,22 @@ export interface EvaluationResult {
     warnings: string[];
   };
 }
+
+export interface AnalysisReview {
+  schema_version: 1;
+  verification_level: "integrity_only";
+  target: {
+    namespace: string;
+    deployment: string;
+    container: string;
+  };
+  workload_uid: string;
+  workload_created_at: string;
+  evaluation: EvaluationResult;
+  checks: Array<{
+    code: "resource_values" | "request_changes" | "cost_comparison" | "patch_eligibility";
+    status: "pass";
+    reason: string;
+  }>;
+  limitations: string[];
+}

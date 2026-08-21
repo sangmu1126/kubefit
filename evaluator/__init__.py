@@ -1,6 +1,12 @@
 """Cost and operational-risk evaluators."""
 
-from evaluator.analysis import AnalysisArtifact, AnalysisTarget
+from evaluator.analysis import (
+    AnalysisArtifact,
+    AnalysisIntegrityCheck,
+    AnalysisReview,
+    AnalysisTarget,
+    review_analysis_artifact,
+)
 from evaluator.cost import (
     CostAssumptions,
     CostComparison,
@@ -24,6 +30,8 @@ from evaluator.safety import (
 __all__ = [
     "CostAssumptions",
     "AnalysisArtifact",
+    "AnalysisIntegrityCheck",
+    "AnalysisReview",
     "AnalysisTarget",
     "CostComparison",
     "EvaluationResult",
@@ -36,5 +44,6 @@ __all__ = [
     "assess_observation_readiness",
     "compare_request_costs",
     "evaluate_resources",
+    "review_analysis_artifact",
     "evaluate_patch_eligibility",
 ]

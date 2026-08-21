@@ -6,7 +6,14 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from evaluator import CostAssumptions, EvaluationResult, evaluate_resources
+from evaluator import (
+    AnalysisArtifact,
+    AnalysisReview,
+    CostAssumptions,
+    EvaluationResult,
+    evaluate_resources,
+    review_analysis_artifact,
+)
 from recommender import CurrentResources, ObservedUsage, ResourceRecommendation, recommend_resources
 
 _DASHBOARD_DIRECTORY_ENV = "KUBEFIT_DASHBOARD_DIRECTORY"
@@ -47,6 +54,10 @@ def create_app(dashboard_directory: Path | None = None) -> FastAPI:
             request.cost_assumptions,
             request.replica_count,
         )
+
+    @application.post("/v1/analysis-reviews", response_model=AnalysisReview)
+    def review_analysis(artifact: AnalysisArtifact) -> AnalysisReview:
+        return review_analysis_artifact(artifact)
 
     if dashboard_directory is not None:
         index_file, assets_directory = _validate_dashboard_directory(

@@ -1,9 +1,12 @@
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app, create_app
+from evaluator import AnalysisArtifact, AnalysisTarget
+from tests.test_manifest import eligible_evaluation
 
 client = TestClient(app)
 
@@ -96,3 +99,45 @@ def test_create_evaluation_with_explicit_cost_assumptions() -> None:
     assert result["cost"]["assumptions"]["price_source"] == "example://local-model"
     assert result["patch_eligibility"]["status"] == "blocked"
     assert result["patch_eligibility"]["checks"][0]["code"] == "recommendation_readiness"
+
+
+def test_review_analysis_artifact_returns_identity_evaluation_and_checks() -> None:
+    artifact = AnalysisArtifact(
+        target=AnalysisTarget(namespace="demo", deployment="api", container="api"),
+        workload_uid="deployment-uid",
+        workload_created_at=datetime(2026, 8, 21, tzinfo=UTC),
+        evaluation=eligible_evaluation(),
+    )
+
+    response = client.post(
+        "/v1/analysis-reviews",
+        content=artifact.model_dump_json(),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 200
+    review = response.json()
+    assert review["verification_level"] == "integrity_only"
+    assert review["target"] == {
+        "namespace": "demo",
+        "deployment": "api",
+        "container": "api",
+    }
+    assert review["workload_uid"] == "deployment-uid"
+    assert review["evaluation"]["patch_eligibility"]["status"] == "eligible"
+    assert len(review["checks"]) == 4
+
+
+def test_review_analysis_artifact_rejects_tampered_cost() -> None:
+    artifact = AnalysisArtifact(
+        target=AnalysisTarget(namespace="demo", deployment="api", container="api"),
+        workload_uid="deployment-uid",
+        workload_created_at=datetime(2026, 8, 21, tzinfo=UTC),
+        evaluation=eligible_evaluation(),
+    ).model_dump(mode="json")
+    artifact["evaluation"]["cost"]["savings_percent"] = "99.9"
+
+    response = client.post("/v1/analysis-reviews", json=artifact)
+
+    assert response.status_code == 422
+    assert "cost comparison conflicts" in response.text

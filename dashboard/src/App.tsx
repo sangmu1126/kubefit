@@ -1,14 +1,17 @@
-import { FormEvent, useState } from "react";
-import { evaluateResources } from "./api";
+import { ChangeEvent, FormEvent, useState } from "react";
+import { evaluateResources, reviewAnalysisArtifact } from "./api";
 import { eligibleScenario, insufficientScenario } from "./scenarios";
 import type {
   CheckStatus,
+  AnalysisReview,
   EvaluationRequest,
   EvaluationResult,
   Resources,
   RiskLevel,
   DecimalValue,
 } from "./types";
+
+const MAX_ARTIFACT_BYTES = 1024 * 1024;
 
 type NumericPath =
   | keyof EvaluationRequest["current"]
@@ -28,6 +31,15 @@ const resourceRows: Array<{
 
 function cloneScenario(scenario: EvaluationRequest): EvaluationRequest {
   return structuredClone(scenario);
+}
+
+function readFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("analysis artifact 파일을 읽을 수 없습니다."));
+    reader.readAsText(file);
+  });
 }
 
 function formatMoney(value: DecimalValue): string {
@@ -141,9 +153,38 @@ function DecisionPanel({ result }: { result: EvaluationResult }) {
   );
 }
 
-function Results({ result }: { result: EvaluationResult }) {
+function ArtifactContext({ review }: { review: AnalysisReview }) {
+  return (
+    <section className="artifact-context" aria-labelledby="artifact-title">
+      <div>
+        <p className="eyebrow">ANALYSIS ARTIFACT · SCHEMA {review.schema_version}</p>
+        <h2 id="artifact-title">
+          {review.target.namespace} / {review.target.deployment}
+        </h2>
+        <p>
+          container <strong>{review.target.container}</strong> · created {new Date(review.workload_created_at).toLocaleString("ko-KR")}
+        </p>
+      </div>
+      <div className="artifact-verification">
+        <span>무결성 검사 {review.checks.length}/{review.checks.length}</span>
+        <strong>INTEGRITY ONLY</strong>
+        <code title={review.workload_uid}>{review.workload_uid}</code>
+      </div>
+      <details>
+        <summary>검증 범위와 한계</summary>
+        <ul>
+          {review.checks.map((check) => <li key={check.code}>✓ {check.reason}</li>)}
+          {review.limitations.map((limitation) => <li className="limitation" key={limitation}>△ {limitation}</li>)}
+        </ul>
+      </details>
+    </section>
+  );
+}
+
+function Results({ result, review }: { result: EvaluationResult; review: AnalysisReview | null }) {
   return (
     <main className="results" aria-live="polite">
+      {review && <ArtifactContext review={review} />}
       <DecisionPanel result={result} />
       <section className="metric-grid" aria-label="평가 요약">
         <article className="metric-card accent">
@@ -215,7 +256,9 @@ function Results({ result }: { result: EvaluationResult }) {
 export default function App() {
   const [request, setRequest] = useState(() => cloneScenario(eligibleScenario));
   const [result, setResult] = useState<EvaluationResult | null>(null);
+  const [artifactReview, setArtifactReview] = useState<AnalysisReview | null>(null);
   const [loading, setLoading] = useState(false);
+  const [artifactLoading, setArtifactLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const setCurrent = (key: keyof EvaluationRequest["current"], value: number) => {
@@ -235,12 +278,36 @@ export default function App() {
   const useScenario = (scenario: EvaluationRequest) => {
     setRequest(cloneScenario(scenario));
     setResult(null);
+    setArtifactReview(null);
     setError(null);
+  };
+
+  const loadArtifact = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setResult(null);
+    setArtifactReview(null);
+    setError(null);
+    if (file.size > MAX_ARTIFACT_BYTES) {
+      setError("analysis artifact는 1 MiB 이하여야 합니다.");
+      return;
+    }
+    setArtifactLoading(true);
+    try {
+      const review = await reviewAnalysisArtifact(await readFile(file));
+      setArtifactReview(review);
+      setResult(review.evaluation);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "analysis artifact 검증에 실패했습니다.");
+    } finally {
+      setArtifactLoading(false);
+    }
   };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setLoading(true);
+    setArtifactReview(null);
     setError(null);
     try {
       setResult(await evaluateResources(request));
@@ -304,6 +371,21 @@ export default function App() {
                 <h2>워크로드 관측값</h2>
               </div>
             </div>
+            <label className="artifact-loader">
+              <span className="artifact-loader-icon">↥</span>
+              <span>
+                <strong>{artifactLoading ? "artifact 검증 중…" : "analysis.json 불러오기"}</strong>
+                <small>kubefit analyze 출력 · 최대 1 MiB</small>
+              </span>
+              <input
+                aria-label="analysis artifact JSON"
+                type="file"
+                accept="application/json,.json"
+                disabled={artifactLoading}
+                onChange={loadArtifact}
+              />
+            </label>
+            <div className="input-divider"><span>또는 예제 입력</span></div>
             <div className="scenario-switch" aria-label="예제 시나리오">
               <button type="button" onClick={() => useScenario(eligibleScenario)}>검증 가능</button>
               <button type="button" onClick={() => useScenario(insufficientScenario)}>근거 부족</button>
@@ -346,7 +428,7 @@ export default function App() {
             {error && <p className="error" role="alert">{error}</p>}
           </form>
         </aside>
-        {result ? <Results result={result} /> : (
+        {result ? <Results result={result} review={artifactReview} /> : (
           <main className="empty-state">
             <span>↳</span>
             <h2>아직 계산하지 않았습니다.</h2>

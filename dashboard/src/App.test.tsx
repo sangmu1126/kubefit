@@ -2,7 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
-import type { EvaluationResult } from "./types";
+import type { AnalysisReview, EvaluationResult } from "./types";
 
 const result: EvaluationResult = {
   current: {
@@ -54,6 +54,19 @@ const result: EvaluationResult = {
   },
 };
 
+const artifactReview: AnalysisReview = {
+  schema_version: 1,
+  verification_level: "integrity_only",
+  target: { namespace: "payments", deployment: "checkout-api", container: "api" },
+  workload_uid: "deployment-uid-1234",
+  workload_created_at: "2026-08-21T00:00:00Z",
+  evaluation: result,
+  checks: [
+    { code: "cost_comparison", status: "pass", reason: "cost comparison was recomputed" },
+  ],
+  limitations: ["schema v1 does not retain raw observed usage"],
+};
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -101,5 +114,41 @@ describe("KubeFit dashboard", () => {
     await userEvent.click(screen.getByRole("button", { name: /추천과 위험 계산/ }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("평가 요청 실패 (503)");
+  });
+
+  it("loads a backend-validated analysis artifact into the same review surface", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(artifactReview), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    render(<App />);
+    const file = new File(['{"schema_version":1}'], "analysis.json", {
+      type: "application/json",
+    });
+
+    await userEvent.upload(screen.getByLabelText("analysis artifact JSON"), file);
+
+    expect(await screen.findByText("payments / checkout-api")).toBeInTheDocument();
+    expect(screen.getByText("INTEGRITY ONLY")).toBeInTheDocument();
+    expect(screen.getByText("패치 제안 가능")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/v1/analysis-reviews",
+      expect.objectContaining({ body: '{"schema_version":1}' }),
+    );
+  });
+
+  it("rejects an oversized artifact before sending it", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    render(<App />);
+    const file = new File([new Uint8Array(1024 * 1024 + 1)], "large.json", {
+      type: "application/json",
+    });
+
+    await userEvent.upload(screen.getByLabelText("analysis artifact JSON"), file);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("1 MiB 이하여야 합니다");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
