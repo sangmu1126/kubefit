@@ -1,9 +1,10 @@
 # 0041: Adding independent repository quality gates
 
 - **Date:** 2026-08-22
-- **Status:** locally validated; GitHub-hosted run pending
+- **Status:** validated locally and on GitHub-hosted runners
 - **Related phase:** Phase 6 — presentation layer and packaging
 - **Feature commit:** `be08c60 ci: add repository quality gates`
+- **Draft PR:** [sangmu1126/kubefit#2](https://github.com/sangmu1126/kubefit/pull/2)
 
 ## Why
 
@@ -89,18 +90,28 @@ Helm default render: passed
 Docker production build: passed
 Docker runtime user: 10001:10001
 Git diff whitespace check: passed
+GitHub Actions run 32521289661: passed
+  Python: 24s
+  Docker: 19s
+  Dashboard: 14s
+  Helm: 7s
 ```
 
 The Docker build resolved the current `node:24-alpine` and `python:3.14-slim` tags to
 content digests for that build and successfully created the wheel, dashboard bundle,
 and final non-root image.
 
+## GitHub-hosted validation
+
+[Actions run 32521289661](https://github.com/sangmu1126/kubefit/actions/runs/32521289661)
+was triggered by Draft PR #2. GitHub exposed all four jobs as independent checks and
+every step completed successfully on the first run. The observed commands matched
+the repository contract test; no fallback or manual rerun was needed.
+
 ## Decision and limitations
 
 It is safe to claim that the workflow matches repository verification commands and
-all four boundaries pass locally. It is not yet safe to claim that GitHub-hosted
-runners execute them successfully; that evidence requires publishing this branch and
-observing the Actions run.
+all four boundaries pass both locally and on GitHub-hosted runners.
 
 Python dependencies use bounded version ranges rather than a lock file, and Docker
 base images remain tag-addressed in the Dockerfile. Action code is commit-pinned, but
@@ -111,5 +122,5 @@ repository-administration decision and is not changed automatically.
 
 ## Next question
 
-Do all four jobs pass on GitHub's hosted runner when this feature branch is opened as
-a Draft PR, and does the PR expose each job as an independent status check?
+Can the dashboard load the immutable benchmark result and visualize safety checks,
+before/after performance, cost, and the controlled-demo limitation for reviewers?
