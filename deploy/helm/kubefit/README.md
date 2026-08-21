@@ -1,8 +1,9 @@
 # KubeFit Helm chart
 
-This chart deploys the existing stateless KubeFit HTTP API. It does not install
-Prometheus, run the operator-side analysis CLI, mutate workloads, or publish GitHub
-pull requests from inside the cluster.
+This chart deploys the stateless KubeFit HTTP API and its immutable review
+dashboard in one image. It does not install Prometheus, run the operator-side
+analysis CLI, mutate workloads, or publish GitHub pull requests from inside the
+cluster.
 
 ## Local kind installation
 
@@ -27,6 +28,7 @@ kubectl --context kind-kubefit \
   port-forward service/kubefit 8000:80
 
 curl --fail http://localhost:8000/healthz
+curl --fail http://localhost:8000/
 ```
 
 The image runs as UID/GID `10001`. The Pod defaults to a read-only root filesystem,
@@ -77,7 +79,9 @@ For an end-to-end check against the existing disposable `kind-kubefit` cluster:
 ./deploy/local/verify-kubefit-chart.sh
 ```
 
-The script builds and loads `kubefit:dev`, installs the tokenless release, probes
-`/healthz`, temporarily enables one namespace Role, verifies both allowed and denied
-actions with ServiceAccount impersonation, and restores the tokenless/no-RBAC release.
-An EXIT trap attempts restoration if the scoped-RBAC phase is interrupted.
+The script builds and loads `kubefit:dev`, forces a disposable-cluster rollout for
+that mutable local tag, installs the tokenless release, probes `/healthz` and the
+packaged dashboard, temporarily enables one namespace Role, verifies both allowed
+and denied actions with ServiceAccount impersonation, and restores the
+tokenless/no-RBAC release. An EXIT trap attempts restoration if the scoped-RBAC
+phase is interrupted.

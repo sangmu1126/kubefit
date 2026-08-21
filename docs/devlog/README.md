@@ -52,6 +52,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0028](0028-least-privilege-helm-package.md) | Least-privilege Helm package | Package the API non-root and scope optional observation RBAC by namespace |
 | [0029](0029-kind-helm-integration.md) | kind Helm integration | Build, install, probe, verify RBAC denials, and restore tokenless defaults |
 | [0030](0030-explainable-review-dashboard.md) | Explainable review dashboard | Visualize API-owned recommendation, cost, risk, and GitOps gating without duplicating analysis |
+| [0031](0031-packaged-dashboard.md) | Packaged dashboard | Build and serve the immutable review UI from the hardened API image |
 
 ## Visual language
 

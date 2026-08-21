@@ -158,13 +158,15 @@ local image build, kind installation, live health probe, RBAC allow/deny matrix,
 tokenless restoration evidence. Entry
 [0030](devlog/0030-explainable-review-dashboard.md) adds an API-backed review surface
 for recommendation evidence, cost, risk, and the patch gate without duplicating
-analysis logic. Serving that build from the packaged API and external image/chart
-publication remain open.
+analysis logic. Entry [0031](devlog/0031-packaged-dashboard.md) builds that UI in a
+separate Node stage, serves it from the hardened API image, and verifies it through
+the kind Helm Service without expanding RBAC. External image/chart publication and
+supply-chain evidence remain open.
 
 **Goal:** make the completed workflow easy to install and demonstrate.
 
 - Add a small dashboard over the existing API after the CLI workflow is complete.
-  The local review slice is complete; packaged delivery remains open.
+  The local review and packaged delivery slices are complete.
 - Package KubeFit with a Helm chart and least-privilege read-only RBAC.
 - Document security boundaries, metric prerequisites, limitations, and rollback.
 

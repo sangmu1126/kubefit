@@ -126,7 +126,7 @@ cost projection remains blocked when coverage and safety signals are absent.
 
 The examples are editable API payloads, not live cluster collection. Price values
 use `example://local-model` and must not be presented as provider prices or measured
-invoice savings. The dashboard is not included in the Helm image yet.
+invoice savings.
 
 Verify the frontend independently with:
 
@@ -135,6 +135,11 @@ npm --prefix dashboard run build
 npm --prefix dashboard test
 npm --prefix dashboard audit
 ```
+
+The two-process setup is for hot-reload development. The Docker build runs the
+locked frontend build in a separate Node stage and copies only `dist/` into the
+non-root Python runtime. The Helm Service therefore serves the same dashboard at
+`/` without Vite or a CORS policy.
 
 ## Run a published proposal benchmark
 

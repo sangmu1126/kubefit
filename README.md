@@ -43,9 +43,9 @@ read-only Roles for explicitly named targets; see the
 [chart guide](deploy/helm/kubefit/README.md).
 
 `deploy/local/verify-kubefit-chart.sh` performs the complete disposable-kind proof:
-local image build/load, tokenless install, health probe, scoped RBAC allow/deny
-matrix, and restoration to tokenless defaults. It refuses non-kind targets and does
-not push an image or delete the cluster.
+local image build/load, tokenless install, health and packaged-dashboard probes,
+scoped RBAC allow/deny matrix, and restoration to tokenless defaults. It refuses
+non-kind targets and does not push an image or delete the cluster.
 
 The ordered delivery phases and their completion criteria are documented in
 [`docs/implementation-plan.md`](docs/implementation-plan.md).
@@ -59,8 +59,9 @@ recorded in the [`docs/devlog/`](docs/devlog/README.md) development journal.
 The local dashboard sends editable example evidence to the existing evaluation API
 and visualizes its recommendation, request-cost estimate, risks, and GitOps patch
 gate. It contains no independent recommendation logic. Run it with the API using
-the commands in the [local development guide](docs/local-development.md). The Helm
-image does not include the frontend yet.
+the commands in the [local development guide](docs/local-development.md). The
+multi-stage Docker build packages its immutable production bundle into the same
+non-root API image used by Helm.
 
 ## Quick start
 
