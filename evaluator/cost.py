@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from evaluator.safety import PatchEligibility, evaluate_patch_eligibility
 from recommender import CurrentResources, ObservedUsage, ResourceRecommendation
-from recommender.engine import recommend_resources
+from recommender.engine import RecommendationPolicy, recommend_resources
 
 _MONEY_QUANTUM = Decimal("0.000001")
 _PERCENT_QUANTUM = Decimal("0.1")
@@ -124,8 +124,9 @@ def evaluate_resources(
     observed: ObservedUsage,
     assumptions: CostAssumptions,
     replica_count: int,
+    policy: RecommendationPolicy | None = None,
 ) -> EvaluationResult:
-    recommendation = recommend_resources(current, observed)
+    recommendation = recommend_resources(current, observed, policy)
     cost = compare_request_costs(
         current, recommendation.recommended, assumptions, replica_count
     )

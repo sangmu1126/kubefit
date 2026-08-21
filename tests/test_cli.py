@@ -11,6 +11,7 @@ from api.cli import build_parser
 from evaluator import AnalysisArtifact, AnalysisTarget, evaluate_patch_eligibility
 from gitops import ManifestPatchError
 from recommender import CurrentResources
+from tests.test_analysis_artifact import replayable_analysis
 from tests.test_benchmark_artifact import completed_run
 from tests.test_manifest import FIXTURES, eligible_evaluation
 from tests.test_readiness import OBSERVED_AT, observed_usage
@@ -65,6 +66,48 @@ def test_analyze_rejects_non_positive_price() -> None:
                 "example://local-model",
             ]
         )
+
+
+def test_analyze_emits_replayable_schema_v2(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    replayable = replayable_analysis()
+    workload = SimpleNamespace(
+        namespace="demo",
+        name="api",
+        container="api",
+        uid=replayable.workload_uid,
+        created_at=replayable.workload_created_at,
+        resources=replayable.evaluation.current,
+        desired_replicas=2,
+    )
+    monkeypatch.setattr(
+        cli_module,
+        "_collect_observation",
+        lambda args: (workload, None, replayable.observed_usage),
+    )
+
+    cli_module.main(
+        [
+            "analyze",
+            "--deployment",
+            "api",
+            "--cpu-core-hour-usd",
+            "0.04",
+            "--memory-gib-hour-usd",
+            "0.005",
+            "--price-source",
+            "example://test",
+        ]
+    )
+
+    output = json.loads(capsys.readouterr().out)
+    restored = AnalysisArtifact.model_validate(output)
+    assert restored.schema_version == 2
+    assert restored.observed_usage == replayable.observed_usage
+    assert restored.recommendation_policy is not None
+    assert restored.recommendation_policy.algorithm == "resource-recommendation/v1"
 
 
 def test_readiness_does_not_require_price_arguments() -> None:

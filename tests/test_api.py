@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from api.main import app, create_app
 from evaluator import AnalysisArtifact, AnalysisTarget
+from tests.test_analysis_artifact import replayable_analysis
 from tests.test_manifest import eligible_evaluation
 
 client = TestClient(app)
@@ -141,3 +142,17 @@ def test_review_analysis_artifact_rejects_tampered_cost() -> None:
 
     assert response.status_code == 422
     assert "cost comparison conflicts" in response.text
+
+
+def test_review_analysis_v2_reports_replayed_recommendation() -> None:
+    response = client.post(
+        "/v1/analysis-reviews",
+        content=replayable_analysis().model_dump_json(),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 200
+    review = response.json()
+    assert review["artifact_schema_version"] == 2
+    assert review["verification_level"] == "recommendation_replayed"
+    assert review["checks"][-1]["code"] == "recommendation_replay"

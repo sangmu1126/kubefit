@@ -5,6 +5,7 @@ from evaluator.analysis import (
     AnalysisIntegrityCheck,
     AnalysisReview,
     AnalysisTarget,
+    RecommendationPolicySnapshot,
     review_analysis_artifact,
 )
 from evaluator.cost import (
@@ -33,6 +34,7 @@ __all__ = [
     "AnalysisIntegrityCheck",
     "AnalysisReview",
     "AnalysisTarget",
+    "RecommendationPolicySnapshot",
     "CostComparison",
     "EvaluationResult",
     "EligibilityCheck",

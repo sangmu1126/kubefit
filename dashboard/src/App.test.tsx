@@ -56,6 +56,7 @@ const result: EvaluationResult = {
 
 const artifactReview: AnalysisReview = {
   schema_version: 1,
+  artifact_schema_version: 1,
   verification_level: "integrity_only",
   target: { namespace: "payments", deployment: "checkout-api", container: "api" },
   workload_uid: "deployment-uid-1234",
@@ -137,6 +138,32 @@ describe("KubeFit dashboard", () => {
       "/v1/analysis-reviews",
       expect.objectContaining({ body: '{"schema_version":1}' }),
     );
+  });
+
+  it("distinguishes a replayed schema v2 recommendation", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({
+        ...artifactReview,
+        artifact_schema_version: 2,
+        verification_level: "recommendation_replayed",
+        checks: [
+          ...artifactReview.checks,
+          { code: "recommendation_replay", status: "pass", reason: "recommendation replayed" },
+        ],
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    render(<App />);
+
+    await userEvent.upload(
+      screen.getByLabelText("analysis artifact JSON"),
+      new File(['{"schema_version":2}'], "analysis.json", { type: "application/json" }),
+    );
+
+    expect(await screen.findByText("RECOMMENDATION REPLAYED")).toBeInTheDocument();
+    expect(screen.getByText("ANALYSIS ARTIFACT · SCHEMA 2")).toBeInTheDocument();
   });
 
   it("rejects an oversized artifact before sending it", async () => {

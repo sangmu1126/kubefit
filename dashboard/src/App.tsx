@@ -154,10 +154,11 @@ function DecisionPanel({ result }: { result: EvaluationResult }) {
 }
 
 function ArtifactContext({ review }: { review: AnalysisReview }) {
+  const replayed = review.verification_level === "recommendation_replayed";
   return (
     <section className="artifact-context" aria-labelledby="artifact-title">
       <div>
-        <p className="eyebrow">ANALYSIS ARTIFACT · SCHEMA {review.schema_version}</p>
+        <p className="eyebrow">ANALYSIS ARTIFACT · SCHEMA {review.artifact_schema_version}</p>
         <h2 id="artifact-title">
           {review.target.namespace} / {review.target.deployment}
         </h2>
@@ -167,7 +168,7 @@ function ArtifactContext({ review }: { review: AnalysisReview }) {
       </div>
       <div className="artifact-verification">
         <span>무결성 검사 {review.checks.length}/{review.checks.length}</span>
-        <strong>INTEGRITY ONLY</strong>
+        <strong>{replayed ? "RECOMMENDATION REPLAYED" : "INTEGRITY ONLY"}</strong>
         <code title={review.workload_uid}>{review.workload_uid}</code>
       </div>
       <details>

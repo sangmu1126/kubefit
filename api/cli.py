@@ -26,6 +26,7 @@ from evaluator import (
     AnalysisArtifact,
     AnalysisTarget,
     CostAssumptions,
+    RecommendationPolicySnapshot,
     assess_observation_readiness,
     evaluate_resources,
 )
@@ -258,6 +259,7 @@ def _run_analyze(args: argparse.Namespace) -> None:
         workload.desired_replicas,
     )
     result = AnalysisArtifact(
+        schema_version=2,
         target=AnalysisTarget(
             namespace=workload.namespace,
             deployment=workload.name,
@@ -266,6 +268,8 @@ def _run_analyze(args: argparse.Namespace) -> None:
         workload_uid=workload.uid,
         workload_created_at=workload.created_at,
         evaluation=evaluation,
+        observed_usage=observed,
+        recommendation_policy=RecommendationPolicySnapshot.from_policy(),
     )
     print(result.model_dump_json(indent=2))
 

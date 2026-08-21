@@ -90,7 +90,8 @@ export interface EvaluationResult {
 
 export interface AnalysisReview {
   schema_version: 1;
-  verification_level: "integrity_only";
+  artifact_schema_version: 1 | 2;
+  verification_level: "integrity_only" | "recommendation_replayed";
   target: {
     namespace: string;
     deployment: string;
@@ -100,7 +101,7 @@ export interface AnalysisReview {
   workload_created_at: string;
   evaluation: EvaluationResult;
   checks: Array<{
-    code: "resource_values" | "request_changes" | "cost_comparison" | "patch_eligibility";
+    code: "resource_values" | "request_changes" | "cost_comparison" | "patch_eligibility" | "recommendation_replay";
     status: "pass";
     reason: string;
   }>;
