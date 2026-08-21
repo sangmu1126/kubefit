@@ -165,14 +165,16 @@ the kind Helm Service without expanding RBAC. Entry
 the exact local image ID. Entry
 [0033](devlog/0033-analysis-artifact-review.md) connects CLI analysis output to the
 dashboard through an API-owned integrity review while exposing schema v1 replay
-limits. Full recommendation replay, vulnerability policy, source provenance,
-signing, and external image/chart publication remain open.
+limits. Entry [0034](devlog/0034-replayable-analysis-schema.md) adds schema v2
+aggregate observations and versioned policy inputs, replays the complete decision,
+and preserves v1 content identities. Raw percentile replay, vulnerability policy,
+source provenance, signing, and external image/chart publication remain open.
 
 **Goal:** make the completed workflow easy to install and demonstrate.
 
 - Add a small dashboard over the existing API after the CLI workflow is complete.
-  Example review, artifact integrity review, and packaged delivery are complete;
-  full percentile replay requires a versioned analysis schema update.
+  Example review, v1 integrity review, v2 recommendation replay, and packaged
+  delivery are complete. Raw percentile replay remains explicitly out of scope.
 - Package KubeFit with a Helm chart and least-privilege read-only RBAC.
 - Document security boundaries, metric prerequisites, limitations, and rollback.
 

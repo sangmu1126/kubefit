@@ -132,17 +132,19 @@ and patch eligibility before the existing result view renders it. This operation
 does not contact Kubernetes, modify repository files, or create a proposal.
 
 The artifact context shows Deployment UID and creation time so a screenshot does
-not lose workload incarnation identity. A schema v1 result is deliberately labeled
-`INTEGRITY ONLY`: its internal relationships were checked, but raw observed usage
-and a recommendation-policy version are not retained, so the P95/P99 calculation
-cannot yet be replayed. Producer authentication and repository-byte binding are
-also outside this endpoint.
+not lose workload incarnation identity. Current `kubefit analyze` output is schema
+v2 and retains aggregate `ObservedUsage` plus all recommendation policy parameters.
+The API reruns recommendation, risk, cost, and eligibility and labels an exact match
+`RECOMMENDATION REPLAYED`. Older schema v1 remains accepted as `INTEGRITY ONLY`.
+Neither schema retains raw Prometheus time series, so the P95/P99 aggregation itself
+cannot be replayed. Producer authentication and repository-byte binding are also
+outside this endpoint.
 
 The examples are editable API payloads, not live cluster collection. Uploaded
-artifacts can originate from collection, but the dashboard's integrity label must
-not be presented as proof of live collection or percentile replay. Price values use
-`example://local-model` and must not be presented as provider prices or measured
-invoice savings.
+artifacts can originate from collection, but neither dashboard review label is
+proof of uninterrupted live collection or percentile aggregation replay. Price
+values use `example://local-model` and must not be presented as provider prices or
+measured invoice savings.
 
 Verify the frontend independently with:
 

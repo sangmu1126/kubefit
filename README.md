@@ -57,11 +57,13 @@ Engineering decisions, failed assumptions, diagrams, and reproducible evidence a
 recorded in the [`docs/devlog/`](docs/devlog/README.md) development journal.
 
 The local dashboard sends editable example evidence to the existing evaluation API
-or loads the JSON emitted by `kubefit analyze`. The API validates an uploaded
-artifact, recomputes its resource deltas, cost comparison, and patch eligibility,
-then returns the review model. The UI contains no independent recommendation logic.
-Schema v1 reviews are labeled `integrity_only` because the artifact does not retain
-raw percentile inputs. Run it with the API using the commands in the
+or loads the JSON emitted by `kubefit analyze`. New schema v2 artifacts retain
+aggregate observation and recommendation-policy inputs, so the API replays the
+recommendation, risk, cost comparison, and patch eligibility before returning the
+review model. The UI contains no independent recommendation logic. Schema v1
+remains compatible and is labeled `integrity_only`; schema v2 is labeled
+`recommendation_replayed`. Neither version retains raw Prometheus time series for
+percentile aggregation replay. Run it with the API using the commands in the
 [local development guide](docs/local-development.md). The multi-stage Docker build
 packages its immutable production bundle into the same non-root API image used by
 Helm.
@@ -169,13 +171,15 @@ the lock through restoration and result publication, then prints a compact JSON
 handoff. Port-forwards and an existing immutable proposal are currently required;
 see [`docs/local-development.md`](docs/local-development.md).
 
-`kubefit analyze` emits a typed artifact binding evaluation evidence to Deployment
-UID and creation time. `kubefit propose` consumes that identity directly with
-repository-bounded YAML sources and publishes an immutable proposal; it does not
-allow the target to be retyped. Benchmark preflight rejects a recreated Deployment
-before any apply. Multi-document source files remain byte-exact review evidence,
-while benchmark apply and restoration use separately hashed, single-Deployment
-manifests so neighboring Services or workloads are never reconciled.
+`kubefit analyze` emits a typed schema v2 artifact binding aggregate observation,
+policy, and evaluation evidence to Deployment UID and creation time. Loading it
+replays the saved recommendation decision. `kubefit propose` consumes that identity
+directly with repository-bounded YAML sources and publishes an immutable proposal;
+it does not allow the target to be retyped. Benchmark preflight rejects a recreated
+Deployment before any apply. Multi-document source files remain byte-exact review
+evidence, while benchmark apply and restoration use separately hashed,
+single-Deployment manifests so neighboring Services or workloads are never
+reconciled.
 
 After a passing benchmark, `build_pull_request_plan` independently reloads both
 artifact directories, regenerates their semantic relationships, and produces a

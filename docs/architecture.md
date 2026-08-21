@@ -79,6 +79,20 @@ Resource calculation and change authorization are separate. An insufficient resu
 still includes its candidate and evidence for inspection, but future patch generation
 must accept only an evaluation whose `patch_eligibility.status` is `eligible`.
 
+## Replayable analysis artifact
+
+New analysis output uses schema v2. It retains the aggregate `ObservedUsage` and a
+`resource-recommendation/v1` policy snapshot alongside the evaluation and workload
+identity. On load, KubeFit verifies UID, creation time, and replica relationships,
+then reruns recommendation, risk, cost, and eligibility and requires exact model
+equality. Schema v1 remains accepted and preserves its original serialized shape so
+existing content-addressed proposal IDs do not change.
+
+This is recommendation replay, not raw metric replay. P95/P99 values are retained
+inputs; Prometheus range samples and query responses are not. The review surface
+therefore exposes `recommendation_replayed` rather than claiming that percentile
+aggregation or producer authenticity was independently proven.
+
 ## Observation readiness projection
 
 The read-only readiness command reuses the exact workload, Prometheus, identity,

@@ -55,6 +55,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0031](0031-packaged-dashboard.md) | Packaged dashboard | Build and serve the immutable review UI from the hardened API image |
 | [0032](0032-verified-image-sbom.md) | Verified image SBOM | Bind an immutable SPDX inventory to the exact local image ID and detect tampering |
 | [0033](0033-analysis-artifact-review.md) | Analysis artifact review | Validate and visualize CLI artifacts while exposing schema v1 replay limits |
+| [0034](0034-replayable-analysis-schema.md) | Replayable analysis schema | Replay v2 recommendations while preserving v1 identities and observation gates |
 
 ## Visual language
 
