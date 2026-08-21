@@ -1,7 +1,7 @@
 # 0037: Replacing a 24-hour idle wait with controlled demo observation
 
 - **Date:** 2026-08-22
-- **Status:** implementation validated; first controlled live observation in progress
+- **Status:** implementation validated; live outcome continued in entry 0038
 - **Related phase:** Phase 4 — reproducible before/after benchmark
 - **Feature commit:** `8a94f67 feat: add controlled demo observation profile`
 
@@ -133,6 +133,13 @@ readiness is queried again.
 The demo profile does not cryptographically bind its k6 output to the later analysis
 artifact. Process timing and commands are currently runbook evidence. Binding a
 traffic-profile digest and exact run interval would be a stronger future boundary.
+
+## Follow-up
+
+The historical uncertainty above is intentionally preserved. Entry
+[0038](0038-live-demo-benchmark.md) records the interrupted observation process,
+eligible readiness result, schema v2 proposal, rejected benchmark-harness outcomes,
+and final restored `pass`. Phase 4 is complete for the MVP at that boundary.
 
 ## Next question
 

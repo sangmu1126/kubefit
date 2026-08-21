@@ -180,8 +180,9 @@ same result; tampered or partial existing content is never overwritten.
 `kubefit benchmark` composes the local workflow under a Deployment-scoped OS lock.
 It requires an explicit `kind-*` context and `--confirm-disposable-cluster`, holds
 the lock through restoration and result publication, then prints a compact JSON
-handoff. Port-forwards and an existing immutable proposal are currently required;
-see [`docs/local-development.md`](docs/local-development.md).
+handoff. A rollout-safe local Service proxy, a Prometheus port-forward, and an
+existing immutable proposal are currently required; see
+[`docs/local-development.md`](docs/local-development.md).
 
 `kubefit analyze` emits a typed schema v2 artifact binding aggregate observation,
 policy, and evaluation evidence to Deployment UID and creation time. Loading it

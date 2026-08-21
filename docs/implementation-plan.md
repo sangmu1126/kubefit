@@ -84,9 +84,9 @@ change and invalid or ambiguous manifests fail safely.
 
 ## Phase 4: reproducible before/after benchmark
 
-**Status: in progress.** Immutable proposal inputs and the fixed load/verdict
-contract were completed on 2026-08-21 and are documented in development journal
-entries [0011](devlog/0011-reproducible-proposal-bundle.md),
+**Status: complete for the MVP (2026-08-22).** Immutable proposal inputs and the
+fixed load/verdict contract were completed on 2026-08-21 and are documented in
+development journal entries [0011](devlog/0011-reproducible-proposal-bundle.md),
 [0012](devlog/0012-fixed-load-profile.md), and
 [0013](devlog/0013-restoring-benchmark-runner.md). The restoring execution core is
 also complete. Entry [0014](devlog/0014-aligned-benchmark-measurement.md) adds the
@@ -107,12 +107,13 @@ unchanged baseline against the real Service, fixes P99 summary export, and align
 the offered-load contract with k6's observed boundary scheduling. Entry
 [0036](devlog/0036-k6-process-success-boundary.md) rejects k6's structured script
 exception even when the process exits zero, while preserving mandatory typed-output
-checks. A real eligible before/after disposable-cluster run remains open while the
-volume collects enough continuous evidence. Entry
+checks. Entry
 [0037](devlog/0037-controlled-demo-observation.md) replaces the meaningless local
 24-hour idle wait with a fixed one-hour, loaded, explicitly non-production demo
-profile while preserving the multi-day production default. The first controlled
-run is in progress; its result is not yet claimed.
+profile while preserving the multi-day production default. Entry
+[0038](devlog/0038-live-demo-benchmark.md) records the eligible schema v2 proposal,
+three rejected harness outcomes, rollout stabilization, one-iteration k6 boundary,
+and the final passing live comparison with mandatory restoration.
 
 **Goal:** validate savings without concealing performance regressions.
 
@@ -122,8 +123,11 @@ run is in progress; its result is not yet claimed.
   recovery time after a traffic spike.
 - Store machine-readable benchmark results and a human-readable summary.
 
-**Done when:** another developer can reproduce the comparison from documented
-commands and obtain a pass/fail safety verdict.
+**Completion evidence:** the documented disposable-kind workflow produced immutable
+benchmark `benchmark-f84d0caf061d50a5d93bc03088eb0247` with verdict `pass`, then
+restored the original Deployment at 2/2 Ready. The result reported 0% request errors,
+no throttling, OOM, or restarts, bounded P95/P99 latency changes, and a separately
+labeled 98.088% illustrative request-cost reduction.
 
 ## Phase 5: GitHub draft pull request
 
