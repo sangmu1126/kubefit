@@ -5,6 +5,7 @@ from collector.kubernetes import (
     DeploymentResources,
     KubectlDeploymentCollector,
     PodContainerRuntimeStatus,
+    compile_label_selector,
     parse_cpu_millicores,
     parse_memory_mib,
 )
@@ -18,6 +19,7 @@ __all__ = [
     "PodContainerRuntimeStatus",
     "WorkloadIdentity",
     "WorkloadMetrics",
+    "compile_label_selector",
     "parse_cpu_millicores",
     "parse_memory_mib",
 ]

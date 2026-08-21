@@ -8,6 +8,7 @@ from collector.kubernetes import (
     KubernetesCollectionError,
     _cpu_millicores,
     _memory_mib,
+    compile_label_selector,
 )
 
 DEPLOYMENT = {
@@ -217,7 +218,8 @@ def test_compiles_match_labels_and_expressions_for_kubectl() -> None:
 
     KubectlDeploymentCollector(runner=runner).collect("demo", "api")
 
-    expected = (
+    expected = compile_label_selector(document["spec"]["selector"])
+    assert expected == (
         "app=demo,!debug,environment in (production,qa),tier,"
         "version notin (alpha,beta)"
     )

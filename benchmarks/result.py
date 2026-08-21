@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 
 PROFILE_VERSION = "kubefit-load-v1"
 EXPECTED_ITERATIONS = {"steady": 300, "spike": 750, "recovery": 300}
+MAX_SCHEDULER_BOUNDARY_OVERSHOOT = 1
 
 
 class LoadPhaseMetrics(BaseModel):
@@ -286,21 +287,32 @@ def _validity_checks(
         after_phase = getattr(after, phase)
         valid = (
             before_phase.expected_iterations == after_phase.expected_iterations == expected
-            and before_phase.completed_iterations == after_phase.completed_iterations
-            and before_phase.completed_iterations >= expected
+            and expected
+            <= before_phase.completed_iterations
+            <= expected + MAX_SCHEDULER_BOUNDARY_OVERSHOOT
+            and expected
+            <= after_phase.completed_iterations
+            <= expected + MAX_SCHEDULER_BOUNDARY_OVERSHOOT
             and before_phase.requests >= before_phase.completed_iterations
             and after_phase.requests >= after_phase.completed_iterations
         )
-        if valid and before_phase.completed_iterations == expected:
+        if (
+            valid
+            and before_phase.completed_iterations == expected
+            and after_phase.completed_iterations == expected
+        ):
             reason = f"{phase} completed the fixed {expected}-iteration load"
         elif valid:
             reason = (
-                f"{phase} completed matching runs at or above the fixed "
-                f"{expected}-iteration minimum"
+                f"{phase} completed the fixed {expected}-iteration minimum within "
+                "the one-iteration scheduler boundary allowance "
+                f"(before: {before_phase.completed_iterations}, "
+                f"after: {after_phase.completed_iterations})"
             )
         else:
             reason = (
-                f"{phase} must complete the fixed {expected}-iteration load in both runs"
+                f"{phase} must complete {expected} to "
+                f"{expected + MAX_SCHEDULER_BOUNDARY_OVERSHOOT} iterations in both runs"
             )
         checks.append(
             BenchmarkCheck(

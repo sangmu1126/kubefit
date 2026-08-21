@@ -226,19 +226,39 @@ def test_kubectl_controller_uses_explicit_context_target_and_timeout(tmp_path: P
     commands: list[list[str]] = []
     manifest = tmp_path / "candidate.yaml"
     target = proposal_inputs()[2].report.target
-    controller = KubectlManifestController(
-        context="kind-kubefit",
-        runner=lambda command: (
-            commands.append(list(command))
-            or json.dumps(
+
+    def runner(command: list[str]) -> str:
+        commands.append(list(command))
+        if "pods" in command:
+            return json.dumps(
                 {
-                    "metadata": {
-                        "uid": "deployment-uid",
-                        "creationTimestamp": "2026-08-21T00:00:00Z",
-                    }
+                    "items": [
+                        {
+                            "metadata": {"name": "demo-new"},
+                            "status": {
+                                "phase": "Running",
+                                "containerStatuses": [{"name": "api", "ready": True}],
+                            },
+                        }
+                    ]
                 }
             )
-        ),
+        return json.dumps(
+            {
+                "metadata": {
+                    "uid": "deployment-uid",
+                    "creationTimestamp": "2026-08-21T00:00:00Z",
+                },
+                "spec": {
+                    "replicas": 1,
+                    "selector": {"matchLabels": {"app": "demo"}},
+                },
+            }
+        )
+
+    controller = KubectlManifestController(
+        context="kind-kubefit",
+        runner=runner,
         rollout_timeout_seconds=90,
     )
 
@@ -284,7 +304,89 @@ def test_kubectl_controller_uses_explicit_context_target_and_timeout(tmp_path: P
             "demo",
             "--timeout=90s",
         ],
+        [
+            "kubectl",
+            "--context",
+            "kind-kubefit",
+            "get",
+            "deployment",
+            "demo",
+            "--namespace",
+            "demo",
+            "--output",
+            "json",
+        ],
+        [
+            "kubectl",
+            "--context",
+            "kind-kubefit",
+            "get",
+            "pods",
+            "--namespace",
+            "demo",
+            "--selector",
+            "app=demo",
+            "--output",
+            "json",
+        ],
     ]
+
+
+def test_kubectl_controller_waits_for_terminating_rollout_pods() -> None:
+    pod_checks = 0
+    elapsed = 0.0
+
+    def runner(command: list[str]) -> str:
+        nonlocal pod_checks
+        if "pods" in command:
+            pod_checks += 1
+            items = [
+                {
+                    "metadata": {"name": "demo-new"},
+                    "status": {
+                        "phase": "Running",
+                        "containerStatuses": [{"name": "api", "ready": True}],
+                    },
+                }
+            ]
+            if pod_checks == 1:
+                items.append(
+                    {
+                        "metadata": {
+                            "name": "demo-old",
+                            "deletionTimestamp": "2026-08-22T00:00:00Z",
+                        },
+                        "status": {"phase": "Running"},
+                    }
+                )
+            return json.dumps({"items": items})
+        if "deployment" in command and "get" in command:
+            return json.dumps(
+                {
+                    "spec": {
+                        "replicas": 1,
+                        "selector": {"matchLabels": {"app": "demo"}},
+                    }
+                }
+            )
+        return "deployment successfully rolled out"
+
+    def sleep(seconds: float) -> None:
+        nonlocal elapsed
+        elapsed += seconds
+
+    controller = KubectlManifestController(
+        context="kind-kubefit",
+        runner=runner,
+        rollout_timeout_seconds=5,
+        clock=lambda: elapsed,
+        sleeper=sleep,
+    )
+
+    controller.wait_for_rollout(proposal_inputs()[2].report.target)
+
+    assert pod_checks == 2
+    assert elapsed == 1.0
 
 
 def test_kubectl_controller_requires_explicit_context() -> None:

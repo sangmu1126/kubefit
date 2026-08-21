@@ -111,7 +111,7 @@ _cpu_millicores = parse_cpu_millicores
 _memory_mib = parse_memory_mib
 
 
-def _label_selector(selector: dict[str, object]) -> str:
+def compile_label_selector(selector: dict[str, object]) -> str:
     match_labels = selector.get("matchLabels", {})
     if not isinstance(match_labels, dict):
         raise KubernetesCollectionError("selector matchLabels must be an object")
@@ -215,7 +215,7 @@ class KubectlDeploymentCollector:
                 "container must define CPU and memory requests and limits"
             )
 
-        label_selector = _label_selector(document["spec"]["selector"])
+        label_selector = compile_label_selector(document["spec"]["selector"])
         replica_sets_raw = self._runner(
             self._command(
                 "get", "replicasets", "-n", namespace, "-l", label_selector, "-o", "json"

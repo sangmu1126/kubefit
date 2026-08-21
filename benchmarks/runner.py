@@ -1,5 +1,6 @@
 import json
 import subprocess
+import time
 from collections.abc import Callable, Sequence
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +14,8 @@ from benchmarks.result import (
     BenchmarkVerdict,
     compare_benchmarks,
 )
+from collector import compile_label_selector
+from collector.kubernetes import KubernetesCollectionError
 from gitops.bundle import LoadedProposalBundle, load_proposal_bundle
 from gitops.manifest import ManifestTarget
 
@@ -54,6 +57,8 @@ MeasurementCollector = Callable[
     [LoadedProposalBundle, Literal["before", "after"]], CollectedMeasurement
 ]
 CommandRunner = Callable[[Sequence[str]], str]
+Clock = Callable[[], float]
+Sleeper = Callable[[float], None]
 
 
 class BenchmarkRun(BaseModel):
@@ -88,14 +93,22 @@ class KubectlManifestController:
         context: str,
         runner: CommandRunner | None = None,
         rollout_timeout_seconds: int = 120,
+        rollout_poll_interval_seconds: float = 1.0,
+        clock: Clock = time.monotonic,
+        sleeper: Sleeper = time.sleep,
     ) -> None:
         if not context:
             raise ValueError("kubectl context must be explicit")
         if rollout_timeout_seconds < 1:
             raise ValueError("rollout timeout must be at least one second")
+        if rollout_poll_interval_seconds <= 0:
+            raise ValueError("rollout poll interval must be positive")
         self._runner = runner or _run_command
         self._context = context
         self._rollout_timeout_seconds = rollout_timeout_seconds
+        self._rollout_poll_interval_seconds = rollout_poll_interval_seconds
+        self._clock = clock
+        self._sleeper = sleeper
 
     def _command(self, *args: str) -> list[str]:
         command = ["kubectl"]
@@ -153,6 +166,80 @@ class KubectlManifestController:
                 f"--timeout={self._rollout_timeout_seconds}s",
             )
         )
+        deadline = self._clock() + self._rollout_timeout_seconds
+        last_reason = "Pod state has not been checked"
+        while True:
+            stable, last_reason = self._pods_are_stable(target)
+            if stable:
+                return
+            if self._clock() >= deadline:
+                raise RuntimeError(
+                    "Deployment rollout completed but Pods did not stabilize before "
+                    f"measurement: {last_reason}"
+                )
+            self._sleeper(self._rollout_poll_interval_seconds)
+
+    def _pods_are_stable(self, target: ManifestTarget) -> tuple[bool, str]:
+        deployment_raw = self._runner(
+            self._command(
+                "get",
+                "deployment",
+                target.deployment,
+                "--namespace",
+                target.namespace,
+                "--output",
+                "json",
+            )
+        )
+        try:
+            deployment = json.loads(deployment_raw)
+            desired_replicas = deployment["spec"].get("replicas", 1)
+            selector_document = deployment["spec"]["selector"]
+        except (json.JSONDecodeError, KeyError, TypeError) as exc:
+            raise RuntimeError("Deployment rollout response is invalid") from exc
+        if not isinstance(desired_replicas, int) or desired_replicas < 1:
+            raise RuntimeError("benchmark Deployment must have at least one replica")
+        try:
+            selector = compile_label_selector(selector_document)
+        except KubernetesCollectionError as exc:
+            raise RuntimeError(f"Deployment selector is invalid: {exc}") from exc
+        pods_raw = self._runner(
+            self._command(
+                "get",
+                "pods",
+                "--namespace",
+                target.namespace,
+                "--selector",
+                selector,
+                "--output",
+                "json",
+            )
+        )
+        try:
+            pods = json.loads(pods_raw)["items"]
+        except (json.JSONDecodeError, KeyError, TypeError) as exc:
+            raise RuntimeError("Pod rollout response is invalid") from exc
+        if len(pods) != desired_replicas:
+            return False, f"expected {desired_replicas} Pods, found {len(pods)}"
+        for pod in pods:
+            metadata = pod.get("metadata", {})
+            name = metadata.get("name", "<unknown>")
+            if metadata.get("deletionTimestamp") is not None:
+                return False, f"Pod {name} is terminating"
+            status = pod.get("status", {})
+            if status.get("phase") != "Running":
+                return False, f"Pod {name} is not Running"
+            container_status = next(
+                (
+                    item
+                    for item in status.get("containerStatuses", [])
+                    if item.get("name") == target.container
+                ),
+                None,
+            )
+            if container_status is None or container_status.get("ready") is not True:
+                return False, f"container {target.container} in Pod {name} is not ready"
+        return True, "all rollout Pods are Running and ready"
 
 
 def execute_benchmark(

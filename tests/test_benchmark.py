@@ -254,7 +254,7 @@ def test_recovery_boundary(after_recovery: float, expected_status: str) -> None:
         {"variant": "before"},
         {"dropped_iterations": 1},
         {"steady": phase(300, 100, 110, completed=299)},
-        {"steady": phase(300, 100, 110, completed=301)},
+        {"steady": phase(300, 100, 110, completed=302, requests=302)},
         {"steady": phase(301, 100, 110, completed=301)},
         {"steady": phase(300, 100, 110, requests=299)},
     ],
@@ -267,18 +267,21 @@ def test_rejects_non_comparable_runs(after_overrides: dict[str, object]) -> None
     assert not any(check.status == "fail" for check in verdict.checks)
 
 
-def test_accepts_matching_boundary_overshoot_above_fixed_minimum() -> None:
+def test_accepts_one_iteration_boundary_overshoot_even_when_runs_differ() -> None:
     steady = phase(300, 100, 110, completed=301, requests=301)
     spike = phase(750, 200, 220, completed=751, requests=751)
     recovery = phase(300, 120, 130, completed=301, requests=301)
 
     verdict = compare_benchmarks(
         measurement("before", steady=steady, spike=spike, recovery=recovery),
-        measurement("after", steady=steady, spike=spike, recovery=recovery),
+        measurement("after"),
     )
 
     assert verdict.status == "pass"
     assert check_status(verdict, "steady_offered_load") == "pass"
+    assert "before: 301, after: 300" in next(
+        check.reason for check in verdict.checks if check.code == "steady_offered_load"
+    )
 
 
 def test_cost_increase_warns_without_failing_safety() -> None:
