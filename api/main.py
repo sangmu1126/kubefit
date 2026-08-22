@@ -1,12 +1,19 @@
 import os
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import FastAPI, HTTPException
+from fastapi import Path as ApiPath
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from benchmarks import BenchmarkReview, BenchmarkReviewRequest, review_benchmark_result
+from benchmarks import (
+    BenchmarkReview,
+    BenchmarkReviewRequest,
+    review_benchmark_result,
+    review_full_benchmark_result,
+)
 from evaluator import (
     AnalysisArtifact,
     AnalysisReview,
@@ -18,6 +25,7 @@ from evaluator import (
 from recommender import CurrentResources, ObservedUsage, ResourceRecommendation, recommend_resources
 
 _DASHBOARD_DIRECTORY_ENV = "KUBEFIT_DASHBOARD_DIRECTORY"
+_BENCHMARK_RESULTS_DIRECTORY_ENV = "KUBEFIT_BENCHMARK_RESULTS_DIRECTORY"
 
 
 class RecommendationRequest(BaseModel):
@@ -32,7 +40,14 @@ class EvaluationRequest(BaseModel):
     replica_count: int = Field(gt=0)
 
 
-def create_app(dashboard_directory: Path | None = None) -> FastAPI:
+def create_app(
+    dashboard_directory: Path | None = None,
+    benchmark_results_directory: Path | None = None,
+) -> FastAPI:
+    if benchmark_results_directory is not None:
+        benchmark_results_directory = _validate_benchmark_results_directory(
+            benchmark_results_directory
+        )
     application = FastAPI(
         title="KubeFit API",
         version="0.1.0",
@@ -67,6 +82,28 @@ def create_app(dashboard_directory: Path | None = None) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    @application.get(
+        "/v1/benchmark-results/{artifact_id}/review",
+        response_model=BenchmarkReview,
+    )
+    def review_stored_benchmark(
+        artifact_id: Annotated[
+            str, ApiPath(pattern=r"^benchmark-[0-9a-f]{32}$")
+        ],
+    ) -> BenchmarkReview:
+        if benchmark_results_directory is None:
+            raise HTTPException(
+                status_code=404,
+                detail="stored benchmark review is not configured",
+            )
+        result_path = benchmark_results_directory / artifact_id
+        if not result_path.exists():
+            raise HTTPException(status_code=404, detail="benchmark result was not found")
+        try:
+            return review_full_benchmark_result(result_path)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     if dashboard_directory is not None:
         index_file, assets_directory = _validate_dashboard_directory(
             dashboard_directory
@@ -95,9 +132,23 @@ def _validate_dashboard_directory(directory: Path) -> tuple[Path, Path]:
     return index_file, assets_directory
 
 
+def _validate_benchmark_results_directory(directory: Path) -> Path:
+    if directory.is_symlink() or not directory.is_dir():
+        raise RuntimeError("benchmark results directory must be a regular directory")
+    return directory.resolve()
+
+
 def _dashboard_directory_from_environment() -> Path | None:
     configured = os.environ.get(_DASHBOARD_DIRECTORY_ENV)
     return Path(configured) if configured else None
 
 
-app = create_app(_dashboard_directory_from_environment())
+def _benchmark_results_directory_from_environment() -> Path | None:
+    configured = os.environ.get(_BENCHMARK_RESULTS_DIRECTORY_ENV)
+    return Path(configured) if configured else None
+
+
+app = create_app(
+    _dashboard_directory_from_environment(),
+    _benchmark_results_directory_from_environment(),
+)

@@ -1,5 +1,10 @@
-import { ChangeEvent, FormEvent, useState } from "react";
-import { evaluateResources, reviewAnalysisArtifact, reviewBenchmarkArtifact } from "./api";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import {
+  evaluateResources,
+  fetchStoredBenchmarkReview,
+  reviewAnalysisArtifact,
+  reviewBenchmarkArtifact,
+} from "./api";
 import { eligibleScenario, insufficientScenario } from "./scenarios";
 import type {
   CheckStatus,
@@ -286,6 +291,7 @@ function metricRows(
 
 function BenchmarkResults({ review }: { review: BenchmarkReview }) {
   const verdict = review.verdict.status;
+  const fullArtifact = review.verification_level === "full_artifact_replay";
   const rows = metricRows(review.before, review.after);
   const candidateErrorRate = Math.max(
     review.after.steady.error_rate,
@@ -301,8 +307,11 @@ function BenchmarkResults({ review }: { review: BenchmarkReview }) {
           <p>proposal <strong>{review.proposal_id}</strong></p>
         </div>
         <div className="artifact-verification">
-          <span>인덱스 결합 검사 {review.checks.length}/{review.checks.length}</span>
-          <strong>INDEX-BOUND REPLAY</strong>
+          <span>
+            {fullArtifact ? "전체 번들 검사" : "인덱스 결합 검사"}{" "}
+            {review.checks.length}/{review.checks.length}
+          </span>
+          <strong>{fullArtifact ? "FULL ARTIFACT REPLAY" : "INDEX-BOUND REPLAY"}</strong>
           <code title={review.artifact_id}>{review.artifact_id}</code>
         </div>
         <details>
@@ -386,6 +395,36 @@ export default function App() {
   const [artifactLoading, setArtifactLoading] = useState(false);
   const [benchmarkLoading, setBenchmarkLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const artifactId = new URLSearchParams(window.location.search).get("benchmark");
+    if (artifactId === null) return;
+    if (!/^benchmark-[0-9a-f]{32}$/.test(artifactId)) {
+      setError("benchmark 링크의 artifact ID 형식이 올바르지 않습니다.");
+      return;
+    }
+    let active = true;
+    setBenchmarkLoading(true);
+    fetchStoredBenchmarkReview(artifactId)
+      .then((review) => {
+        if (active) setBenchmarkReview(review);
+      })
+      .catch((reason: unknown) => {
+        if (active) {
+          setError(
+            reason instanceof Error
+              ? reason.message
+              : "저장된 benchmark 결과 검증에 실패했습니다.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setBenchmarkLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const setCurrent = (key: keyof EvaluationRequest["current"], value: number) => {
     setRequest((previous) => ({

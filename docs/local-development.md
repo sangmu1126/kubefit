@@ -165,6 +165,48 @@ proof of uninterrupted live collection or percentile aggregation replay. Price
 values use `example://local-model` and must not be presented as provider prices or
 measured invoice savings.
 
+### Open a fully verified benchmark link
+
+After `kubefit benchmark` has produced an immutable result, restart the API with an
+explicit results root:
+
+```bash
+KUBEFIT_BENCHMARK_RESULTS_DIRECTORY=benchmarks/results \
+  uvicorn api.main:app --reload
+```
+
+Keep Vite running and open the exact result through:
+
+```text
+http://127.0.0.1:5173/?benchmark=benchmark-<digest>
+```
+
+The browser sends only the validated artifact ID. The API selects that child of the
+configured root and runs the complete filesystem loader before returning the review.
+The root must be a regular directory, result IDs cannot contain path components, and
+symlinked result directories are rejected. Missing configuration and unknown IDs return
+404 without exposing arbitrary filesystem paths.
+
+For the packaged image, mount the results read-only and use the same query on port 8000:
+
+```bash
+docker run --rm -p 8000:8000 \
+  -v "$PWD/benchmarks/results:/var/lib/kubefit/results:ro" \
+  -e KUBEFIT_BENCHMARK_RESULTS_DIRECTORY=/var/lib/kubefit/results \
+  kubefit:dev
+```
+
+```text
+http://127.0.0.1:8000/?benchmark=benchmark-<digest>
+```
+
+`FULL ARTIFACT REPLAY` means the server rechecked the exact file set, every payload
+size and SHA-256 digest, the aggregate content digest, raw k6/summary relationships,
+the generated report, and the policy verdict. It still does not make a controlled
+approximately 160-second run representative of production traffic. The environment
+variable exposes no artifacts unless an operator deliberately provisions the directory;
+KubeFit does not upload or host local evidence automatically.
+
 Verify the frontend independently with:
 
 ```bash

@@ -38,6 +38,7 @@ from benchmarks.review import (
     BenchmarkReviewCheck,
     BenchmarkReviewRequest,
     review_benchmark_result,
+    review_full_benchmark_result,
 )
 from benchmarks.runner import (
     BenchmarkExecutionError,
@@ -82,5 +83,6 @@ __all__ = [
     "recovery_from_k6_raw",
     "load_benchmark_result",
     "write_benchmark_result",
+    "review_full_benchmark_result",
     "review_benchmark_result",
 ]
