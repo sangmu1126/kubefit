@@ -1,9 +1,10 @@
 # 0043: Opening a fully verified benchmark review by URL
 
 - **Date:** 2026-08-22
-- **Status:** validated locally and in the packaged container
+- **Status:** validated locally, in the packaged container, and on GitHub-hosted runners
 - **Related phase:** Phase 6 — presentation layer and packaging
 - **Feature commit:** `7798a44 feat: open fully verified benchmark links`
+- **Draft PR:** [sangmu1126/kubefit#4](https://github.com/sangmu1126/kubefit/pull/4)
 
 ## Why
 
@@ -132,6 +133,20 @@ The running container was queried at
 | Packaged non-root API startup | Passed |
 | Real full result review | HTTP 200, `full_artifact_replay`, PASS, `-98.088%` |
 | Read-only result mount | Passed |
+| GitHub Actions run | [32553636654](https://github.com/sangmu1126/kubefit/actions/runs/32553636654), all four jobs passed |
+
+### GitHub-hosted validation
+
+Draft PR #4 targets `feat/benchmark-review-dashboard`, keeping the full-review slice to
+two commits and 16 files while PR #3 remains independently reviewable. GitHub reported the
+PR as Draft, open, and mergeable. Its first hosted run passed without a retry:
+
+| Job | Result | Duration |
+|---|---|---:|
+| Python | Passed | 23s |
+| Docker | Passed | 19s |
+| Dashboard | Passed | 17s |
+| Helm | Passed | 7s |
 
 ## Decision and limitations
 
