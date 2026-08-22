@@ -1,9 +1,10 @@
 # 0042: Reviewing indexed benchmark evidence in the dashboard
 
 - **Date:** 2026-08-22
-- **Status:** validated
+- **Status:** validated locally and on GitHub-hosted runners
 - **Related phase:** Phase 6 — presentation layer and packaging
 - **Feature commit:** `c6eb70a feat: review benchmark results in dashboard`
+- **Draft PR:** [sangmu1126/kubefit#3](https://github.com/sangmu1126/kubefit/pull/3)
 
 ## Why
 
@@ -145,6 +146,20 @@ four compact files.
 | Production Docker image build | Passed; dashboard and Python wheel packaged |
 | Real artifact replay | `benchmark-f84d…0247`, PASS, `-98.088%`, 5 review checks |
 | Selected bytes / complete bundle | 8,089 bytes / 6.7 MiB |
+| GitHub Actions run | [32552913335](https://github.com/sangmu1126/kubefit/actions/runs/32552913335), all four jobs passed |
+
+### GitHub-hosted validation
+
+Draft PR #3 targets `ci/quality-gates`, so its 14-file diff contains only the two
+benchmark-review commits rather than repeating the CI implementation from PR #2. GitHub
+reported the PR as Draft, open, and mergeable. Its first hosted run passed without a retry:
+
+| Job | Result | Duration |
+|---|---|---:|
+| Python | Passed | 33s |
+| Dashboard | Passed | 21s |
+| Docker | Passed | 21s |
+| Helm | Passed | 8s |
 
 ## Decision and limitations
 
