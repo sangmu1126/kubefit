@@ -197,16 +197,19 @@ Helm, and Docker CI jobs with read-only permissions, bounded execution, and
 commit-pinned external Actions. Entry
 [0042](devlog/0042-index-bound-benchmark-review.md) adds a compact API-replayed
 benchmark review and before/after visualization while explicitly separating indexed
-metadata binding from complete raw-evidence verification. Raw percentile replay,
-vulnerability policy, source provenance, signing, and external image/chart publication
-remain open.
+metadata binding from complete raw-evidence verification. Entry
+[0043](devlog/0043-shareable-full-benchmark-review.md) adds an operator-configured
+artifact-ID URL that reuses complete filesystem verification without automatically
+publishing local evidence. Raw percentile recomputation from Prometheus, vulnerability
+policy, source provenance, signing, and external image/chart publication remain open.
 
 **Goal:** make the completed workflow easy to install and demonstrate.
 
 - Add a small dashboard over the existing API after the CLI workflow is complete.
   Example review, v1 integrity review, v2 recommendation replay, and packaged
   delivery are complete. Indexed benchmark verdict replay is complete; raw percentile
-  replay remains explicitly out of scope.
+  replay remains explicitly out of scope. A configured stored result can now be opened
+  by artifact-ID query after full server-side verification.
 - Package KubeFit with a Helm chart and least-privilege read-only RBAC.
 - Document security boundaries, metric prerequisites, limitations, and rollback.
 
