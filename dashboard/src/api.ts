@@ -1,4 +1,10 @@
-import type { AnalysisReview, EvaluationRequest, EvaluationResult } from "./types";
+import type {
+  AnalysisReview,
+  BenchmarkReview,
+  BenchmarkReviewRequest,
+  EvaluationRequest,
+  EvaluationResult,
+} from "./types";
 
 async function responseError(response: Response, fallback: string): Promise<Error> {
   let message = `${fallback} (${response.status})`;
@@ -44,4 +50,20 @@ export async function reviewAnalysisArtifact(content: string): Promise<AnalysisR
   }
 
   return (await response.json()) as AnalysisReview;
+}
+
+export async function reviewBenchmarkArtifact(
+  request: BenchmarkReviewRequest,
+): Promise<BenchmarkReview> {
+  const response = await fetch("/v1/benchmark-reviews", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    throw await responseError(response, "benchmark 결과 검증 실패");
+  }
+
+  return (await response.json()) as BenchmarkReview;
 }
