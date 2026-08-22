@@ -188,3 +188,54 @@ def test_review_benchmark_rejects_tampered_selected_payload(tmp_path: Path) -> N
 
     assert response.status_code == 422
     assert "before.json" in response.text
+
+
+def test_review_stored_benchmark_fully_verifies_configured_result(tmp_path: Path) -> None:
+    _, run = completed_run(tmp_path)
+    published = write_benchmark_result(tmp_path / "results", run)
+    configured_client = TestClient(create_app(None, published.path.parent))
+
+    response = configured_client.get(
+        f"/v1/benchmark-results/{published.artifact_id}/review"
+    )
+
+    assert response.status_code == 200
+    review = response.json()
+    assert review["artifact_id"] == published.artifact_id
+    assert review["verification_level"] == "full_artifact_replay"
+    assert review["checks"][0]["code"] == "complete_artifact_integrity"
+
+
+def test_review_stored_benchmark_is_not_exposed_without_configuration() -> None:
+    response = client.get(
+        "/v1/benchmark-results/benchmark-00000000000000000000000000000000/review"
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "stored benchmark review is not configured"
+
+
+def test_review_stored_benchmark_rejects_unknown_or_invalid_identity(
+    tmp_path: Path,
+) -> None:
+    results = tmp_path / "results"
+    results.mkdir()
+    configured_client = TestClient(create_app(None, results))
+
+    unknown = configured_client.get(
+        "/v1/benchmark-results/benchmark-00000000000000000000000000000000/review"
+    )
+    invalid = configured_client.get("/v1/benchmark-results/../../etc/passwd/review")
+
+    assert unknown.status_code == 404
+    assert invalid.status_code in {404, 422}
+
+
+def test_app_rejects_unsafe_benchmark_results_root(tmp_path: Path) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    linked = tmp_path / "linked"
+    linked.symlink_to(target, target_is_directory=True)
+
+    with pytest.raises(RuntimeError, match="regular directory"):
+        create_app(None, linked)
