@@ -29,6 +29,15 @@ from benchmarks.pair import (
     CounterbalancedTrial,
     assess_counterbalanced_pair,
 )
+from benchmarks.pair_artifact import (
+    CounterbalancedPairArtifact,
+    CounterbalancedPairArtifactError,
+    CounterbalancedPairFileMetadata,
+    CounterbalancedPairIndex,
+    LoadedCounterbalancedPair,
+    load_counterbalanced_pair,
+    write_counterbalanced_pair,
+)
 from benchmarks.result import (
     BenchmarkCheck,
     BenchmarkMeasurement,
@@ -64,9 +73,14 @@ __all__ = [
     "BenchmarkMeasurementError",
     "CollectedMeasurement",
     "CounterbalancedPairAssessment",
+    "CounterbalancedPairArtifact",
+    "CounterbalancedPairArtifactError",
     "CounterbalancedPairCheck",
     "CounterbalancedPairError",
+    "CounterbalancedPairFileMetadata",
+    "CounterbalancedPairIndex",
     "CounterbalancedTrial",
+    "LoadedCounterbalancedPair",
     "BenchmarkPolicy",
     "BenchmarkRun",
     "BENCHMARK_RESULT_PAYLOAD_PATHS",
@@ -96,7 +110,9 @@ __all__ = [
     "execute_benchmark",
     "recovery_from_k6_raw",
     "load_benchmark_result",
+    "load_counterbalanced_pair",
     "write_benchmark_result",
+    "write_counterbalanced_pair",
     "review_full_benchmark_result",
     "review_benchmark_result",
 ]

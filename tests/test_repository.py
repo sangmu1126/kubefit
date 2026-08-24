@@ -4,14 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from benchmarks import write_benchmark_result
 from gitops import (
     RepositoryCommitError,
     commit_pull_request_plan,
     inspect_repository_plan,
 )
 from gitops.pull_request import build_pull_request_plan
-from tests.test_benchmark_artifact import completed_run
+from tests.test_benchmark_pair_artifact import publication_artifacts
 
 
 def git(root: Path, *args: str) -> str:
@@ -24,9 +23,8 @@ def git(root: Path, *args: str) -> str:
 
 
 def verified_plan(root: Path):
-    proposal, run = completed_run(root)
-    benchmark = write_benchmark_result(root / "results", run)
-    return build_pull_request_plan(proposal.path, benchmark.path)
+    proposal, benchmark, pair = publication_artifacts(root)
+    return build_pull_request_plan(proposal.path, benchmark.path, pair.path)
 
 
 def initialize_repository(root: Path, before_content: str) -> None:

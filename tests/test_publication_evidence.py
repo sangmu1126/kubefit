@@ -4,16 +4,14 @@ from pathlib import Path
 import pytest
 
 import api.cli as cli_module
-from benchmarks import write_benchmark_result
 from gitops import PublicationEvidenceError, verify_publication_evidence
 from gitops.pull_request import build_pull_request_plan
-from tests.test_benchmark_artifact import completed_run
+from tests.test_benchmark_pair_artifact import publication_artifacts
 
 
 def publication_evidence(tmp_path: Path):
-    proposal, run = completed_run(tmp_path / "artifacts")
-    benchmark = write_benchmark_result(tmp_path / "results", run)
-    plan = build_pull_request_plan(proposal.path, benchmark.path)
+    proposal, benchmark, pair = publication_artifacts(tmp_path / "artifacts")
+    plan = build_pull_request_plan(proposal.path, benchmark.path, pair.path)
     evidence = tmp_path / "evidence"
     evidence.mkdir()
     repository = "acme/workloads"
@@ -31,6 +29,8 @@ def publication_evidence(tmp_path: Path):
                 "status": "ready",
                 "proposal_id": plan.proposal_id,
                 "benchmark_id": plan.benchmark_id,
+                "benchmark_pair_id": plan.benchmark_pair_id,
+                "benchmark_ids": plan.benchmark_ids,
                 "planned_branch": plan.branch_name,
             },
             {
@@ -97,19 +97,21 @@ def publication_evidence(tmp_path: Path):
         f"{commit_sha}\trefs/heads/{plan.branch_name}\n"
     )
     (evidence / "github-pr.json").write_text(json.dumps(github))
-    return proposal.path, benchmark.path, evidence, plan
+    return proposal.path, benchmark.path, pair.path, evidence, plan
 
 
 def test_verifies_two_run_evidence_deterministically(tmp_path: Path) -> None:
-    proposal, benchmark, evidence, plan = publication_evidence(tmp_path)
+    proposal, benchmark, pair, evidence, plan = publication_evidence(tmp_path)
 
-    first = verify_publication_evidence(proposal, benchmark, evidence)
-    second = verify_publication_evidence(proposal, benchmark, evidence)
+    first = verify_publication_evidence(proposal, benchmark, pair, evidence)
+    second = verify_publication_evidence(proposal, benchmark, pair, evidence)
 
     assert first == second
     assert first.verification_id.startswith("publication-")
     assert first.proposal_id == plan.proposal_id
     assert first.benchmark_id == plan.benchmark_id
+    assert first.benchmark_pair_id == plan.benchmark_pair_id
+    assert first.benchmark_ids == plan.benchmark_ids
     assert first.branch == plan.branch_name
     assert first.pull_request_number == 42
     assert set(first.evidence_sha256) == {
@@ -122,30 +124,30 @@ def test_verifies_two_run_evidence_deterministically(tmp_path: Path) -> None:
 
 
 def test_rejects_mixed_publication_outputs(tmp_path: Path) -> None:
-    proposal, benchmark, evidence, _ = publication_evidence(tmp_path)
+    proposal, benchmark, pair, evidence, _ = publication_evidence(tmp_path)
     path = evidence / "second-publish.json"
     payload = json.loads(path.read_text())
     payload["commit_sha"] = "d" * 40
     path.write_text(json.dumps(payload))
 
     with pytest.raises(PublicationEvidenceError, match="publication commit_sha"):
-        verify_publication_evidence(proposal, benchmark, evidence)
+        verify_publication_evidence(proposal, benchmark, pair, evidence)
 
 
 @pytest.mark.parametrize("change", ["missing", "unexpected"])
 def test_rejects_non_exact_evidence_file_set(tmp_path: Path, change: str) -> None:
-    proposal, benchmark, evidence, _ = publication_evidence(tmp_path)
+    proposal, benchmark, pair, evidence, _ = publication_evidence(tmp_path)
     if change == "missing":
         (evidence / "remote-ref.txt").unlink()
     else:
         (evidence / "notes.txt").write_text("not part of the contract\n")
 
     with pytest.raises(PublicationEvidenceError, match="file set is invalid"):
-        verify_publication_evidence(proposal, benchmark, evidence)
+        verify_publication_evidence(proposal, benchmark, pair, evidence)
 
 
 def test_rejects_symlinked_evidence_file(tmp_path: Path) -> None:
-    proposal, benchmark, evidence, _ = publication_evidence(tmp_path)
+    proposal, benchmark, pair, evidence, _ = publication_evidence(tmp_path)
     target = evidence / "github-pr.json"
     content = target.read_bytes()
     target.unlink()
@@ -154,25 +156,25 @@ def test_rejects_symlinked_evidence_file(tmp_path: Path) -> None:
     target.symlink_to(outside)
 
     with pytest.raises(PublicationEvidenceError, match="non-symlinked"):
-        verify_publication_evidence(proposal, benchmark, evidence)
+        verify_publication_evidence(proposal, benchmark, pair, evidence)
 
 
 def test_rejects_github_pr_that_does_not_match_plan(tmp_path: Path) -> None:
-    proposal, benchmark, evidence, _ = publication_evidence(tmp_path)
+    proposal, benchmark, pair, evidence, _ = publication_evidence(tmp_path)
     path = evidence / "github-pr.json"
     payload = json.loads(path.read_text())
     payload["title"] = "edited after publication"
     path.write_text(json.dumps(payload))
 
     with pytest.raises(PublicationEvidenceError, match="title does not match"):
-        verify_publication_evidence(proposal, benchmark, evidence)
+        verify_publication_evidence(proposal, benchmark, pair, evidence)
 
 
 def test_verify_publication_cli_prints_content_addressed_result(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    proposal, benchmark, evidence, _ = publication_evidence(tmp_path)
+    proposal, benchmark, pair, evidence, _ = publication_evidence(tmp_path)
 
     cli_module.main(
         [
@@ -181,6 +183,8 @@ def test_verify_publication_cli_prints_content_addressed_result(
             str(proposal),
             "--benchmark",
             str(benchmark),
+            "--benchmark-pair",
+            str(pair),
             "--evidence-dir",
             str(evidence),
         ]
