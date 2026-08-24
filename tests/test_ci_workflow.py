@@ -1,9 +1,11 @@
 import re
+import tomllib
 from pathlib import Path
 
 import yaml
 
 WORKFLOW_PATH = Path(__file__).parents[1] / ".github" / "workflows" / "ci.yml"
+PROJECT_PATH = Path(__file__).parents[1] / "pyproject.toml"
 FULL_COMMIT_ACTION = re.compile(r"^[A-Za-z0-9_-]+/[A-Za-z0-9_-]+@[0-9a-f]{40}$")
 
 
@@ -36,6 +38,22 @@ def test_ci_exposes_independent_quality_gates() -> None:
         "helm": "10",
         "docker": "15",
     }
+
+
+def test_ci_checks_every_declared_python_minor_without_fail_fast() -> None:
+    python_job = load_workflow()["jobs"]["python"]
+    project = tomllib.loads(PROJECT_PATH.read_text())["project"]
+
+    assert project["requires-python"] == ">=3.12"
+    assert python_job["name"] == "Python ${{ matrix.python-version }}"
+    assert python_job["strategy"] == {
+        "fail-fast": "false",
+        "matrix": {"python-version": ["3.12", "3.13", "3.14"]},
+    }
+    setup = next(
+        step for step in python_job["steps"] if step["name"] == "Set up Python"
+    )
+    assert setup["with"]["python-version"] == "${{ matrix.python-version }}"
 
 
 def test_ci_pins_every_external_action_to_a_full_commit() -> None:
