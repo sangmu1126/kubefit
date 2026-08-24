@@ -68,6 +68,11 @@ percentile aggregation replay. Run it with the API using the commands in the
 packages its immutable production bundle into the same non-root API image used by
 Helm.
 
+Repository CI separates Python, dashboard, Helm, and Docker failures. The Docker gate
+does not stop at image construction: it starts the packaged image on an ephemeral
+loopback port, verifies the numeric non-root user, health endpoint, dashboard HTML, and
+disabled-by-default benchmark storage, then removes the exact temporary container.
+
 Benchmark results can be reviewed either by selecting a local result directory or
 through `/?benchmark=benchmark-<digest>`. A shareable query is enabled only when the
 API has an explicit read-only `KUBEFIT_BENCHMARK_RESULTS_DIRECTORY`. The server then

@@ -84,3 +84,5 @@ jobs:
         run: docker build --tag kubefit:ci .
       - name: Verify non-root runtime user
         run: test "$(docker image inspect kubefit:ci --format '{{.Config.User}}')" = "10001:10001"
+      - name: Smoke test packaged runtime
+        run: deploy/local/verify-image-runtime.sh kubefit:ci
