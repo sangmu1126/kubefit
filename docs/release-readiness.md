@@ -9,10 +9,12 @@ post-MVP work out of the release claim.
 | Field | Value |
 |---|---|
 | Candidate version | `0.1.0` |
-| Integrated commit | `caede3391ecf9e9d10633239857bd29bd3cf8991` |
+| Integrated feature baseline | `caede3391ecf9e9d10633239857bd29bd3cf8991` |
+| Release-documentation merge | `075c7220500ac760e17e3290f532b359986a7df7` |
 | Integration date | 2026-08-24 |
-| GitHub Actions | [run 32688444656](https://github.com/sangmu1126/kubefit/actions/runs/32688444656) |
-| Source status | MVP feature phases complete; release documentation pending |
+| Feature-baseline CI | [run 32688444656](https://github.com/sangmu1126/kubefit/actions/runs/32688444656) |
+| Documentation-merge CI | [run 32690444806](https://github.com/sangmu1126/kubefit/actions/runs/32690444806) |
+| Source status | MVP feature phases and release documentation complete |
 | Published artifacts | None; image and chart publication are post-MVP |
 
 ## Why the tag comes last
@@ -83,9 +85,14 @@ evidence.
 - [x] Real disposable-kind before/after benchmark recorded.
 - [x] Real idempotent Draft PR publication recorded.
 - [x] Scope exclusions and cost caveats stated in the repository.
-- [ ] Merge this release-readiness documentation into `main`.
-- [ ] Reconfirm the documentation merge's `main` CI run.
-- [ ] Create annotated tag `v0.1.0` from that verified commit.
+- [x] Merge this release-readiness documentation into `main` through PR #6.
+- [x] Reconfirm the documentation merge's `main` CI run.
+
+The annotated `v0.1.0` tag is a release operation performed after this source
+checklist is complete. Its target must be the final clean `main` commit, and that
+exact target must have a successful four-gate CI run. The pushed tag, rather than a
+self-referential hash embedded in its own source commit, is the authoritative release
+identity.
 
 ## Claims intentionally excluded from v0.1.0
 
