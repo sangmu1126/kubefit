@@ -103,13 +103,15 @@ after that version's final anonymous verification job has passed.
 
 Benchmark results can be reviewed either by selecting a local result directory or
 through `/?benchmark=benchmark-<digest>`. Counterbalanced pairs use
-`/?pair=benchmark-pair-<digest>`. Shareable queries are enabled only when the API has
-the corresponding explicit read-only `KUBEFIT_BENCHMARK_RESULTS_DIRECTORY` or
-`KUBEFIT_BENCHMARK_PAIRS_DIRECTORY`. The server revalidates the complete evidence
-before returning a review. Pair review plots both order-specific changes and their
-observed minimum–maximum range; it labels that range as two observations, not a
-confidence interval. KubeFit does not publish artifacts or make a local directory
-public automatically.
+`/?pair=benchmark-pair-<digest>`, and completed repeated campaigns use
+`/?campaign=benchmark-campaign-evidence-<digest>`. Shareable queries are enabled only
+when the API has the corresponding explicit read-only results, pairs, or
+`KUBEFIT_BENCHMARK_CAMPAIGN_EVIDENCE_DIRECTORY` root. The server revalidates the
+complete evidence before returning a review. Pair review plots both order-specific
+changes and their observed minimum–maximum range. Campaign review plots chronological
+block position and duration plus planned/observed starting order. Neither view calls
+its observations a confidence interval or aggregate effect. KubeFit does not publish
+artifacts or make a local directory public automatically.
 
 After building `kubefit:dev`, `deploy/local/generate-image-sbom.sh` resolves the
 mutable tag to its complete local image ID and publishes a verified SPDX 2.3

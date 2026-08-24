@@ -267,6 +267,9 @@ Entry [0058](devlog/0058-optional-campaign-pr-evidence.md) lets an operator expl
 bind that evidence to preflight, Draft PR body, publication output, and offline proof,
 while requiring the mandatory pair to belong to the campaign and leaving omission
 fully backward-compatible.
+Entry [0059](devlog/0059-campaign-review-dashboard.md) adds an opt-in, fully replayed
+campaign API and timeline that compares preregistered with observed block order and
+duration while making the absence of statistical aggregation machine-readable.
 
-Next, decide whether a read-only campaign dashboard adds enough review value without
-turning repeated evidence into an implied statistical aggregate.
+Next, decide how a campaign block can drill into its nested pair review without
+requiring a second storage root or weakening path containment.
