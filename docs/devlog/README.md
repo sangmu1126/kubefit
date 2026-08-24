@@ -71,6 +71,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0047](0047-interrupt-safe-benchmark-restoration.md) | Interrupt-safe benchmark restoration | Restore the original Deployment before propagating Ctrl+C |
 | [0048](0048-verified-public-package-release.md) | Verified public package release | Publish source-bound image/chart packages and prove anonymous pull access |
 | [0049](0049-apache-license-distribution.md) | Apache license distribution | Carry the official license through source, wheel, image, and README |
+| [0050](0050-hash-locked-python-environments.md) | Hash-locked Python environments | Separate and verify runtime, development, and build dependency snapshots |
 
 ## Visual language
 

@@ -493,8 +493,25 @@ the same image digest and chart version are anonymously accessible. GHCR visibil
 is an account-level owner action and is not silently broadened by the workflow.
 
 This establishes source and public-installation identity, not bit-for-bit build
-reproducibility. Python package ranges are still resolved during wheel construction
-and must be locked separately.
+reproducibility.
+
+## Python dependency boundary
+
+`pyproject.toml` keeps the supported dependency ranges exposed to package consumers,
+while KubeFit's own installation paths consume three reviewed snapshots:
+`requirements/runtime.lock`, `requirements/dev.lock`, and
+`requirements/build.lock`. Every entry is exact and hash-checked. CI and the Docker
+builder install build dependencies before disabling build isolation, so neither path
+can silently download a different Hatchling environment.
+
+The Docker builder turns only the runtime snapshot into dependency wheels and builds
+KubeFit itself with `--no-deps --no-build-isolation`. The runtime stage continues to
+install only from the local wheel directory. Development tools therefore stay out of
+the production image and package resolution does not occur in the final stage.
+
+The locks control Python distributions, not OS files, timestamps, or every byte of a
+container build. They narrow and expose the dependency input without claiming
+bit-for-bit reproducibility.
 
 ## License distribution boundary
 

@@ -119,10 +119,17 @@ Requires Python 3.12+.
 ```bash
 python -m venv .venv
 . .venv/bin/activate
-python -m pip install -e ".[dev]"
-pytest
+python -m pip install --require-hashes -r requirements/build.lock
+python -m pip install --require-hashes -r requirements/dev.lock
+python -m pip install --no-deps --no-build-isolation -e .
+python -m pip check
+pytest -q
 uvicorn api.main:app --reload
 ```
+
+Maintainers regenerate all three Python locks with `pip-tools==7.6.1` and
+`deploy/local/compile-python-locks.sh`; normal installs consume the reviewed locks
+rather than resolving compatible ranges again.
 
 Then open `http://localhost:8000/docs`. Use `POST /v1/recommendations` for the
 capacity result alone or `POST /v1/evaluations` for a recommendation plus an
