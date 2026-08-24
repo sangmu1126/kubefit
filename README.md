@@ -204,8 +204,10 @@ two extra iterations remains invalid. Request-cost change is reported separately
 cannot override safety.
 
 The benchmark execution core revalidates every proposal hash before cluster access,
-requires an explicit kubectl context, executes before and after sequentially, and
-reapplies the before manifest on every exit path after mutation starts. The CLI is
+requires an explicit kubectl context, executes a selected `before-after` or
+`after-before` sequence, and reapplies the before manifest on every exit path after
+mutation starts. Measurement timestamps must prove non-overlapping intervals and
+every single sequential result carries an order-bias warning. The CLI is
 restricted to an explicitly acknowledged disposable `kind-*` cluster and is not a
 production automation interface. After Kubernetes reports rollout completion, the
 runner also waits until exactly the desired number of selected Pods remain and every
@@ -230,6 +232,10 @@ the lock through restoration and result publication, then prints a compact JSON
 handoff. A rollout-safe local Service proxy, a Prometheus port-forward, and an
 existing immutable proposal are currently required; see
 [`docs/local-development.md`](docs/local-development.md).
+
+Operators can counterbalance time-order effects by running the same proposal once in
+each order. Those runs remain separate content-addressed artifacts; KubeFit does not
+yet aggregate their variance or require agreement automatically.
 
 `kubefit analyze` emits a typed schema v2 artifact binding aggregate observation,
 policy, and evaluation evidence to Deployment UID and creation time. Loading it
