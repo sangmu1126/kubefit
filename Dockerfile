@@ -12,6 +12,11 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 WORKDIR /build
 
 COPY pyproject.toml README.md LICENSE ./
+COPY requirements ./requirements
+RUN python -m pip install --no-cache-dir --require-hashes \
+        --requirement requirements/build.lock \
+    && python -m pip wheel --no-cache-dir --require-hashes --wheel-dir /wheels \
+        --requirement requirements/runtime.lock
 COPY api ./api
 COPY benchmarks ./benchmarks
 COPY collector ./collector
@@ -19,7 +24,8 @@ COPY evaluator ./evaluator
 COPY gitops ./gitops
 COPY recommender ./recommender
 
-RUN python -m pip wheel --no-cache-dir --wheel-dir /wheels .
+RUN python -m pip wheel --no-cache-dir --no-deps --no-build-isolation \
+        --wheel-dir /wheels .
 
 FROM python:3.14-slim@sha256:ce40764625a4ff50df3548277632e7f96c4e77fe75fa848aae9885476e7df5a4 AS runtime
 

@@ -235,7 +235,10 @@ multi-architecture image and OCI chart publisher with a credential-free anonymou
 pull/runtime gate. Live publication remains open until that hosted gate passes.
 Entry [0049](devlog/0049-apache-license-distribution.md) aligns the Apache-2.0
 declaration with a complete root license and carries it through wheel and image
-distribution without inventing an empty NOTICE file.
+distribution without inventing an empty NOTICE file. Entry
+[0050](devlog/0050-hash-locked-python-environments.md) then separates runtime,
+development, and build dependency snapshots, requires hashes in CI and Docker, and
+proves the same locks on Python 3.12 and 3.14.
 
-Next, lock Python dependencies, expand CI version coverage, and reduce benchmark
-measurement-order noise in risk order.
+Next, expand hosted CI version coverage and reduce benchmark measurement-order noise
+in risk order.

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.25"]
+requires = ["hatchling==1.32.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -23,7 +23,7 @@ kubefit = "api.cli:main"
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=8.3,<9",
+  "pytest>=9.0.3,<10",
   "ruff>=0.6,<1",
 ]
 

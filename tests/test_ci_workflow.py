@@ -59,7 +59,10 @@ def test_ci_runs_repository_verification_commands() -> None:
     }
 
     assert commands["python"] == [
-        "python -m pip install --editable '.[dev]'",
+        "python -m pip install --require-hashes --requirement requirements/build.lock",
+        "python -m pip install --require-hashes --requirement requirements/dev.lock",
+        "python -m pip install --no-deps --no-build-isolation --editable .",
+        "python -m pip check",
         "ruff check .",
         "pytest -q",
     ]
