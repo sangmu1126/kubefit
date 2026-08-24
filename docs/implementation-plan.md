@@ -270,6 +270,10 @@ fully backward-compatible.
 Entry [0059](devlog/0059-campaign-review-dashboard.md) adds an opt-in, fully replayed
 campaign API and timeline that compares preregistered with observed block order and
 duration while making the absence of statistical aggregation machine-readable.
+Entry [0060](devlog/0060-validation-informed-cpu-floor.md) records a live controlled
+demo in which the counterbalanced gate rejected an aggressive floor, adds a monotonic
+schema v2 reanalysis path, and preserves an incomplete repeated campaign instead of
+weakening latency policy or selecting favorable reruns.
 
 Next, decide how a campaign block can drill into its nested pair review without
 requiring a second storage root or weakening path containment.

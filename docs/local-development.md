@@ -317,6 +317,23 @@ non-order policy check states, and both individual verdicts pass. PASS prints th
 assessment, report, hashes, and complete copies of both result bundles. `fail` or
 `invalid` returns exit code 2 after printing the reasons and does not publish a pair.
 
+If an aggressive candidate fails, keep that immutable result and do not repeat the
+same trial until it passes. A documented workload-specific CPU floor can be raised
+from retained schema v2 evidence without recollecting or altering percentiles:
+
+```bash
+kubefit reanalyze \
+  --analysis .kubefit/analysis.json \
+  --minimum-cpu-millicores 20 \
+  > .kubefit/refined-analysis.json
+```
+
+`reanalyze` preserves the target, workload identity, observed usage, price assumptions,
+and every other policy input. It rejects schema v1 inputs and attempts to lower the
+previous CPU floor. Retain the failed benchmark as the reason for the override, create
+a new proposal, and preregister a new campaign before examining the refined candidate.
+The command does not turn a failed benchmark into a pass or authorize publication.
+
 ### Preregister repeated pair collection
 
 Do this before looking at any repeated-pair outcomes. Choose the number of pairs from
