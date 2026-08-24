@@ -26,7 +26,7 @@ class BenchmarkExecutionError(RuntimeError):
     def __init__(
         self,
         stage: str,
-        cause: Exception | None,
+        cause: BaseException | None,
         restoration_error: Exception | None = None,
     ) -> None:
         self.stage = stage
@@ -249,7 +249,7 @@ def execute_benchmark(
 ) -> BenchmarkRun:
     proposal = load_proposal_bundle(proposal_path)
     restore_required = False
-    primary_error: Exception | None = None
+    primary_error: BaseException | None = None
     primary_stage = "proposal_validation"
     result: BenchmarkRun | None = None
 
@@ -287,7 +287,9 @@ def execute_benchmark(
             after_k6_summary=after.k6_summary,
             after_k6_raw=after.k6_raw,
         )
-    except Exception as exc:
+    # Restoration is mandatory after the first apply even when the operator
+    # interrupts Python's normal Exception hierarchy with Ctrl+C.
+    except BaseException as exc:
         primary_error = exc
 
     restoration_error: Exception | None = None
@@ -305,6 +307,8 @@ def execute_benchmark(
             restoration_error=restoration_error,
         ) from restoration_error
     if primary_error is not None:
+        if not isinstance(primary_error, Exception):
+            raise primary_error
         raise BenchmarkExecutionError(primary_stage, primary_error) from primary_error
     if result is None:
         raise BenchmarkExecutionError("result", RuntimeError("benchmark produced no result"))
