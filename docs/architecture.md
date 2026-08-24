@@ -370,6 +370,20 @@ original campaign or pair roots. It also means raw k6 evidence is duplicated onc
 and a large planned campaign can consume substantial local disk. INCOMPLETE and INVALID
 checks print their structured decision but never create an evidence directory.
 
+An optional read-only review projection loads that entire artifact again and returns
+only campaign identity, COMPLETE status, stopping rule, checks, limitations, and one
+chronological record per block. Each record retains the pair ID, scheduled and observed
+first-trial order, two benchmark IDs, and measured start/finish timestamps. The response
+sets `aggregation_performed: false`; it contains no campaign mean, effect estimate,
+variance, confidence interval, or significance field.
+
+The dashboard turns those timestamps into relative horizontal position and duration
+inside the observed campaign window. Bar length therefore represents elapsed collection
+time, not effect size or performance. Access exists only when the operator configures a
+regular `KUBEFIT_BENCHMARK_CAMPAIGN_EVIDENCE_DIRECTORY`; the route validates the
+content-addressed ID and the loader rejects symlinks, extra files, hash drift, and nested
+semantic drift before a response is returned.
+
 The CLI accepts only an explicit `kind-*` context plus a required disposable-cluster
 acknowledgement. This is a product boundary rather than a claim that lower-level
 adapters are production safe. Locks coordinate only local cooperating processes;

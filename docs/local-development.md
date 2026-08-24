@@ -165,7 +165,7 @@ proof of uninterrupted live collection or percentile aggregation replay. Price
 values use `example://local-model` and must not be presented as provider prices or
 measured invoice savings.
 
-### Open a fully verified benchmark or pair link
+### Open a fully verified benchmark, pair, or campaign link
 
 After `kubefit benchmark` has produced an immutable result, restart the API with an
 explicit results root:
@@ -173,6 +173,7 @@ explicit results root:
 ```bash
 KUBEFIT_BENCHMARK_RESULTS_DIRECTORY=benchmarks/results \
 KUBEFIT_BENCHMARK_PAIRS_DIRECTORY=benchmarks/pairs \
+KUBEFIT_BENCHMARK_CAMPAIGN_EVIDENCE_DIRECTORY=benchmarks/campaign-evidence \
   uvicorn api.main:app --reload
 ```
 
@@ -181,14 +182,15 @@ Keep Vite running and open the exact result through:
 ```text
 http://127.0.0.1:5173/?benchmark=benchmark-<digest>
 http://127.0.0.1:5173/?pair=benchmark-pair-<digest>
+http://127.0.0.1:5173/?campaign=benchmark-campaign-evidence-<digest>
 ```
 
 The browser sends only one validated artifact ID. The API selects that child of the
 corresponding configured root and runs the complete filesystem loader before returning
 the review. Roots must be regular directories, IDs cannot contain path components, and
-symlinked artifact directories are rejected. Supplying `benchmark` and `pair` together
-is rejected as ambiguous. Missing configuration and unknown IDs return 404 without
-exposing arbitrary filesystem paths.
+symlinked artifact directories are rejected. Supplying more than one of `benchmark`,
+`pair`, and `campaign` is rejected as ambiguous. Missing configuration and unknown IDs
+return 404 without exposing arbitrary filesystem paths.
 
 For the packaged image, mount the evidence roots read-only and use the same queries on
 port 8000:
@@ -197,14 +199,17 @@ port 8000:
 docker run --rm -p 8000:8000 \
   -v "$PWD/benchmarks/results:/var/lib/kubefit/results:ro" \
   -v "$PWD/benchmarks/pairs:/var/lib/kubefit/pairs:ro" \
+  -v "$PWD/benchmarks/campaign-evidence:/var/lib/kubefit/campaign-evidence:ro" \
   -e KUBEFIT_BENCHMARK_RESULTS_DIRECTORY=/var/lib/kubefit/results \
   -e KUBEFIT_BENCHMARK_PAIRS_DIRECTORY=/var/lib/kubefit/pairs \
+  -e KUBEFIT_BENCHMARK_CAMPAIGN_EVIDENCE_DIRECTORY=/var/lib/kubefit/campaign-evidence \
   kubefit:dev
 ```
 
 ```text
 http://127.0.0.1:8000/?benchmark=benchmark-<digest>
 http://127.0.0.1:8000/?pair=benchmark-pair-<digest>
+http://127.0.0.1:8000/?campaign=benchmark-campaign-evidence-<digest>
 ```
 
 `FULL ARTIFACT REPLAY` means the server rechecked the exact file set, every payload
@@ -213,6 +218,12 @@ the generated report, and the policy verdict. It still does not make a controlle
 approximately 160-second run representative of production traffic. The environment
 variables expose no artifacts unless an operator deliberately provisions the
 directories; KubeFit does not upload or host local evidence automatically.
+
+`CAMPAIGN FULL ARTIFACT REPLAY` additionally rechecks the plan, every nested pair and
+benchmark, chronological non-overlap, schedule, and completion decision. Its horizontal
+bars show when each block occurred and how long its measurement window lasted. They do
+not compare performance magnitude. `aggregation_performed: false` is retained in the
+API contract, and the UI does not calculate an average or confidence interval.
 
 `PAIR FULL ARTIFACT REPLAY` additionally rechecks both embedded result bundles and
 the pair decision, then derives six lower-is-better signals. Each row places the two
