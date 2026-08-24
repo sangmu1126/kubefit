@@ -256,6 +256,10 @@ Entry [0055](devlog/0055-counterbalanced-metric-range-review.md) derives six
 order-aware metric comparisons after full replay and renders the two observed points,
 their direction, and minimum–maximum range in both the Draft PR and dashboard without
 calling it a confidence interval.
+Entry [0056](devlog/0056-preregistered-benchmark-campaign.md) freezes repeated-pair
+count, balanced randomized first-order schedule, and a complete-all stopping rule
+before collection, then verifies exact chronological evidence without calculating a
+statistical effect.
 
-Next, define a repeated-pair collection protocol before adding any variance or
-confidence statistic.
+Next, decide whether completed campaign evidence should remain an optional advanced
+review or become a stricter publication gate.

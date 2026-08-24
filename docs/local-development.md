@@ -306,6 +306,49 @@ non-order policy check states, and both individual verdicts pass. PASS prints th
 assessment, report, hashes, and complete copies of both result bundles. `fail` or
 `invalid` returns exit code 2 after printing the reasons and does not publish a pair.
 
+### Preregister repeated pair collection
+
+Do this before looking at any repeated-pair outcomes. Choose the number of pairs from
+the experiment's time budget and decision risk; KubeFit deliberately does not label a
+particular count statistically sufficient. Generate at least 16 bytes of seed outside
+the repository and create the immutable schedule:
+
+```bash
+umask 077
+openssl rand 32 > /tmp/kubefit-campaign.seed
+
+kubefit benchmark-campaign-plan \
+  --proposal .kubefit/proposals/proposal-<digest> \
+  --planned-pairs 4 \
+  --randomization-seed-file /tmp/kubefit-campaign.seed \
+  --output-dir benchmarks/campaigns
+```
+
+The command does not run a benchmark. Read `report.md`, then execute every block in
+the printed order using `kubefit benchmark --execution-order ...` twice followed by
+`kubefit benchmark-pair`. Keep cluster version, node shape, proposal, load profile,
+traffic source, and cost inputs fixed. If a processing failure produces no PASS pair,
+repeat that same preregistered block rather than changing the schedule.
+
+Check progress by repeating `--pair` for every completed block. Input path order does
+not matter because verified measurement timestamps determine block order:
+
+```bash
+kubefit benchmark-campaign-check \
+  --plan benchmarks/campaigns/benchmark-campaign-<digest> \
+  --pair benchmarks/pairs/benchmark-pair-<block-1-digest> \
+  --pair benchmarks/pairs/benchmark-pair-<block-2-digest> \
+  --pair benchmarks/pairs/benchmark-pair-<block-3-digest> \
+  --pair benchmarks/pairs/benchmark-pair-<block-4-digest>
+```
+
+`complete` returns exit 0. A valid prefix is `incomplete` and returns exit 2, preventing
+results-based early stopping from looking complete. Duplicate evidence, extra pairs,
+overlapping trial/block times, a different proposal, profile or cost basis, and a
+first-order schedule mismatch are `invalid` and also return exit 2. The checker does
+not calculate an average, variance, confidence interval, or publication authorization.
+The seed hash commits to the supplied seed but cannot prove how randomly it was chosen.
+
 ## Publish a verified Draft PR
 
 Publication requires a passing immutable benchmark result, a passing immutable pair

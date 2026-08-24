@@ -246,6 +246,15 @@ The same verified pair supplies an order-aware metric table in the Draft PR and 
 read-only dashboard plot. It reports whether both changes improved, regressed, stayed
 equal, or pointed in different directions, without averaging the two trials.
 
+Repeated evidence can be preregistered with `kubefit benchmark-campaign-plan`. The
+immutable plan fixes an explicit pair count, balances and randomizes which execution
+order starts each time block, and requires every planned block before completion.
+`kubefit benchmark-campaign-check` fully reloads supplied pair artifacts and rejects
+duplicates, proposal/profile/cost drift, overlapping time blocks, schedule violations,
+and outcome-dependent early stopping. Campaign completion is optional advanced
+evidence: it does not yet compute variance or replace the mandatory single-pair
+publication gate.
+
 `kubefit analyze` emits a typed schema v2 artifact binding aggregate observation,
 policy, and evaluation evidence to Deployment UID and creation time. Loading it
 replays the saved recommendation decision. `kubefit propose` consumes that identity

@@ -323,6 +323,38 @@ delta rather than an infinite or fabricated percent. The PR body and dashboard c
 this same projection and explicitly state that two observations are not a confidence
 interval or variance estimate.
 
+## Preregistered repeated-pair campaigns
+
+A campaign treats each complete opposite-order pair as one time block. Before any
+measurement, `benchmark-campaign-plan` binds a proposal, explicit count from 2 to 100,
+a balanced randomized first-trial schedule, and the fixed stopping rule
+`complete_all_planned_pairs` into an immutable `benchmark-campaign-<digest>` artifact.
+The seed arrives through a regular file; only its SHA-256 commitment is retained.
+
+```mermaid
+flowchart LR
+    S[Seed file] --> P[Immutable campaign plan]
+    Q[Proposal] --> P
+    P --> B1[Block 1: randomized first order]
+    P --> B2[Block 2: randomized first order]
+    P --> BN[Block N: randomized first order]
+    B1 --> C[Campaign completion check]
+    B2 --> C
+    BN --> C
+```
+
+The completion check sorts fully replayed pair artifacts by measurement time. It
+requires unique pair and benchmark IDs, one proposal, identical load profile and cost
+bases, non-overlapping trials and blocks, the preregistered first-order sequence, and
+the exact planned count. Fewer pairs are `incomplete`; extra pairs or a broken contract
+are `invalid`. It does not select favorable blocks, calculate an aggregate effect, or
+contact Kubernetes.
+
+The campaign ID proves the plan bytes were frozen, not that the seed had good entropy
+or was chosen independently of desired schedules. The minimum of two pairs means only
+that a treatment was replicated; it is not a power calculation or confidence claim.
+Campaign evidence remains optional and is not part of the GitOps publication gate.
+
 The CLI accepts only an explicit `kind-*` context plus a required disposable-cluster
 acknowledgement. This is a product boundary rather than a claim that lower-level
 adapters are production safe. Locks coordinate only local cooperating processes;
