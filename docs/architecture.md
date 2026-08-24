@@ -49,7 +49,9 @@ archive; deleting the cluster deletes the claim and restarts coverage accumulati
 - Memory limit: 1.5x recommended request
 - Enforce small non-zero floors for idle or incomplete observations
 - Calculate each percentile per Pod and retain the busiest Pod's value
+- Pair CPU and memory samples by both Pod identity and timestamp
 - Require 70% observation coverage and at least 100 metric samples
+- Require every current Pod to contribute its share of the 100-sample floor
 - Require desired, available, and observed replica counts to match
 - Require CPU throttling coverage and samples to meet the same thresholds
 - Require target-container status for every desired replica
@@ -109,11 +111,18 @@ larger of that value and the policy's 100-sample floor.
 
 ```text
 required = max(100, ceil(points-per-Pod × desired replicas × 70%))
-remaining intervals = ceil(max(usage deficit, throttling deficit) / replicas)
+required per current Pod = ceil(100 / desired replicas)
+remaining intervals = max(aggregate deficit / replicas, current-Pod deficit)
 ```
 
-An estimate is emitted only when replicas, usage/throttling Pod coverage, and
-container statuses are complete and no high-risk signal is already present.
+Aggregate samples count only CPU/memory observations with matching Pod identities
+and timestamps. Historical authorized rollout Pods may support the aggregate window
+and busiest-Pod percentile, but only current Pod identities satisfy Pod coverage.
+The least-observed current Pod must independently reach the per-Pod floor for both
+usage and throttling.
+
+An estimate is emitted only when replicas, usage/throttling current-Pod coverage,
+and container statuses are complete and no high-risk signal is already present.
 Otherwise the status is `blocked`, because passage of time alone is not a defensible
 remediation. Estimates remain projections: a rollout, scrape gap, OOM, throttling
 change, or replica change invalidates their assumptions.

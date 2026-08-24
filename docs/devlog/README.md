@@ -67,6 +67,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0043](0043-shareable-full-benchmark-review.md) | Shareable full benchmark review | Open a configured result by artifact-ID URL after complete server-side verification |
 | [0044](0044-packaged-runtime-ci-gate.md) | Packaged runtime CI gate | Start the built image and verify health, dashboard, defaults, logs, and cleanup |
 | [0045](0045-integrated-release-boundary.md) | Integrated release boundary | Map the merged MVP to exact evidence, exclusions, and a tag-ready checklist |
+| [0046](0046-pod-bound-prometheus-evidence.md) | Pod-bound Prometheus evidence | Pair CPU and memory by Pod/time and reject current-replica sample skew |
 
 ## Visual language
 
