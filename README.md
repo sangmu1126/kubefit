@@ -142,6 +142,23 @@ vulnerability scan or signature.
 
 Requires Python 3.12+.
 
+### Open the packaged review dashboard
+
+The published image contains both FastAPI and the React review dashboard. No local
+Node.js or Kubernetes cluster is required for the editable review scenario:
+
+```bash
+docker run --rm -p 127.0.0.1:8000:8000 \
+  ghcr.io/sangmu1126/kubefit:0.2.0
+```
+
+Open `http://127.0.0.1:8000`. This default screen evaluates editable example inputs
+through the API and does not collect from or mutate a cluster. A fully replayed stored
+benchmark or pair additionally requires its read-only evidence directory; follow the
+[local dashboard guide](docs/local-development.md#open-a-fully-verified-benchmark-pair-or-campaign-link).
+
+### Install the development environment
+
 ```bash
 python -m venv .venv
 . .venv/bin/activate
