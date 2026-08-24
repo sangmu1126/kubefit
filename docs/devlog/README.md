@@ -69,6 +69,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0045](0045-integrated-release-boundary.md) | Integrated release boundary | Map the merged MVP to exact evidence, exclusions, and a tag-ready checklist |
 | [0046](0046-pod-bound-prometheus-evidence.md) | Pod-bound Prometheus evidence | Pair CPU and memory by Pod/time and reject current-replica sample skew |
 | [0047](0047-interrupt-safe-benchmark-restoration.md) | Interrupt-safe benchmark restoration | Restore the original Deployment before propagating Ctrl+C |
+| [0048](0048-verified-public-package-release.md) | Verified public package release | Publish source-bound image/chart packages and prove anonymous pull access |
 
 ## Visual language
 

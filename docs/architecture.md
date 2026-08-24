@@ -463,3 +463,35 @@ impersonation must allow exactly Deployment `get`, ReplicaSet `list`, and Pod `l
 Pod watch, Secret get, Deployment update, and Pod list in `monitoring` must remain
 denied. A final reset removes Role/RoleBinding and token automount, then repeats the
 initial denial. An EXIT trap attempts the same restoration after interruption.
+
+## Public package release boundary
+
+Package publication starts only from an existing annotated `vMAJOR.MINOR.PATCH`
+tag whose target is reachable from `main`. The tag version must equal the Python
+project version, Helm chart version, and chart `appVersion`. The release never
+creates or moves a source tag.
+
+The image publisher uses digest-pinned Node and Python base indexes and emits one
+multi-architecture image index for `linux/amd64` and `linux/arm64`. It publishes
+only the semantic version and `sha-<full source commit>` tags, plus BuildKit SBOM and
+provenance attestations. The matching chart is published under
+`oci://ghcr.io/sangmu1126/charts/kubefit`.
+
+```mermaid
+flowchart LR
+    Tag[Annotated source tag] --> Contract[Version + main ancestry contract]
+    Contract --> Image[GHCR image + attestations]
+    Contract --> Chart[OCI Helm chart]
+    Image --> Anonymous[Credential-free verification job]
+    Chart --> Anonymous
+    Anonymous --> Runtime[Digest + pull + runtime smoke + helm pull]
+```
+
+The verification job has no package permission and performs no registry login. A
+successful publish is therefore not sufficient: release status remains failed until
+the same image digest and chart version are anonymously accessible. GHCR visibility
+is an account-level owner action and is not silently broadened by the workflow.
+
+This establishes source and public-installation identity, not bit-for-bit build
+reproducibility. Python package ranges are still resolved during wheel construction
+and must be locked separately.

@@ -92,6 +92,13 @@ does not stop at image construction: it starts the packaged image on an ephemera
 loopback port, verifies the numeric non-root user, health endpoint, dashboard HTML, and
 disabled-by-default benchmark storage, then removes the exact temporary container.
 
+The separate `Release packages` workflow accepts only an existing annotated semantic
+version tag that matches the Python and Helm versions. It publishes an amd64/arm64
+GHCR image and OCI Helm chart, then uses a fresh job without package permission to
+verify the image digest, anonymous pull/runtime, and anonymous chart pull. The
+workflow is a release mechanism, not current publication evidence; use a version only
+after that version's final anonymous verification job has passed.
+
 Benchmark results can be reviewed either by selecting a local result directory or
 through `/?benchmark=benchmark-<digest>`. A shareable query is enabled only when the
 API has an explicit read-only `KUBEFIT_BENCHMARK_RESULTS_DIRECTORY`. The server then

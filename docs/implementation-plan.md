@@ -229,7 +229,10 @@ pairing CPU/memory evidence, and gating extreme current-Pod sample skew. The
 immutable `v0.1.0` source tag remains unchanged; these fixes target a later patch
 release. Entry [0047](devlog/0047-interrupt-safe-benchmark-restoration.md) then
 closes the benchmark interruption gap by restoring the original Deployment before
-propagating Ctrl+C and retaining both causes if restoration fails.
+propagating Ctrl+C and retaining both causes if restoration fails. Entry
+[0048](devlog/0048-verified-public-package-release.md) adds a source-bound
+multi-architecture image and OCI chart publisher with a credential-free anonymous
+pull/runtime gate. Live publication remains open until that hosted gate passes.
 
-Next, address public package reproducibility, then licensing, dependency pins, CI
-version coverage, and measurement-order noise in risk order.
+Next, add the declared root license, then lock Python dependencies, expand CI version
+coverage, and reduce benchmark measurement-order noise in risk order.
