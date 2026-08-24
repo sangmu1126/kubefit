@@ -276,7 +276,20 @@ The two commands counterbalance chronological order but publish independent resu
 artifacts. Every artifact records its actual order and emits a warning because one
 sequential trial cannot separate resource effects from warm-up or time drift. KubeFit
 does not yet aggregate the pair or require their verdicts to agree; compare both
-before selecting evidence for a Draft PR.
+before selecting evidence for a Draft PR. The read-only pair command performs that
+identity, order, and policy-state comparison:
+
+```bash
+kubefit benchmark-pair \
+  --first benchmarks/results/benchmark-<before-first-digest> \
+  --second benchmarks/results/benchmark-<candidate-first-digest>
+```
+
+The JSON status is `pass` only when both fully verified artifacts reference the same
+proposal, use opposite orders and identical profile/cost bases, expose identical
+non-order policy check states, and both individual verdicts pass. `fail` or `invalid`
+returns exit code 2 after printing the reasons. This assessment is not yet a required
+input to `publish` or `publish-check`.
 
 ## Publish a verified Draft PR
 

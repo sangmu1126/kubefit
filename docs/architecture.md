@@ -304,7 +304,11 @@ stores measurements by logical role rather than chronological position, validate
 that their retained wall-clock intervals do not overlap, and emits a warning naming
 which role ran first. Either sequence still ends by applying and waiting for the
 baseline manifest. Opposite-order artifacts can be inspected together, but no paired
-aggregate or cross-order agreement gate exists yet.
+metric aggregate exists. The read-only pair assessor fully verifies both artifacts,
+requires a shared proposal, opposite orders, and matching profile/cost bases, then
+compares every non-order policy check status and requires both verdicts to pass. Its
+canonical result is content-addressed independently of argument order. It is not yet
+persisted or connected to the publication preflight.
 
 The CLI accepts only an explicit `kind-*` context plus a required disposable-cluster
 acknowledgement. This is a product boundary rather than a claim that lower-level
