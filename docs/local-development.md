@@ -122,6 +122,34 @@ restart and OOMKilled counts from the current target-container statuses. A quiet
 cluster still reports `unknown` rather than `low` until both usage and throttling
 windows satisfy the readiness gates.
 
+## Replay the published pair without a cluster
+
+The shortest reproducible dashboard path requires Docker, `curl`, and `tar`, but does
+not require kind, Prometheus, Python, or Node.js:
+
+```bash
+./deploy/local/run-verified-pair-demo.sh
+```
+
+The script downloads `kubefit-demo-evidence-v0.2.0.tar.gz` from the public `v0.2.0`
+GitHub Release into the ignored `.kubefit/demo/` cache. It accepts the archive only
+when its SHA-256 is
+`c646b4483083f8fcedafb397d1cc2355391bc9f98b15a6b157e22b30f2793239`, rejects unsafe
+archive paths, mounts the extracted pair read-only, and starts
+`ghcr.io/sangmu1126/kubefit:0.2.0` on loopback port 8000. The printed URL selects the
+exact counterbalanced pair automatically.
+
+Use another port when necessary:
+
+```bash
+KUBEFIT_DEMO_PORT=18001 ./deploy/local/run-verified-pair-demo.sh
+```
+
+The first run downloads the pinned image and 507 KB evidence archive. Later runs reuse
+the digest-verified cache. Ctrl+C shuts down and removes only the demo container. This
+flow replays retained controlled-demo evidence; it does not collect new metrics,
+contact a cluster, establish statistical significance, or deploy Draft PR #23.
+
 ## Review an evaluation in the dashboard
 
 The first dashboard slice is a local review surface over the existing evaluation
