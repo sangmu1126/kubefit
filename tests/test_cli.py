@@ -301,11 +301,32 @@ def test_benchmark_campaign_check_is_machine_enforceable(
             assert indent == 2
             return json.dumps({"status": status})
 
+        def model_dump(self, *, mode: str) -> dict[str, str]:
+            assert mode == "json"
+            return {"status": status}
+
     Completion.status = status
     monkeypatch.setattr(
         cli_module,
         "assess_benchmark_campaign",
         lambda plan, pairs: calls.append((plan, pairs)) or Completion(),
+    )
+    monkeypatch.setattr(
+        cli_module,
+        "write_benchmark_campaign_evidence",
+        lambda output, plan, pairs: SimpleNamespace(
+            artifact_id="benchmark-campaign-evidence-" + "a" * 32,
+            path=output / ("benchmark-campaign-evidence-" + "a" * 32),
+            reused=False,
+            files=["evidence.json"],
+        ),
+    )
+    monkeypatch.setattr(
+        cli_module,
+        "load_benchmark_campaign_evidence",
+        lambda path: SimpleNamespace(
+            completion=SimpleNamespace(pair_ids=["benchmark-pair-" + "b" * 32])
+        ),
     )
     arguments = [
         "benchmark-campaign-check",
@@ -315,6 +336,8 @@ def test_benchmark_campaign_check_is_machine_enforceable(
         "pair-one",
         "--pair",
         "pair-two",
+        "--output-dir",
+        "campaign-evidence",
     ]
 
     if exit_code is None:
@@ -325,7 +348,15 @@ def test_benchmark_campaign_check_is_machine_enforceable(
         assert raised.value.code == exit_code
 
     assert calls == [(Path("campaign"), [Path("pair-one"), Path("pair-two")])]
-    assert json.loads(capsys.readouterr().out) == {"status": status}
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == status
+    if status == "complete":
+        assert output["artifact_id"].startswith("benchmark-campaign-evidence-")
+        assert output["path"].startswith("campaign-evidence/")
+        assert output["reused"] is False
+        assert output["files"] == ["evidence.json"]
+    else:
+        assert output == {"status": status}
 
 
 def test_readiness_prints_machine_readable_collection_progress(
