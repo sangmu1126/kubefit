@@ -64,6 +64,16 @@ def _positive_decimal(value: str) -> Decimal:
     return parsed
 
 
+def _positive_int(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be an integer") from exc
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
+
+
 def _environment_variable_name(value: str) -> str:
     if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", value):
         raise argparse.ArgumentTypeError("must be a valid environment variable name")
@@ -85,6 +95,14 @@ def build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("--memory-gib-hour-usd", required=True, type=_positive_decimal)
     analyze.add_argument("--monthly-hours", type=_positive_decimal, default=Decimal("730"))
     analyze.add_argument("--price-source", required=True)
+    reanalyze = subcommands.add_parser(
+        "reanalyze",
+        help="derive a stricter analysis from retained replay inputs without recollection",
+    )
+    reanalyze.add_argument("--analysis", required=True, type=Path)
+    reanalyze.add_argument(
+        "--minimum-cpu-millicores", required=True, type=_positive_int
+    )
     readiness = subcommands.add_parser(
         "readiness", help="explain whether observation evidence is proposal-ready"
     )
@@ -232,6 +250,9 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "readiness":
         _run_readiness(args)
         return
+    if args.command == "reanalyze":
+        _run_reanalyze(args)
+        return
     _run_analyze(args)
 
 
@@ -253,6 +274,14 @@ def _add_observation_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--step-seconds", type=int)
     parser.add_argument("--identity-store", type=Path)
     parser.add_argument("--context")
+    parser.add_argument(
+        "--minimum-cpu-millicores",
+        type=_positive_int,
+        help=(
+            "explicit recommendation floor retained in the replayable policy; "
+            "use only with documented workload-specific validation evidence"
+        ),
+    )
 
 
 def _collect_observation(
@@ -318,6 +347,11 @@ def _collect_observation(
 def _observation_configuration(
     args: argparse.Namespace,
 ) -> tuple[int | float, int, RecommendationPolicy]:
+    minimum_cpu_millicores = (
+        args.minimum_cpu_millicores
+        if args.minimum_cpu_millicores is not None
+        else RecommendationPolicy().minimum_cpu_millicores
+    )
     if args.observation_profile == "demo":
         if args.days is not None or args.step_seconds is not None:
             raise SystemExit(
@@ -330,12 +364,13 @@ def _observation_configuration(
             RecommendationPolicy(
                 minimum_observation_coverage=0.9,
                 minimum_sample_count=100,
+                minimum_cpu_millicores=minimum_cpu_millicores,
             ),
         )
     return (
         args.days if args.days is not None else 7,
         args.step_seconds if args.step_seconds is not None else 300,
-        RecommendationPolicy(),
+        RecommendationPolicy(minimum_cpu_millicores=minimum_cpu_millicores),
     )
 
 
@@ -363,6 +398,42 @@ def _run_analyze(args: argparse.Namespace) -> None:
         ),
         workload_uid=workload.uid,
         workload_created_at=workload.created_at,
+        evaluation=evaluation,
+        observed_usage=observed,
+        recommendation_policy=RecommendationPolicySnapshot.from_policy(policy),
+    )
+    print(result.model_dump_json(indent=2))
+
+
+def _run_reanalyze(args: argparse.Namespace) -> None:
+    if args.analysis.is_symlink() or not args.analysis.is_file():
+        raise SystemExit("analysis must be a regular, non-symlinked JSON file")
+    try:
+        previous = AnalysisArtifact.model_validate_json(args.analysis.read_bytes())
+    except (OSError, ValueError) as exc:
+        raise SystemExit(f"analysis JSON is invalid: {exc}") from exc
+    if previous.schema_version != 2:
+        raise SystemExit("reanalyze requires schema v2 replay inputs")
+    observed = previous.observed_usage
+    snapshot = previous.recommendation_policy
+    assert observed is not None and snapshot is not None
+    if args.minimum_cpu_millicores < snapshot.minimum_cpu_millicores:
+        raise SystemExit("reanalyze cannot lower the retained CPU recommendation floor")
+    policy_values = snapshot.model_dump(exclude={"algorithm"})
+    policy_values["minimum_cpu_millicores"] = args.minimum_cpu_millicores
+    policy = RecommendationPolicy(**policy_values)
+    evaluation = evaluate_resources(
+        previous.evaluation.current,
+        observed,
+        previous.evaluation.cost.assumptions,
+        previous.evaluation.cost.replica_count,
+        policy,
+    )
+    result = AnalysisArtifact(
+        schema_version=2,
+        target=previous.target,
+        workload_uid=previous.workload_uid,
+        workload_created_at=previous.workload_created_at,
         evaluation=evaluation,
         observed_usage=observed,
         recommendation_policy=RecommendationPolicySnapshot.from_policy(policy),
