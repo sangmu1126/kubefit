@@ -32,6 +32,7 @@ from benchmarks.result import (
     MeasurementProvenance,
     RuntimeBenchmarkSignals,
     compare_benchmarks,
+    measurement_order,
 )
 from benchmarks.review import (
     BenchmarkReview,
@@ -79,6 +80,7 @@ __all__ = [
     "SubprocessK6Executor",
     "TimedK6Result",
     "compare_benchmarks",
+    "measurement_order",
     "execute_benchmark",
     "recovery_from_k6_raw",
     "load_benchmark_result",

@@ -9,7 +9,12 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from benchmarks.measurement import CollectedMeasurement
-from benchmarks.result import BenchmarkMeasurement, BenchmarkVerdict, compare_benchmarks
+from benchmarks.result import (
+    BenchmarkMeasurement,
+    BenchmarkVerdict,
+    compare_benchmarks,
+    measurement_order,
+)
 from benchmarks.runner import BenchmarkRun
 
 
@@ -265,12 +270,14 @@ def _result_payloads(run: BenchmarkRun) -> dict[str, bytes]:
 def _render_report(run: BenchmarkRun) -> str:
     before = run.before
     after = run.after
+    order = measurement_order(before, after) or "overlapping-or-unknown"
     lines = [
         "# KubeFit benchmark result",
         "",
         f"- Proposal: `{run.proposal_id}`",
         f"- Verdict: **{run.verdict.status.upper()}**",
         f"- Cost change: `{run.verdict.cost_change_percent}%`",
+        f"- Measurement order: `{order}`",
         "- Workload restored: `true`",
         "",
         "## Before and after",

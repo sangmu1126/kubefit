@@ -54,7 +54,7 @@ def measurement(run_variant: str, **overrides: object) -> BenchmarkMeasurement:
             "restart_count": 0,
             "traffic_spike_recovery_seconds": 10,
         },
-        "provenance": provenance(),
+        "provenance": provenance(run_variant),
         "request_cost_usd": Decimal("10"),
     }
     values.update(overrides)
@@ -98,6 +98,34 @@ def test_passes_safe_candidate_and_reports_cost_separately() -> None:
     assert verdict.status == "pass"
     assert verdict.failures == []
     assert verdict.cost_change_percent == Decimal("-25.000")
+    assert check_status(verdict, "measurement_order_bias") == "warning"
+    assert "baseline (before) was measured before candidate (after)" in verdict.warnings[0]
+
+
+def test_accepts_reverse_measurement_order_and_exposes_the_bias() -> None:
+    before = measurement("before", provenance=provenance("after"))
+    after = measurement("after", provenance=provenance("before"))
+
+    verdict = compare_benchmarks(before, after)
+
+    assert verdict.status == "pass"
+    assert check_status(verdict, "measurement_intervals") == "pass"
+    assert "candidate (after) was measured before baseline (before)" in verdict.warnings[0]
+
+
+def test_rejects_overlapping_measurement_intervals() -> None:
+    shared = provenance("before")
+
+    verdict = compare_benchmarks(
+        measurement("before", provenance=shared),
+        measurement("after", provenance=shared),
+    )
+
+    assert verdict.status == "invalid"
+    assert check_status(verdict, "measurement_intervals") == "invalid"
+    assert verdict.invalid_reasons == [
+        "before and after measurement intervals must not overlap"
+    ]
 
 
 @pytest.mark.parametrize(
@@ -339,8 +367,9 @@ def runtime(**overrides: object) -> dict[str, object]:
     return values
 
 
-def provenance() -> dict[str, object]:
-    started_at = datetime(2026, 8, 21, tzinfo=UTC)
+def provenance(run_variant: str = "before") -> dict[str, object]:
+    offset = timedelta(minutes=5) if run_variant == "after" else timedelta()
+    started_at = datetime(2026, 8, 21, tzinfo=UTC) + offset
     return {
         "run_started_at": started_at,
         "run_finished_at": started_at + timedelta(seconds=160),
