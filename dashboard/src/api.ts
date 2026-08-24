@@ -67,3 +67,17 @@ export async function reviewBenchmarkArtifact(
 
   return (await response.json()) as BenchmarkReview;
 }
+
+export async function fetchStoredBenchmarkReview(
+  artifactId: string,
+): Promise<BenchmarkReview> {
+  const response = await fetch(
+    `/v1/benchmark-results/${encodeURIComponent(artifactId)}/review`,
+  );
+
+  if (!response.ok) {
+    throw await responseError(response, "저장된 benchmark 결과 검증 실패");
+  }
+
+  return (await response.json()) as BenchmarkReview;
+}

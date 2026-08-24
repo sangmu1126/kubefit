@@ -164,16 +164,24 @@ export interface BenchmarkReviewRequest {
   verdict_json: string;
 }
 
+export type BenchmarkReviewCheckCode =
+  | "index_identity"
+  | "selected_payload_hashes"
+  | "proposal_binding"
+  | "raw_evidence_binding"
+  | "verdict_replay"
+  | "complete_artifact_integrity";
+
 export interface BenchmarkReview {
   schema_version: 1;
   artifact_id: string;
   proposal_id: string;
-  verification_level: "index_bound_replay";
+  verification_level: "index_bound_replay" | "full_artifact_replay";
   before: BenchmarkMeasurement;
   after: BenchmarkMeasurement;
   verdict: BenchmarkVerdict;
   checks: Array<{
-    code: "index_identity" | "selected_payload_hashes" | "proposal_binding" | "raw_evidence_binding" | "verdict_replay";
+    code: BenchmarkReviewCheckCode;
     status: "pass";
     reason: string;
   }>;

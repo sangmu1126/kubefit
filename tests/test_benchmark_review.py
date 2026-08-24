@@ -6,6 +6,7 @@ import pytest
 from benchmarks import (
     BenchmarkReviewRequest,
     review_benchmark_result,
+    review_full_benchmark_result,
     write_benchmark_result,
 )
 from tests.test_benchmark_artifact import completed_run
@@ -80,3 +81,26 @@ def test_enforces_review_limit_on_encoded_bytes() -> None:
 
     with pytest.raises(ValueError, match="exceeds 128 KiB: result.json"):
         review_benchmark_result(request)
+
+
+def test_reviews_complete_local_bundle_with_stronger_verification(tmp_path: Path) -> None:
+    _, run = completed_run(tmp_path)
+    published = write_benchmark_result(tmp_path / "results", run)
+
+    review = review_full_benchmark_result(published.path)
+
+    assert review.verification_level == "full_artifact_replay"
+    assert [check.code for check in review.checks] == [
+        "complete_artifact_integrity",
+        "verdict_replay",
+    ]
+    assert "complete artifact content digest" not in " ".join(review.limitations)
+
+
+def test_full_review_rejects_tampered_omitted_payload(tmp_path: Path) -> None:
+    _, run = completed_run(tmp_path)
+    published = write_benchmark_result(tmp_path / "results", run)
+    (published.path / "report.md").write_text("tampered\n")
+
+    with pytest.raises(ValueError, match="complete benchmark result is invalid"):
+        review_full_benchmark_result(published.path)

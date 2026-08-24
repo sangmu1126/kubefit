@@ -1,12 +1,15 @@
 import hashlib
 import json
+from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
 from benchmarks.artifact import (
     BENCHMARK_RESULT_PAYLOAD_PATHS,
+    BenchmarkResultArtifactError,
     BenchmarkResultIndex,
+    load_benchmark_result,
 )
 from benchmarks.result import BenchmarkMeasurement, BenchmarkVerdict, compare_benchmarks
 
@@ -27,6 +30,7 @@ class BenchmarkReviewCheck(BaseModel):
         "proposal_binding",
         "raw_evidence_binding",
         "verdict_replay",
+        "complete_artifact_integrity",
     ]
     status: Literal["pass"] = "pass"
     reason: str
@@ -36,7 +40,9 @@ class BenchmarkReview(BaseModel):
     schema_version: Literal[1] = 1
     artifact_id: str = Field(pattern=r"^benchmark-[0-9a-f]{32}$")
     proposal_id: str = Field(pattern=r"^proposal-[0-9a-f]{32}$")
-    verification_level: Literal["index_bound_replay"] = "index_bound_replay"
+    verification_level: Literal[
+        "index_bound_replay", "full_artifact_replay"
+    ] = "index_bound_replay"
     before: BenchmarkMeasurement
     after: BenchmarkMeasurement
     verdict: BenchmarkVerdict
@@ -147,6 +153,45 @@ def review_benchmark_result(request: BenchmarkReviewRequest) -> BenchmarkReview:
                 "k6 raw bytes, k6 summaries, and report.md were not uploaded; their bytes and the "
                 "complete artifact content digest were not recomputed"
             ),
+            (
+                "the fixed approximately 160-second load per variant does not establish "
+                "representative production traffic"
+            ),
+            (
+                "controlled-demo observation provenance is not encoded in the benchmark bundle; "
+                "inspect the proposal analysis artifact separately"
+            ),
+        ],
+    )
+
+
+def review_full_benchmark_result(path: Path) -> BenchmarkReview:
+    """Fully verify a local result bundle before returning its review projection."""
+    try:
+        loaded = load_benchmark_result(path)
+    except (BenchmarkResultArtifactError, OSError) as exc:
+        raise ValueError("complete benchmark result is invalid") from exc
+    return BenchmarkReview(
+        artifact_id=loaded.artifact_id,
+        proposal_id=loaded.proposal_id,
+        verification_level="full_artifact_replay",
+        before=loaded.before,
+        after=loaded.after,
+        verdict=loaded.verdict,
+        checks=[
+            BenchmarkReviewCheck(
+                code="complete_artifact_integrity",
+                reason=(
+                    "the exact file set, every payload size and SHA-256 digest, the "
+                    "aggregate content digest, raw k6 evidence, and report were revalidated"
+                ),
+            ),
+            BenchmarkReviewCheck(
+                code="verdict_replay",
+                reason="verdict was recomputed from the fully verified measurements",
+            ),
+        ],
+        limitations=[
             (
                 "the fixed approximately 160-second load per variant does not establish "
                 "representative production traffic"

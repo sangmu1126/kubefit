@@ -64,6 +64,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0040](0040-live-origin-draft-pr.md) | Live origin Draft PR | Create once, reuse once, and independently verify the real one-file GitOps handoff |
 | [0041](0041-repository-quality-gates.md) | Repository quality gates | Make Python, dashboard, Helm, and Docker failures visible as independent CI checks |
 | [0042](0042-index-bound-benchmark-review.md) | Index-bound benchmark review | Replay indexed before/after evidence on the API and visualize its decision boundary |
+| [0043](0043-shareable-full-benchmark-review.md) | Shareable full benchmark review | Open a configured result by artifact-ID URL after complete server-side verification |
 
 ## Visual language
 

@@ -113,6 +113,20 @@ const benchmarkReview: BenchmarkReview = {
   limitations: ["k6 raw bytes were not uploaded"],
 };
 
+const fullBenchmarkReview: BenchmarkReview = {
+  ...benchmarkReview,
+  verification_level: "full_artifact_replay",
+  checks: [
+    {
+      code: "complete_artifact_integrity",
+      status: "pass",
+      reason: "complete artifact bytes and semantics were revalidated",
+    },
+    { code: "verdict_replay", status: "pass", reason: "verdict replayed" },
+  ],
+  limitations: ["fixed demo traffic is not representative production traffic"],
+};
+
 function directoryFile(path: string, content = `{\"path\":\"${path}\"}`): File {
   const file = new File([content], path.split("/").at(-1)!, { type: "application/json" });
   Object.defineProperty(file, "webkitRelativePath", {
@@ -124,6 +138,7 @@ function directoryFile(path: string, content = `{\"path\":\"${path}\"}`): File {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  window.history.replaceState({}, "", "/");
 });
 
 describe("KubeFit dashboard", () => {
@@ -278,6 +293,38 @@ describe("KubeFit dashboard", () => {
     );
 
     expect(screen.getByRole("alert")).toHaveTextContent("필수 파일이 없습니다");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("loads a fully verified stored benchmark from a shareable query", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(fullBenchmarkReview), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    window.history.replaceState(
+      {},
+      "",
+      `/?benchmark=${benchmarkReview.artifact_id}`,
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("FULL ARTIFACT REPLAY")).toBeInTheDocument();
+    expect(screen.getByText("전체 번들 검사 2/2")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/v1/benchmark-results/${benchmarkReview.artifact_id}/review`,
+    );
+  });
+
+  it("rejects a malformed benchmark query without calling the API", () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    window.history.replaceState({}, "", "/?benchmark=../../secret");
+
+    render(<App />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("artifact ID 형식");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

@@ -68,6 +68,13 @@ percentile aggregation replay. Run it with the API using the commands in the
 packages its immutable production bundle into the same non-root API image used by
 Helm.
 
+Benchmark results can be reviewed either by selecting a local result directory or
+through `/?benchmark=benchmark-<digest>`. A shareable query is enabled only when the
+API has an explicit read-only `KUBEFIT_BENCHMARK_RESULTS_DIRECTORY`. The server then
+revalidates the complete file set, individual and aggregate digests, raw k6 evidence,
+Markdown report, and replayed verdict before returning `full_artifact_replay`. KubeFit
+does not publish benchmark artifacts or make a local directory public automatically.
+
 After building `kubefit:dev`, `deploy/local/generate-image-sbom.sh` resolves the
 mutable tag to its complete local image ID and publishes a verified SPDX 2.3
 inventory under the ignored `.kubefit/supply-chain/` directory. Repeated runs
