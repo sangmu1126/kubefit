@@ -68,6 +68,37 @@ def test_analyze_rejects_non_positive_price() -> None:
         )
 
 
+def test_observation_policy_retains_explicit_workload_cpu_floor() -> None:
+    args = build_parser().parse_args(
+        [
+            "readiness",
+            "--deployment",
+            "demo",
+            "--observation-profile",
+            "demo",
+            "--minimum-cpu-millicores",
+            "20",
+        ]
+    )
+
+    _, _, policy = cli_module._observation_configuration(args)
+
+    assert policy.minimum_cpu_millicores == 20
+
+
+def test_observation_policy_rejects_non_positive_cpu_floor() -> None:
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(
+            [
+                "readiness",
+                "--deployment",
+                "demo",
+                "--minimum-cpu-millicores",
+                "0",
+            ]
+        )
+
+
 def test_analyze_emits_replayable_schema_v2(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -108,6 +139,49 @@ def test_analyze_emits_replayable_schema_v2(
     assert restored.observed_usage == replayable.observed_usage
     assert restored.recommendation_policy is not None
     assert restored.recommendation_policy.algorithm == "resource-recommendation/v1"
+
+
+def test_reanalyze_raises_only_the_retained_cpu_floor(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = replayable_analysis()
+    source_path = tmp_path / "analysis.json"
+    source_path.write_text(source.model_dump_json(indent=2))
+
+    cli_module.main(
+        [
+            "reanalyze",
+            "--analysis",
+            str(source_path),
+            "--minimum-cpu-millicores",
+            "400",
+        ]
+    )
+
+    refined = AnalysisArtifact.model_validate_json(capsys.readouterr().out)
+    assert refined.observed_usage == source.observed_usage
+    assert refined.recommendation_policy is not None
+    assert refined.recommendation_policy.minimum_cpu_millicores == 400
+    assert refined.evaluation.recommendation.recommended.cpu_request_millicores == 400
+    assert refined.evaluation.cost.assumptions == source.evaluation.cost.assumptions
+
+
+def test_reanalyze_rejects_a_lower_cpu_floor(tmp_path: Path) -> None:
+    source = replayable_analysis()
+    source_path = tmp_path / "analysis.json"
+    source_path.write_text(source.model_dump_json(indent=2))
+
+    with pytest.raises(SystemExit, match="cannot lower"):
+        cli_module.main(
+            [
+                "reanalyze",
+                "--analysis",
+                str(source_path),
+                "--minimum-cpu-millicores",
+                "5",
+            ]
+        )
 
 
 def test_readiness_does_not_require_price_arguments() -> None:

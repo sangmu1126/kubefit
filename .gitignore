@@ -12,5 +12,8 @@ coverage/
 
 # Generated benchmark and local cluster data
 benchmarks/results/
+benchmarks/pairs/
+benchmarks/campaigns/
+benchmarks/campaign-evidence/
 .kube/
 .kubefit/

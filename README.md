@@ -171,6 +171,11 @@ fixed one-hour `benchmarks/k6/observation_profile.js` traffic profile and use
 coverage and labels its result controlled-demo-only. The default `production`
 profile remains multi-day and is intended for representative real traffic.
 
+If a benchmark rejects an aggressive CPU floor, `kubefit reanalyze` can derive a
+stricter schema v2 analysis from the retained observation and pricing inputs without
+pretending that new metrics were collected. The command can only raise the retained
+floor; the override remains explicit in the replayable recommendation policy.
+
 `kubefit readiness` uses the same collection and policy path without requiring
 price inputs. It distinguishes evidence that only needs more collection time from
 unstable replicas, missing Pod signals, and already observed high-risk conditions.
