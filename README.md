@@ -34,7 +34,7 @@ be mistaken for one another:
 
 | Claim | Reproducible evidence |
 |---|---|
-| Resource recommendations and package boundaries are deterministic and safety-gated | 396 Python tests on the audited post-release branch |
+| Resource recommendations, package boundaries, and the demo contract are safety-gated | 399 Python tests on the audited post-release branch |
 | The review UI builds and behaves as specified | 15 dashboard tests and a production Vite build |
 | The package renders with least-privilege defaults | Helm lint and default-template validation |
 | The production image actually starts | Docker startup, numeric non-root user, health, dashboard, and disabled-storage smoke checks |
@@ -142,9 +142,21 @@ vulnerability scan or signature.
 
 ## Quick start
 
-Requires Python 3.12+.
+### Replay the verified pair
 
-### Open the packaged review dashboard
+With Docker running, one command downloads the public self-contained evidence,
+verifies its pinned SHA-256, mounts it read-only, and starts the published image:
+
+```bash
+./deploy/local/run-verified-pair-demo.sh
+```
+
+Open the printed `http://127.0.0.1:8000/?pair=benchmark-pair-...` URL. The API replays
+both opposite-order benchmark bundles before the dashboard displays `PASS`. The script
+binds only to loopback, never contacts Kubernetes, and removes its container on
+Ctrl+C. Set `KUBEFIT_DEMO_PORT` if port 8000 is already in use.
+
+### Open only the editable review scenario
 
 The published image contains both FastAPI and the React review dashboard. No local
 Node.js or Kubernetes cluster is required for the editable review scenario:
@@ -160,6 +172,8 @@ benchmark or pair additionally requires its read-only evidence directory; follow
 [local dashboard guide](docs/local-development.md#open-a-fully-verified-benchmark-pair-or-campaign-link).
 
 ### Install the development environment
+
+Requires Python 3.12+.
 
 ```bash
 python -m venv .venv

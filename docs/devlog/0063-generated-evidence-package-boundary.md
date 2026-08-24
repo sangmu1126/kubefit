@@ -1,9 +1,14 @@
 # 0063: Keeping generated evidence out of distributable packages
 
 - **Date:** 2026-08-25
-- **Status:** locally validated; public demo asset pending explicit approval
+- **Status:** locally validated; public distribution completed in record 0064
 - **Related phase:** post-release reproducibility audit
 - **Fix commit:** `1efad9c fix: exclude generated benchmark evidence from packages`
+
+> **Follow-up:** Explicit approval was provided after this audit. Record
+> [0064](0064-public-replayable-pair-demo.md) documents the later public Release asset,
+> anonymous redownload, digest match, and one-command replay. The boundary below
+> describes the state before that approval.
 
 ## Why
 
@@ -100,6 +105,5 @@ insufficient to prove local build reproducibility.
 
 ## Next question
 
-Should the inspected self-contained pair archive be attached publicly to the
-`v0.2.0` GitHub Release so a fresh clone can replay the exact dashboard evidence, or
-should the competition demo intentionally remain screenshot/PR-backed only?
+Resolved in record 0064: the inspected archive was published after explicit approval
+and is now consumed only through a pinned-digest, read-only demo path.

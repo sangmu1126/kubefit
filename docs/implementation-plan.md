@@ -288,6 +288,10 @@ build rather than only a clean CI checkout, finds ignored pair and campaign arti
 inside the resulting wheel, and makes generated-data exclusion an executable wheel and
 Docker-context contract. It also distinguishes a local demo bundle from evidence that
 has actually been approved for public distribution.
+Entry [0064](devlog/0064-public-replayable-pair-demo.md) publishes that inspected pair
+only after explicit approval, verifies an anonymous redownload against both the pinned
+and GitHub-reported digest, and reduces the reviewer path to one loopback-only Docker
+command that still performs full server-side artifact replay.
 
 The MVP implementation and submission release are complete. Further work starts as a
 new post-MVP decision: campaign drill-down, supply-chain signing, or production-cluster
