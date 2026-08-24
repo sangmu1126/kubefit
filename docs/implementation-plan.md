@@ -278,6 +278,12 @@ Entry [0061](devlog/0061-live-pair-draft-publication.md) exercises the pair-only
 publication boundary against the project repository, proves idempotent Draft PR reuse
 and offline evidence verification, and captures the fully replayed pair dashboard
 without representing the incomplete campaign as attached evidence.
+Entry [0062](devlog/0062-verified-v020-release.md) binds the `v0.2.0` source tag to the
+Python, dashboard, Helm, and image versions, publishes both multi-architecture image
+and OCI chart, and verifies anonymous pull plus container startup before creating the
+public GitHub release. It also retires the superseded generated Draft PR while keeping
+the current validation-backed proposal unmerged.
 
-Next, decide how a campaign block can drill into its nested pair review without
-requiring a second storage root or weakening path containment.
+The MVP implementation and submission release are complete. Further work starts as a
+new post-MVP decision: campaign drill-down, supply-chain signing, or production-cluster
+evidence must not be implied by the `v0.2.0` controlled-demo claims.
