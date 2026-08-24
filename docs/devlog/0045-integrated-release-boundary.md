@@ -1,9 +1,10 @@
 # 0045: Turning an integrated MVP into a bounded release
 
 - **Date:** 2026-08-24
-- **Status:** locally documented; pull-request and hosted validation pending
+- **Status:** validated locally and on GitHub-hosted runners
 - **Related phase:** MVP release preparation
 - **Integrated commit:** `caede3391ecf9e9d10633239857bd29bd3cf8991`
+- **Draft PR:** [sangmu1126/kubefit#6](https://github.com/sangmu1126/kubefit/pull/6)
 
 ## Why
 
@@ -67,8 +68,22 @@ validated as follows:
 | GitHub Actions | [run 32688444656](https://github.com/sangmu1126/kubefit/actions/runs/32688444656), all four jobs passed |
 | Git state | Local `main` and `origin/main` both at `caede339` |
 
-The documentation itself still needs diff checks, a focused link/contract test if
-one is warranted, review through a separate PR, and hosted validation after merge.
+The documentation slice then passed `git diff --check`, verified every referenced
+local file, and confirmed that `pyproject.toml` already declares version `0.1.0`.
+Draft PR #6 is based directly on `main` and contains only the release contract and
+its development record. GitHub Actions
+[run 32689338402](https://github.com/sangmu1126/kubefit/actions/runs/32689338402)
+independently passed all four jobs:
+
+| Hosted job | Result | Duration |
+|---|---|---:|
+| Python | Passed | 24s |
+| Dashboard | Passed | 14s |
+| Helm | Passed | 7s |
+| Docker | Passed | 24s |
+
+The remaining validation is the final `main` run after this documentation PR is
+approved and merged.
 
 ## Decision and limitations
 
