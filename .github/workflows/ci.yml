@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install project and test dependencies
+        run: python -m pip install --editable '.[dev]'
+      - name: Lint
+        run: ruff check .
+      - name: Test
+        run: pytest -q
+
+  dashboard:
+    name: Dashboard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - name: Install dashboard dependencies
+        run: npm ci --ignore-scripts
+      - name: Test dashboard
+        run: npm test
+      - name: Build dashboard
+        run: npm run build
+
+  helm:
+    name: Helm
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Helm
+        uses: azure/setup-helm@59b1c81c6280f5abebb1fb1bc585696daa7dfb42 # v5
+        with:
+          version: v4.2.4
+      - name: Lint chart
+        run: helm lint deploy/helm/kubefit
+      - name: Render default chart
+        run: helm template kubefit deploy/helm/kubefit --namespace kubefit-system
+
+  docker:
+    name: Docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Build production image
+        run: docker build --tag kubefit:ci .
+      - name: Verify non-root runtime user
+        run: test "$(docker image inspect kubefit:ci --format '{{.Config.User}}')" = "10001:10001"

@@ -131,7 +131,8 @@ labeled 98.088% illustrative request-cost reduction.
 
 ## Phase 5: GitHub draft pull request
 
-**Status: in progress.** Entry [0021](devlog/0021-pull-request-plan.md) establishes
+**Status: complete for the MVP (2026-08-22).** Entry
+[0021](devlog/0021-pull-request-plan.md) establishes
 load-time semantic verification for proposal/result artifacts and produces a
 deterministic, draft-only, one-file review contract. Entry
 [0022](devlog/0022-transactional-git-commit.md) adds stale-safe, one-file local branch
@@ -151,7 +152,11 @@ back to the immutable proposal/benchmark and emits a content-addressed verificat
 result. Entry [0039](devlog/0039-authenticated-publication-preflight.md) validates
 the passing live artifacts, clean repository, absent publication branch, GitHub
 repository identity, and authenticated read access without mutation. Creating the
-separate private target and performing the live two-run publication remain open.
+separate private target and performing the live two-run publication were originally
+left open. Entry [0040](devlog/0040-live-origin-draft-pr.md) records the revised
+target decision and actual `origin` publication: the first run created Draft PR #1,
+the second reused its exact branch, commit, and PR, and an independent GitHub query
+confirmed one changed manifest file. No merge or deployment was performed.
 
 **Goal:** deliver the validated change through the repository's review workflow.
 
@@ -161,8 +166,11 @@ separate private target and performing the live two-run publication remain open.
 - Make repeated runs idempotent and never commit credentials.
 - Leave merge and cluster rollout to humans and the existing GitOps controller.
 
-**Done when:** the demo produces a draft PR whose claims can be traced back to
-collected metrics and benchmark artifacts.
+**Completion evidence:** [Draft PR #1](https://github.com/sangmu1126/kubefit/pull/1)
+is open against `main` from commit `9a4697302d5fe727f7bbdd2a84259facc154d4e5`.
+Its body names the exact proposal and passing benchmark, reports cost and safety
+evidence, and includes rollback guidance. GitHub independently reports Draft state
+and exactly one changed file, `deploy/demo/overprovisioned-api.yaml`.
 
 ## Phase 6: presentation layer and packaging
 
@@ -183,8 +191,11 @@ the exact local image ID. Entry
 dashboard through an API-owned integrity review while exposing schema v1 replay
 limits. Entry [0034](devlog/0034-replayable-analysis-schema.md) adds schema v2
 aggregate observations and versioned policy inputs, replays the complete decision,
-and preserves v1 content identities. Raw percentile replay, vulnerability policy,
-source provenance, signing, and external image/chart publication remain open.
+and preserves v1 content identities. Entry
+[0041](devlog/0041-repository-quality-gates.md) adds independent Python, dashboard,
+Helm, and Docker CI jobs with read-only permissions, bounded execution, and
+commit-pinned external Actions. Raw percentile replay, vulnerability policy, source
+provenance, signing, and external image/chart publication remain open.
 
 **Goal:** make the completed workflow easy to install and demonstrate.
 
