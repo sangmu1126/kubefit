@@ -355,6 +355,21 @@ or was chosen independently of desired schedules. The minimum of two pairs means
 that a treatment was replicated; it is not a power calculation or confidence claim.
 Campaign evidence remains optional and is not part of the GitOps publication gate.
 
+A COMPLETE check is persisted separately as
+`benchmark-campaign-evidence-<digest>`. The bundle embeds the canonical campaign plan,
+completion decision, generated report, and all 21 files from every chronological pair.
+Its exact file count is `21 × planned_pairs + 5`. The index hashes every payload and an
+aggregate digest, while the evidence ID binds campaign, proposal, ordered pair IDs, and
+every embedded source hash. Loading verifies the exact set, replays the nested plan,
+both results and pair decision for every block, recomputes campaign completion, and
+regenerates the report. The nested plan remains under
+`campaign/<campaign-id>/` so its existing directory-to-ID check is not weakened.
+
+This duplication is deliberate: the evidence can be copied and audited without the
+original campaign or pair roots. It also means raw k6 evidence is duplicated once more
+and a large planned campaign can consume substantial local disk. INCOMPLETE and INVALID
+checks print their structured decision but never create an evidence directory.
+
 The CLI accepts only an explicit `kind-*` context plus a required disposable-cluster
 acknowledgement. This is a product boundary rather than a claim that lower-level
 adapters are production safe. Locks coordinate only local cooperating processes;

@@ -22,6 +22,15 @@ from benchmarks.campaign import (
     load_benchmark_campaign_plan,
     write_benchmark_campaign_plan,
 )
+from benchmarks.campaign_artifact import (
+    BenchmarkCampaignEvidenceArtifact,
+    BenchmarkCampaignEvidenceError,
+    BenchmarkCampaignEvidenceFileMetadata,
+    BenchmarkCampaignEvidenceIndex,
+    LoadedBenchmarkCampaignEvidence,
+    load_benchmark_campaign_evidence,
+    write_benchmark_campaign_evidence,
+)
 from benchmarks.lock import BenchmarkExecutionLock, BenchmarkLockError
 from benchmarks.measurement import (
     AlignedMeasurementCollector,
@@ -90,6 +99,10 @@ __all__ = [
     "BenchmarkCampaignCheck",
     "BenchmarkCampaignCompletion",
     "BenchmarkCampaignError",
+    "BenchmarkCampaignEvidenceArtifact",
+    "BenchmarkCampaignEvidenceError",
+    "BenchmarkCampaignEvidenceFileMetadata",
+    "BenchmarkCampaignEvidenceIndex",
     "BenchmarkCampaignPlan",
     "BenchmarkExecutionError",
     "BenchmarkExecutionLock",
@@ -109,6 +122,7 @@ __all__ = [
     "PairMetricComparison",
     "PairMetricTrial",
     "LoadedCounterbalancedPair",
+    "LoadedBenchmarkCampaignEvidence",
     "BenchmarkPolicy",
     "BenchmarkRun",
     "BENCHMARK_RESULT_PAYLOAD_PATHS",
@@ -141,9 +155,11 @@ __all__ = [
     "recovery_from_k6_raw",
     "load_benchmark_result",
     "load_benchmark_campaign_plan",
+    "load_benchmark_campaign_evidence",
     "load_counterbalanced_pair",
     "write_benchmark_result",
     "write_benchmark_campaign_plan",
+    "write_benchmark_campaign_evidence",
     "write_counterbalanced_pair",
     "review_full_benchmark_result",
     "review_benchmark_result",

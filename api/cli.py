@@ -15,7 +15,9 @@ from benchmarks import (
     assess_benchmark_campaign,
     assess_counterbalanced_pair,
     execute_benchmark,
+    load_benchmark_campaign_evidence,
     load_benchmark_campaign_plan,
+    write_benchmark_campaign_evidence,
     write_benchmark_campaign_plan,
     write_benchmark_result,
     write_counterbalanced_pair,
@@ -147,6 +149,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     campaign_check.add_argument("--plan", required=True, type=Path)
     campaign_check.add_argument("--pair", required=True, action="append", type=Path)
+    campaign_check.add_argument(
+        "--output-dir", type=Path, default=Path("benchmarks/campaign-evidence")
+    )
     publish = subcommands.add_parser(
         "publish", help="commit a verified proposal and open or reuse a GitHub draft PR"
     )
@@ -471,9 +476,27 @@ def _run_benchmark_campaign_plan(args: argparse.Namespace) -> None:
 
 def _run_benchmark_campaign_check(args: argparse.Namespace) -> None:
     completion = assess_benchmark_campaign(args.plan, args.pair)
-    print(completion.model_dump_json(indent=2))
     if completion.status != "complete":
+        print(completion.model_dump_json(indent=2))
         raise SystemExit(2)
+    artifact = write_benchmark_campaign_evidence(
+        args.output_dir, args.plan, args.pair
+    )
+    loaded = load_benchmark_campaign_evidence(artifact.path)
+    print(
+        json.dumps(
+            {
+                **completion.model_dump(mode="json"),
+                "artifact_id": artifact.artifact_id,
+                "path": str(artifact.path),
+                "reused": artifact.reused,
+                "files": artifact.files,
+                "pair_ids": loaded.completion.pair_ids,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
 
 
 def _run_propose(args: argparse.Namespace) -> None:
