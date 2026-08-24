@@ -104,7 +104,12 @@ def recommend_resources(
     if observed.metric_pod_count is not None:
         identity_label = "identity" if observed.metric_pod_count == 1 else "identities"
         evidence.append(
-            f"metrics include {observed.metric_pod_count} Pod {identity_label} across the window"
+            f"metrics include {observed.metric_pod_count} current Pod {identity_label}"
+        )
+    if observed.minimum_current_pod_sample_count is not None:
+        evidence.append(
+            "least-observed current Pod contributes "
+            f"{observed.minimum_current_pod_sample_count} paired CPU/memory samples"
         )
     if observed.step_seconds is not None:
         evidence.append(f"Prometheus range query step is {observed.step_seconds} seconds")
@@ -179,6 +184,16 @@ def _readiness_reasons(
             f"sample count is {observed.sample_count}; at least "
             f"{policy.minimum_sample_count} is required"
         )
+    required_per_pod = _minimum_samples_per_current_pod(observed, policy)
+    if (
+        observed.minimum_current_pod_sample_count is not None
+        and observed.minimum_current_pod_sample_count < required_per_pod
+    ):
+        reasons.append(
+            "least-observed current Pod has "
+            f"{observed.minimum_current_pod_sample_count} paired usage samples; "
+            f"at least {required_per_pod} are required per current Pod"
+        )
     if (
         observed.metric_pod_count is not None
         and observed.desired_replicas is not None
@@ -212,6 +227,15 @@ def _readiness_reasons(
         reasons.append(
             f"CPU throttling sample count is {observed.cpu_throttling_sample_count}; "
             f"at least {policy.minimum_sample_count} is required"
+        )
+    if (
+        observed.minimum_current_pod_throttling_sample_count is not None
+        and observed.minimum_current_pod_throttling_sample_count < required_per_pod
+    ):
+        reasons.append(
+            "least-observed current Pod has "
+            f"{observed.minimum_current_pod_throttling_sample_count} throttling samples; "
+            f"at least {required_per_pod} are required per current Pod"
         )
     if observed.cpu_throttling_observation_coverage is None:
         reasons.append("CPU throttling observation coverage was not provided")
@@ -253,6 +277,12 @@ def _readiness_reasons(
             f"desired={observed.desired_replicas}"
         )
     return reasons
+
+
+def _minimum_samples_per_current_pod(
+    observed: ObservedUsage, policy: RecommendationPolicy
+) -> int:
+    return math.ceil(policy.minimum_sample_count / (observed.desired_replicas or 1))
 
 
 def _risk_from_headroom(headroom: float | None, evidence_is_sufficient: bool) -> str:

@@ -32,6 +32,7 @@ class ObservedUsage(BaseModel):
     available_replicas: int | None = Field(default=None, ge=0)
     observed_replicas: int | None = Field(default=None, ge=0)
     metric_pod_count: int | None = Field(default=None, ge=0)
+    minimum_current_pod_sample_count: int | None = Field(default=None, ge=0)
     workload_uid: str | None = None
     workload_created_at: datetime | None = None
     history_clipped: bool = False
@@ -43,6 +44,9 @@ class ObservedUsage(BaseModel):
     cpu_throttling_pod_count: int | None = Field(default=None, ge=0)
     cpu_throttling_observation_coverage: float | None = Field(
         default=None, ge=0, le=1
+    )
+    minimum_current_pod_throttling_sample_count: int | None = Field(
+        default=None, ge=0
     )
     container_status_count: int | None = Field(default=None, ge=0)
     restart_count: int | None = Field(default=None, ge=0)

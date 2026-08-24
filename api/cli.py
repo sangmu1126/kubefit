@@ -238,6 +238,7 @@ def _collect_observation(
         available_replicas=workload.available_replicas,
         observed_replicas=len(workload.pods),
         metric_pod_count=metrics.metric_pod_count,
+        minimum_current_pod_sample_count=metrics.minimum_current_pod_sample_count,
         workload_uid=workload.uid,
         workload_created_at=workload.created_at,
         history_clipped=metrics.history_clipped,
@@ -248,6 +249,9 @@ def _collect_observation(
         cpu_throttling_sample_count=metrics.cpu_throttling_sample_count,
         cpu_throttling_pod_count=metrics.cpu_throttling_pod_count,
         cpu_throttling_observation_coverage=(metrics.cpu_throttling_observation_coverage),
+        minimum_current_pod_throttling_sample_count=(
+            metrics.minimum_current_pod_throttling_sample_count
+        ),
         container_status_count=workload.container_status_count,
         restart_count=workload.restart_count,
         oom_killed_count=workload.oom_killed_count,

@@ -21,8 +21,14 @@ def test_collects_benchmark_throttling_inside_aligned_window() -> None:
                 "status": "success",
                 "data": {
                     "result": [
-                        {"values": [[1, "1"], [2, "3"], [3, "2"]]},
-                        {"values": [[1, "4"], [2, "5"], [3, "6"]]},
+                        {
+                            "metric": {"pod": "api-a"},
+                            "values": [[1, "1"], [2, "3"], [3, "2"]],
+                        },
+                        {
+                            "metric": {"pod": "api-b"},
+                            "values": [[1, "4"], [2, "5"], [3, "6"]],
+                        },
                     ]
                 },
             },
@@ -85,7 +91,14 @@ def test_accepts_one_hour_observation_window() -> None:
             200,
             json={
                 "status": "success",
-                "data": {"result": [{"values": [[1, "1"], [2, "2"]]}]},
+                "data": {
+                    "result": [
+                        {
+                            "metric": {"pod": "api-current-pod"},
+                            "values": [[1, "1"], [2, "2"]],
+                        }
+                    ]
+                },
             },
         )
 
@@ -120,7 +133,13 @@ def test_collects_workload_percentiles_and_units() -> None:
         elif "cfs_throttled" in query:
             values = [[1, "0.5"], [2, "1.5"], [3, "2.5"]]
         return httpx.Response(
-            200, json={"status": "success", "data": {"result": [{"values": values}]}}
+            200,
+            json={
+                "status": "success",
+                "data": {
+                    "result": [{"metric": {"pod": "api-abc"}, "values": values}]
+                },
+            },
         )
 
     http = httpx.Client(base_url="http://prometheus", transport=httpx.MockTransport(handler))
@@ -133,9 +152,9 @@ def test_collects_workload_percentiles_and_units() -> None:
         now=datetime(2026, 1, 1, tzinfo=UTC),
     )
 
-    assert result.cpu_p95_millicores == pytest.approx(290)
+    assert result.cpu_p95_millicores == pytest.approx(195)
     assert result.memory_p99_mib == pytest.approx(199)
-    assert result.cpu_max_millicores == pytest.approx(300)
+    assert result.cpu_max_millicores == pytest.approx(200)
     assert result.memory_max_mib == pytest.approx(200)
     assert result.step_seconds == 300
     assert result.sample_count == 2
@@ -189,7 +208,7 @@ def test_uses_the_busiest_pod_percentile_instead_of_summing_replicas() -> None:
     assert result.cpu_p95_millicores == pytest.approx(590)
     assert result.memory_p99_mib == pytest.approx(499)
     assert result.cpu_p95_millicores < 790  # The two Pods were not summed together.
-    assert result.metric_pod_count == 2  # Includes a previous rollout Pod series.
+    assert result.metric_pod_count == 0  # Only current Pod identities count for readiness.
 
 
 def test_clips_query_at_current_workload_creation_but_keeps_requested_coverage() -> None:
@@ -201,7 +220,14 @@ def test_clips_query_at_current_workload_creation_but_keeps_requested_coverage()
             200,
             json={
                 "status": "success",
-                "data": {"result": [{"values": [[1, "1"], [2, "2"]]}]},
+                "data": {
+                    "result": [
+                        {
+                            "metric": {"pod": "api-current-pod"},
+                            "values": [[1, "1"], [2, "2"]],
+                        }
+                    ]
+                },
             },
         )
 
@@ -261,7 +287,11 @@ def test_rejects_workload_when_prometheus_returns_no_samples() -> None:
 def test_marks_cpu_throttling_unavailable_without_losing_usage_metrics() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         query = str(request.url.params["query"])
-        result = [] if "cfs_throttled" in query else [{"values": [[1, "1"]]}]
+        result = (
+            []
+            if "cfs_throttled" in query
+            else [{"metric": {"pod": "api-current-pod"}, "values": [[1, "1"]]}]
+        )
         return httpx.Response(
             200, json={"status": "success", "data": {"result": result}}
         )
@@ -281,3 +311,71 @@ def test_marks_cpu_throttling_unavailable_without_losing_usage_metrics() -> None
     assert result.cpu_throttling_sample_count == 0
     assert result.cpu_throttling_pod_count == 0
     assert result.cpu_throttling_observation_coverage == 0
+
+
+def test_rejects_disjoint_cpu_and_memory_pod_identities() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        query = str(request.url.params["query"])
+        pods = ["memory-a", "memory-b"] if "memory" in query else ["cpu-a", "cpu-b"]
+        return httpx.Response(
+            200,
+            json={
+                "status": "success",
+                "data": {
+                    "result": [
+                        {"metric": {"pod": pod}, "values": [[1, "1"], [2, "2"]]}
+                        for pod in pods
+                    ]
+                },
+            },
+        )
+
+    http = httpx.Client(base_url="http://prometheus", transport=httpx.MockTransport(handler))
+
+    with pytest.raises(PrometheusError, match="no matching Pod identities"):
+        PrometheusClient("http://prometheus", client=http).workload_metrics(
+            "demo",
+            ["api-current"],
+            ["api-a", "api-b"],
+            "api",
+            datetime(2025, 1, 1, tzinfo=UTC),
+            now=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+
+
+def test_reports_least_observed_current_pod_instead_of_hiding_skew() -> None:
+    dense = [[timestamp, "1"] for timestamp in range(121)]
+    sparse = [[0, "1"]]
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "status": "success",
+                "data": {
+                    "result": [
+                        {"metric": {"pod": "api-a"}, "values": dense},
+                        {"metric": {"pod": "api-b"}, "values": sparse},
+                    ]
+                },
+            },
+        )
+
+    now = datetime(2026, 1, 1, tzinfo=UTC)
+    http = httpx.Client(base_url="http://prometheus", transport=httpx.MockTransport(handler))
+    result = PrometheusClient("http://prometheus", client=http).workload_metrics(
+        "demo",
+        ["api-current"],
+        ["api-a", "api-b"],
+        "api",
+        now - timedelta(days=1),
+        observation_days=1 / 24,
+        step_seconds=60,
+        now=now,
+    )
+
+    assert result.sample_count == 122
+    assert result.observation_coverage == 1
+    assert result.metric_pod_count == 2
+    assert result.minimum_current_pod_sample_count == 1
+    assert result.minimum_current_pod_throttling_sample_count == 1
