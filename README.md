@@ -43,6 +43,7 @@ be mistaken for one another:
 | One counterbalanced pair passed complete replay | [Pair and refinement evidence](docs/devlog/0060-validation-informed-cpu-floor.md) |
 | A verified pair becomes a reviewable Git change | Idempotent resource [Draft PR #23](https://github.com/sangmu1126/kubefit/pull/23) and [publication record 0061](docs/devlog/0061-live-pair-draft-publication.md) |
 | Repeated evidence is not overstated | The preregistered campaign remains explicitly `incomplete`; no aggregate or significance claim is made |
+| Public packages are installable without repository credentials | [v0.2.0 release](https://github.com/sangmu1126/kubefit/releases/tag/v0.2.0) and successful [anonymous package verification](https://github.com/sangmu1126/kubefit/actions/runs/32751718176) |
 
 The latest live resource PR passed Python 3.12, 3.13, and 3.14 plus Dashboard, Helm,
 and Docker in [GitHub Actions](https://github.com/sangmu1126/kubefit/actions/runs/32749825481).
@@ -52,9 +53,10 @@ not a measured AWS invoice saving. PR #23 remains Draft and KubeFit did not merg
 deploy it.
 
 The [v0.1.0 release-readiness record](docs/release-readiness.md) preserves the earlier
-MVP source boundary. Records [0060](docs/devlog/0060-validation-informed-cpu-floor.md)
-and [0061](docs/devlog/0061-live-pair-draft-publication.md) document the later
-counterbalanced validation and authenticated publication hardening.
+MVP source boundary. Records [0060](docs/devlog/0060-validation-informed-cpu-floor.md),
+[0061](docs/devlog/0061-live-pair-draft-publication.md), and
+[0062](docs/devlog/0062-verified-v020-release.md) document the later counterbalanced
+validation, authenticated Draft publication, and verified public package release.
 
 ## Repository layout
 

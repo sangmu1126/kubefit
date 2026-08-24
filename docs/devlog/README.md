@@ -81,6 +81,9 @@ evidence of engineering judgment than a final screenshot without context.
 | [0057](0057-self-contained-campaign-evidence.md) | Self-contained campaign evidence | Persist only COMPLETE campaigns with every replayable nested pair |
 | [0058](0058-optional-campaign-pr-evidence.md) | Optional campaign PR evidence | Bind an explicit completed campaign to the Draft PR and offline proof |
 | [0059](0059-campaign-review-dashboard.md) | Campaign review dashboard | Replay and visualize chronological blocks without statistical aggregation |
+| [0060](0060-validation-informed-cpu-floor.md) | Validation-informed CPU floor | Raise an unsafe candidate monotonically and retain failed campaign evidence |
+| [0061](0061-live-pair-draft-publication.md) | Live pair Draft publication | Publish one verified pair idempotently without overstating an incomplete campaign |
+| [0062](0062-verified-v020-release.md) | Verified v0.2.0 release | Publish source-bound image/chart packages and verify anonymous installation |
 
 ## Visual language
 
