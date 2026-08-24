@@ -74,3 +74,4 @@ def test_ci_runs_repository_verification_commands() -> None:
     ]
     assert commands["docker"][0] == "docker build --tag kubefit:ci ."
     assert "10001:10001" in commands["docker"][1]
+    assert commands["docker"][2] == "deploy/local/verify-image-runtime.sh kubefit:ci"
