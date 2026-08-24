@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -75,6 +76,20 @@ def test_rejects_tampered_embedded_pair_evidence(tmp_path: Path) -> None:
     target.write_text("{}\n")
 
     with pytest.raises(BenchmarkCampaignEvidenceError, match="size changed"):
+        load_benchmark_campaign_evidence(artifact.path)
+
+
+def test_rejects_unsafe_pair_id_before_nested_path_resolution(tmp_path: Path) -> None:
+    _, campaign, pairs = completed_campaign(tmp_path)
+    artifact = write_benchmark_campaign_evidence(
+        tmp_path / "campaign-evidence", campaign.path, pairs
+    )
+    index_path = artifact.path / "evidence.json"
+    index = json.loads(index_path.read_text())
+    index["pair_ids"][0] = "../../outside"
+    index_path.write_text(json.dumps(index, indent=2, sort_keys=True) + "\n")
+
+    with pytest.raises(BenchmarkCampaignEvidenceError, match="index is invalid"):
         load_benchmark_campaign_evidence(artifact.path)
 
 

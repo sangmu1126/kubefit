@@ -391,9 +391,16 @@ proposal-fixed before and after costs can produce a plan. The plan contains one
 repository-relative path, its expected before SHA-256, exact before/after bytes,
 deterministic branch/title, draft-only flag, both pair member IDs, evidence summary,
 both order-specific metric changes and their observed ranges, and rollback guidance.
-A later repository adapter must compare the live file hash
-again before writing; planning itself performs no checkout, commit, push, or GitHub
-operation.
+
+An explicit optional campaign-evidence path adds a second verification branch. The
+loader replays the complete self-contained campaign, requires its proposal to match,
+and requires the already mandatory pair to appear in its chronological pair IDs. The
+PR body then includes the evidence and campaign IDs, completed/planned count, every
+block ID, and an explicit no-significance caveat. Without the option none of these
+fields exists, so repeated collection never becomes an implicit MVP gate.
+
+A later repository adapter must compare the live file hash again before writing;
+planning itself performs no checkout, commit, push, or GitHub operation.
 
 ## Transactional repository commit
 
@@ -438,6 +445,13 @@ After an ambiguous push or create error, the publisher observes the boundary aga
 and succeeds only if the exact intended state exists. This makes retry the recovery
 mechanism and avoids unsafe remote rollback.
 
+Campaign evidence changes the planned body but not the manifest commit or deterministic
+branch. KubeFit therefore accepts it only as part of the initial explicit plan. It does
+not edit an existing body to retrofit evidence; retrying against a previously published
+non-campaign body fails the same exact-contract check. The evidence bundle itself stays
+outside the Git branch rather than adding potentially thousands of raw benchmark files
+to a one-manifest review.
+
 `GitHubRestClient` supports only `https://api.github.com`. Its token lives in memory
 and is placed only in the HTTP `Authorization` header, never in Git arguments,
 models, URLs, artifacts, or exception text. Publication does not merge, approve,
@@ -457,6 +471,7 @@ PR body, and manifest contents. Known adapter failures are rendered as a concise
 CLI exit, and the token value is replaced defensively if an underlying exception
 unexpectedly includes it. This reduces accidental disclosure through normal output;
 the process environment remains the caller's secret-management responsibility.
+When selected, the campaign evidence ID is the only additional publication output.
 
 ## Read-only publication preflight
 
@@ -497,10 +512,18 @@ report reuse. Repository, branch, SHA, PR number, and URL must remain identical.
 independent remote ref and GitHub PR evidence must prove the same SHA, open Draft
 state, head/base, planned title, and one changed file.
 
+With optional campaign evidence, the preflight and both publication records must bind
+the same campaign-evidence ID. The verifier also binds the campaign plan and ordered
+pair IDs, and requires `github-pr.json` to contain a body byte-for-byte equal to the
+replayed plan. Capturing only the PR title is insufficient to prove the campaign table
+was attached. Older non-campaign evidence without a captured body remains loadable.
+
 Each source file is SHA-256 hashed. A canonical object containing the proposal ID,
 benchmark ID, pair ID, both pair-member IDs, and sorted hash map produces a
 deterministic `publication-<digest>` verification ID. This binds the locally verified
 bytes but does not authenticate who captured them or replace the live procedure.
+Campaign-backed identities additionally include the evidence, campaign, and ordered
+pair IDs.
 
 ## API image and Helm security boundary
 

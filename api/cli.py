@@ -158,6 +158,7 @@ def build_parser() -> argparse.ArgumentParser:
     publish.add_argument("--proposal", required=True, type=Path)
     publish.add_argument("--benchmark", required=True, type=Path)
     publish.add_argument("--benchmark-pair", required=True, type=Path)
+    publish.add_argument("--benchmark-campaign-evidence", type=Path)
     publish.add_argument("--repository-root", type=Path, default=Path("."))
     publish.add_argument("--remote", type=_git_remote_name, default="origin")
     publish.add_argument(
@@ -179,6 +180,7 @@ def build_parser() -> argparse.ArgumentParser:
     publish_check.add_argument("--proposal", required=True, type=Path)
     publish_check.add_argument("--benchmark", required=True, type=Path)
     publish_check.add_argument("--benchmark-pair", required=True, type=Path)
+    publish_check.add_argument("--benchmark-campaign-evidence", type=Path)
     publish_check.add_argument("--repository-root", type=Path, default=Path("."))
     publish_check.add_argument("--remote", type=_git_remote_name, default="origin")
     publish_check.add_argument(
@@ -195,6 +197,7 @@ def build_parser() -> argparse.ArgumentParser:
     verify_publication.add_argument("--proposal", required=True, type=Path)
     verify_publication.add_argument("--benchmark", required=True, type=Path)
     verify_publication.add_argument("--benchmark-pair", required=True, type=Path)
+    verify_publication.add_argument("--benchmark-campaign-evidence", type=Path)
     verify_publication.add_argument("--evidence-dir", required=True, type=Path)
     return parser
 
@@ -544,7 +547,10 @@ def _run_publish(args: argparse.Namespace) -> None:
     try:
         github = GitHubRestClient(token)
         plan = build_pull_request_plan(
-            args.proposal, args.benchmark, args.benchmark_pair
+            args.proposal,
+            args.benchmark,
+            args.benchmark_pair,
+            args.benchmark_campaign_evidence,
         )
         commit = commit_pull_request_plan(args.repository_root, plan)
         published = publish_pull_request(
@@ -557,25 +563,23 @@ def _run_publish(args: argparse.Namespace) -> None:
     except Exception as exc:
         detail = str(exc).replace(token, "[REDACTED]")
         raise SystemExit(f"publish failed: {detail}") from None
-    print(
-        json.dumps(
-            {
-                "repository": (
-                    f"{published.repository.owner}/{published.repository.name}"
-                ),
-                "remote": published.remote,
-                "branch": published.branch_name,
-                "commit_sha": published.commit_sha,
-                "branch_reused": published.branch_reused,
-                "pull_request_number": published.pull_request_number,
-                "pull_request_url": published.pull_request_url,
-                "pull_request_reused": published.pull_request_reused,
-                "draft": True,
-            },
-            indent=2,
-            sort_keys=True,
+    output: dict[str, object] = {
+        "repository": f"{published.repository.owner}/{published.repository.name}",
+        "remote": published.remote,
+        "branch": published.branch_name,
+        "commit_sha": published.commit_sha,
+        "branch_reused": published.branch_reused,
+        "pull_request_number": published.pull_request_number,
+        "pull_request_url": published.pull_request_url,
+        "pull_request_reused": published.pull_request_reused,
+        "draft": True,
+    }
+    campaign_evidence_id = getattr(plan, "benchmark_campaign_evidence_id", None)
+    if campaign_evidence_id is not None:
+        output["benchmark_campaign_evidence_id"] = (
+            campaign_evidence_id
         )
-    )
+    print(json.dumps(output, indent=2, sort_keys=True))
 
 
 def _run_publish_check(args: argparse.Namespace) -> bool:
@@ -594,24 +598,35 @@ def _run_publish_check(args: argparse.Namespace) -> bool:
 
     try:
         plan = build_pull_request_plan(
-            args.proposal, args.benchmark, args.benchmark_pair
+            args.proposal,
+            args.benchmark,
+            args.benchmark_pair,
+            args.benchmark_campaign_evidence,
         )
     except Exception as exc:
         detail = _redact_secret(str(exc), token)
         checks.append({"name": "artifacts", "status": "blocked", "detail": detail})
         blockers.append(f"artifact verification failed: {detail}")
         return _print_publish_check(report)
-    checks.append(
-        {
-            "name": "artifacts",
-            "status": "ready",
-            "proposal_id": plan.proposal_id,
-            "benchmark_id": plan.benchmark_id,
-            "benchmark_pair_id": plan.benchmark_pair_id,
-            "benchmark_ids": plan.benchmark_ids,
-            "planned_branch": plan.branch_name,
-        }
-    )
+    artifact_check = {
+        "name": "artifacts",
+        "status": "ready",
+        "proposal_id": plan.proposal_id,
+        "benchmark_id": plan.benchmark_id,
+        "benchmark_pair_id": plan.benchmark_pair_id,
+        "benchmark_ids": plan.benchmark_ids,
+        "planned_branch": plan.branch_name,
+    }
+    campaign_evidence_id = getattr(plan, "benchmark_campaign_evidence_id", None)
+    if campaign_evidence_id is not None:
+        artifact_check.update(
+            {
+                "benchmark_campaign_evidence_id": campaign_evidence_id,
+                "benchmark_campaign_id": plan.benchmark_campaign_id,
+                "benchmark_campaign_pair_ids": plan.benchmark_campaign_pair_ids,
+            }
+        )
+    checks.append(artifact_check)
 
     try:
         local = inspect_repository_plan(args.repository_root, plan)
@@ -732,6 +747,7 @@ def _run_verify_publication(args: argparse.Namespace) -> None:
             args.benchmark,
             args.benchmark_pair,
             args.evidence_dir,
+            args.benchmark_campaign_evidence,
         )
     except Exception as exc:
         raise SystemExit(f"publication evidence verification failed: {exc}") from None

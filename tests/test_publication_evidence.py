@@ -4,14 +4,29 @@ from pathlib import Path
 import pytest
 
 import api.cli as cli_module
+from benchmarks import (
+    load_counterbalanced_pair,
+    write_benchmark_campaign_evidence,
+)
 from gitops import PublicationEvidenceError, verify_publication_evidence
 from gitops.pull_request import build_pull_request_plan
+from tests.test_benchmark_campaign_artifact import completed_campaign
 from tests.test_benchmark_pair_artifact import publication_artifacts
 
 
-def publication_evidence(tmp_path: Path):
-    proposal, benchmark, pair = publication_artifacts(tmp_path / "artifacts")
-    plan = build_pull_request_plan(proposal.path, benchmark.path, pair.path)
+def publication_evidence(
+    tmp_path: Path,
+    *,
+    artifacts=None,
+    campaign_evidence=None,
+):
+    if artifacts is None:
+        artifacts = publication_artifacts(tmp_path / "artifacts")
+    proposal, benchmark, pair = artifacts
+    campaign_path = campaign_evidence.path if campaign_evidence is not None else None
+    plan = build_pull_request_plan(
+        proposal.path, benchmark.path, pair.path, campaign_path
+    )
     evidence = tmp_path / "evidence"
     evidence.mkdir()
     repository = "acme/workloads"
@@ -19,20 +34,31 @@ def publication_evidence(tmp_path: Path):
     commit_sha = "c" * 40
     pull_request_number = 42
     pull_request_url = f"https://github.com/{repository}/pull/{pull_request_number}"
+    artifact_check = {
+        "name": "artifacts",
+        "status": "ready",
+        "proposal_id": plan.proposal_id,
+        "benchmark_id": plan.benchmark_id,
+        "benchmark_pair_id": plan.benchmark_pair_id,
+        "benchmark_ids": plan.benchmark_ids,
+        "planned_branch": plan.branch_name,
+    }
+    if campaign_evidence is not None:
+        artifact_check.update(
+            {
+                "benchmark_campaign_evidence_id": (
+                    plan.benchmark_campaign_evidence_id
+                ),
+                "benchmark_campaign_id": plan.benchmark_campaign_id,
+                "benchmark_campaign_pair_ids": plan.benchmark_campaign_pair_ids,
+            }
+        )
     preflight = {
         "schema_version": 1,
         "status": "ready",
         "mutation_performed": False,
         "checks": [
-            {
-                "name": "artifacts",
-                "status": "ready",
-                "proposal_id": plan.proposal_id,
-                "benchmark_id": plan.benchmark_id,
-                "benchmark_pair_id": plan.benchmark_pair_id,
-                "benchmark_ids": plan.benchmark_ids,
-                "planned_branch": plan.branch_name,
-            },
+            artifact_check,
             {
                 "name": "local_repository",
                 "status": "ready",
@@ -78,6 +104,10 @@ def publication_evidence(tmp_path: Path):
         "pull_request_reused": False,
         "draft": True,
     }
+    if campaign_evidence is not None:
+        first["benchmark_campaign_evidence_id"] = (
+            plan.benchmark_campaign_evidence_id
+        )
     second = first | {"branch_reused": True, "pull_request_reused": True}
     github = {
         "number": pull_request_number,
@@ -90,6 +120,8 @@ def publication_evidence(tmp_path: Path):
         "title": plan.title,
         "changedFiles": 1,
     }
+    if campaign_evidence is not None:
+        github["body"] = plan.body
     (evidence / "preflight.json").write_text(json.dumps(preflight))
     (evidence / "first-publish.json").write_text(json.dumps(first))
     (evidence / "second-publish.json").write_text(json.dumps(second))
@@ -121,6 +153,47 @@ def test_verifies_two_run_evidence_deterministically(tmp_path: Path) -> None:
         "remote-ref.txt",
         "github-pr.json",
     }
+
+
+def test_verifies_campaign_attachment_and_exact_github_body(tmp_path: Path) -> None:
+    proposal, campaign, pairs = completed_campaign(
+        tmp_path / "campaign", planned_pairs=2
+    )
+    campaign_evidence = write_benchmark_campaign_evidence(
+        tmp_path / "campaign-artifact", campaign.path, pairs
+    )
+    primary_pair = load_counterbalanced_pair(pairs[0])
+    proposal_path, benchmark_path, pair_path, evidence, plan = publication_evidence(
+        tmp_path,
+        artifacts=(proposal, primary_pair.before_after, primary_pair),
+        campaign_evidence=campaign_evidence,
+    )
+
+    verified = verify_publication_evidence(
+        proposal_path,
+        benchmark_path,
+        pair_path,
+        evidence,
+        campaign_evidence.path,
+    )
+
+    assert verified.benchmark_campaign_evidence_id == campaign_evidence.artifact_id
+    assert verified.benchmark_campaign_id == campaign.campaign_id
+    assert verified.benchmark_campaign_pair_ids == campaign_evidence.pair_ids
+    assert verified.verification_id.startswith("publication-")
+
+    github_path = evidence / "github-pr.json"
+    github = json.loads(github_path.read_text())
+    github["body"] = plan.body + "edited\n"
+    github_path.write_text(json.dumps(github))
+    with pytest.raises(PublicationEvidenceError, match="body does not match"):
+        verify_publication_evidence(
+            proposal_path,
+            benchmark_path,
+            pair_path,
+            evidence,
+            campaign_evidence.path,
+        )
 
 
 def test_rejects_mixed_publication_outputs(tmp_path: Path) -> None:

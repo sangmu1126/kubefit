@@ -4,7 +4,7 @@ import os
 import shutil
 import tempfile
 from pathlib import Path, PurePosixPath
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -35,7 +35,9 @@ class BenchmarkCampaignEvidenceIndex(BaseModel):
     artifact_id: str = Field(pattern=r"^benchmark-campaign-evidence-[0-9a-f]{32}$")
     campaign_id: str = Field(pattern=r"^benchmark-campaign-[0-9a-f]{32}$")
     proposal_id: str = Field(pattern=r"^proposal-[0-9a-f]{32}$")
-    pair_ids: list[str] = Field(min_length=2, max_length=100)
+    pair_ids: list[
+        Annotated[str, Field(pattern=r"^benchmark-pair-[0-9a-f]{32}$")]
+    ] = Field(min_length=2, max_length=100)
     content_digest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     files: dict[str, BenchmarkCampaignEvidenceFileMetadata]
 
@@ -46,7 +48,9 @@ class BenchmarkCampaignEvidenceArtifact(BaseModel):
     artifact_id: str = Field(pattern=r"^benchmark-campaign-evidence-[0-9a-f]{32}$")
     campaign_id: str = Field(pattern=r"^benchmark-campaign-[0-9a-f]{32}$")
     proposal_id: str = Field(pattern=r"^proposal-[0-9a-f]{32}$")
-    pair_ids: list[str] = Field(min_length=2, max_length=100)
+    pair_ids: list[
+        Annotated[str, Field(pattern=r"^benchmark-pair-[0-9a-f]{32}$")]
+    ] = Field(min_length=2, max_length=100)
     path: Path
     reused: bool
     files: list[str]
