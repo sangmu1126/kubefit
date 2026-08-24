@@ -6,6 +6,12 @@ changes through GitHub pull requests instead of mutating production workloads.
 
 > Measure first. Explain the trade-off. Change through GitOps.
 
+![KubeFit live counterbalanced pair review](docs/assets/pair-review-live.png)
+
+The stored pair on the right was fully replayed from two opposite-order live benchmark
+artifacts before the dashboard displayed `PASS`. The editable scenario panel on the
+left is example input and is not the source of that verdict.
+
 ## MVP scope
 
 - Analyze Kubernetes `Deployment` resources
@@ -22,22 +28,33 @@ release.
 
 ## Verified MVP evidence
 
-KubeFit's MVP is complete on `main`; the evidence is deliberately split by claim:
+KubeFit's MVP is complete on `main`. The current submission evidence is deliberately
+split by claim so a cost projection, one passing run, and a repeated experiment cannot
+be mistaken for one another:
 
 | Claim | Reproducible evidence |
 |---|---|
-| Resource recommendations are deterministic and safety-gated | 328 Python tests on the final `main` commit |
-| The review UI builds and behaves as specified | 11 dashboard tests and a production Vite build |
+| Resource recommendations are deterministic and safety-gated | 394 Python tests on the integrated `main` commit |
+| The review UI builds and behaves as specified | 15 dashboard tests and a production Vite build |
 | The package renders with least-privilege defaults | Helm lint and default-template validation |
 | The production image actually starts | Docker startup, numeric non-root user, health, dashboard, and disabled-storage smoke checks |
-| The before/after workflow works on Kubernetes | [Passing disposable-kind benchmark](docs/devlog/0038-live-demo-benchmark.md) |
-| A verified result becomes a reviewable Git change | [Real idempotent Draft PR handoff](docs/devlog/0040-live-origin-draft-pr.md) |
+| Controlled observation works on Kubernetes | 100,501 requests, 0 errors, and 100% usage/throttling coverage in [record 0060](docs/devlog/0060-validation-informed-cpu-floor.md) |
+| Unsafe-looking savings cannot override latency | The 10m candidate and one repeated 20m block were rejected by the fixed steady-P99 gate |
+| One counterbalanced pair passed complete replay | [Pair and refinement evidence](docs/devlog/0060-validation-informed-cpu-floor.md) |
+| A verified pair becomes a reviewable Git change | Idempotent resource [Draft PR #23](https://github.com/sangmu1126/kubefit/pull/23) and [publication record 0061](docs/devlog/0061-live-pair-draft-publication.md) |
+| Repeated evidence is not overstated | The preregistered campaign remains explicitly `incomplete`; no aggregate or significance claim is made |
 
-The feature baseline and merged release documentation both passed the four-gate
-workflow; the latter is available in
-[GitHub Actions](https://github.com/sangmu1126/kubefit/actions/runs/32690444806).
-See the [release-readiness record](docs/release-readiness.md) for the exact boundary
-between an MVP source release and claims that still require post-MVP hardening.
+The latest live resource PR passed Python 3.12, 3.13, and 3.14 plus Dashboard, Helm,
+and Docker in [GitHub Actions](https://github.com/sangmu1126/kubefit/actions/runs/32749825481).
+It proposes CPU `1000m/2000m → 20m/40m` and memory `2Gi/4Gi → 32Mi/48Mi`, with an
+illustrative request-cost projection of `73.000000 → 1.396125` USD per month. This is
+not a measured AWS invoice saving. PR #23 remains Draft and KubeFit did not merge or
+deploy it.
+
+The [v0.1.0 release-readiness record](docs/release-readiness.md) preserves the earlier
+MVP source boundary. Records [0060](docs/devlog/0060-validation-informed-cpu-floor.md)
+and [0061](docs/devlog/0061-live-pair-draft-publication.md) document the later
+counterbalanced validation and authenticated publication hardening.
 
 ## Repository layout
 
