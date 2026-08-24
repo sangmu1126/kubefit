@@ -77,6 +77,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0053](0053-counterbalanced-pair-assessment.md) | Counterbalanced pair assessment | Bind two verified opposite-order artifacts into one deterministic policy decision |
 | [0054](0054-persisted-pair-publication-gate.md) | Persisted pair publication gate | Require replayable opposite-order evidence throughout GitOps publication |
 | [0055](0055-counterbalanced-metric-range-review.md) | Counterbalanced metric range review | Show two order-specific changes without inventing statistical confidence |
+| [0056](0056-preregistered-benchmark-campaign.md) | Preregistered benchmark campaign | Freeze repeated-pair order and stopping rules before observing outcomes |
 
 ## Visual language
 
