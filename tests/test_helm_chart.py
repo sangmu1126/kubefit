@@ -184,6 +184,11 @@ def test_container_image_runs_as_numeric_non_root_user() -> None:
     assert f"FROM {python_base} AS builder" in dockerfile
     assert f"FROM {python_base} AS runtime" in dockerfile
     assert dockerfile.count("@sha256:") == 3
+    assert "COPY requirements ./requirements" in dockerfile
+    assert dockerfile.count("--require-hashes") == 2
+    assert "--requirement requirements/build.lock" in dockerfile
+    assert "--requirement requirements/runtime.lock" in dockerfile
+    assert "--no-deps --no-build-isolation" in dockerfile
     assert "KUBEFIT_DASHBOARD_DIRECTORY=/opt/kubefit/dashboard" in dockerfile
     assert "COPY --from=dashboard-builder --chown=10001:10001" in dockerfile
     assert "--no-index --find-links=/wheels" in dockerfile
