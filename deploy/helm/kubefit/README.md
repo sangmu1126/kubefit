@@ -5,6 +5,26 @@ dashboard in one image. It does not install Prometheus, run the operator-side
 analysis CLI, mutate workloads, or publish GitHub pull requests from inside the
 cluster.
 
+## Published installation
+
+After the `Release packages` workflow has passed its anonymous image and chart pull
+gate for a version, install the OCI chart without a source checkout:
+
+```bash
+helm upgrade --install kubefit \
+  oci://ghcr.io/sangmu1126/charts/kubefit \
+  --version 0.1.0 \
+  --namespace kubefit-system \
+  --create-namespace \
+  --wait
+```
+
+The chart defaults to `ghcr.io/sangmu1126/kubefit:<appVersion>`. Do not treat the
+command as available merely because the chart renders: the release workflow must be
+green, including its final job with no registry login. On the first GHCR publication,
+the repository owner may need to make both `kubefit` and `charts/kubefit` packages
+public and rerun the workflow.
+
 ## Local kind installation
 
 ```bash
