@@ -73,6 +73,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0049](0049-apache-license-distribution.md) | Apache license distribution | Carry the official license through source, wheel, image, and README |
 | [0050](0050-hash-locked-python-environments.md) | Hash-locked Python environments | Separate and verify runtime, development, and build dependency snapshots |
 | [0051](0051-supported-python-ci-matrix.md) | Supported Python CI matrix | Enforce the same locked quality gate on Python 3.12, 3.13, and 3.14 |
+| [0052](0052-counterbalanced-benchmark-order.md) | Counterbalanced benchmark order | Run either chronological order and expose unavoidable single-trial bias |
 
 ## Visual language
 

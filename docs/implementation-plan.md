@@ -241,6 +241,9 @@ development, and build dependency snapshots, requires hashes in CI and Docker, a
 proves the same locks on Python 3.12 and 3.14. Entry
 [0051](devlog/0051-supported-python-ci-matrix.md) continuously applies the same
 locked quality gate to Python 3.12, 3.13, and 3.14 on hosted runners without
-fail-fast cancellation.
+fail-fast cancellation. Entry
+[0052](devlog/0052-counterbalanced-benchmark-order.md) adds deterministic
+before-first and candidate-first execution, rejects overlapping intervals, and
+carries the remaining single-trial order bias into artifacts and PR review notes.
 
-Next, reduce benchmark measurement-order noise and make its remaining bias explicit.
+Next, bind opposite-order artifacts into one agreement decision before publication.

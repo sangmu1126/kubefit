@@ -299,6 +299,13 @@ The kernel releases ownership on process exit, avoiding stale PID-file cleanup.
 Symlinked roots and files are rejected and the lock is held across proposal
 revalidation, both applies and measurements, restoration, and result publication.
 
+The runner accepts explicit `before-after` and `after-before` execution orders. It
+stores measurements by logical role rather than chronological position, validates
+that their retained wall-clock intervals do not overlap, and emits a warning naming
+which role ran first. Either sequence still ends by applying and waiting for the
+baseline manifest. Opposite-order artifacts can be inspected together, but no paired
+aggregate or cross-order agreement gate exists yet.
+
 The CLI accepts only an explicit `kind-*` context plus a required disposable-cluster
 acknowledgement. This is a product boundary rather than a claim that lower-level
 adapters are production safe. Locks coordinate only local cooperating processes;

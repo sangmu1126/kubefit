@@ -249,7 +249,16 @@ kubefit benchmark \
   --target-url http://127.0.0.1:8001/api/v1/namespaces/kubefit-demo/services/http:overprovisioned-api:80/proxy/ \
   --prometheus-url http://localhost:9090 \
   --context kind-kubefit \
-  --confirm-disposable-cluster
+  --confirm-disposable-cluster \
+  --execution-order before-after
+
+kubefit benchmark \
+  --proposal .kubefit/proposals/proposal-<digest> \
+  --target-url http://127.0.0.1:8001/api/v1/namespaces/kubefit-demo/services/http:overprovisioned-api:80/proxy/ \
+  --prometheus-url http://localhost:9090 \
+  --context kind-kubefit \
+  --confirm-disposable-cluster \
+  --execution-order after-before
 ```
 
 The command locks the target Deployment, revalidates its analysis identity, restores
@@ -262,6 +271,12 @@ scheduling-boundary iteration; missing work or two extra iterations is invalid. 
 the Kubernetes API Service proxy for the application target: `kubectl port-forward`
 selects one backing Pod and disconnects when the benchmark rollout replaces it.
 Prometheus can remain port-forwarded because the benchmark does not roll it out.
+
+The two commands counterbalance chronological order but publish independent result
+artifacts. Every artifact records its actual order and emits a warning because one
+sequential trial cannot separate resource effects from warm-up or time drift. KubeFit
+does not yet aggregate the pair or require their verdicts to agree; compare both
+before selecting evidence for a Draft PR.
 
 ## Publish a verified Draft PR
 

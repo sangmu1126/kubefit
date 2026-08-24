@@ -156,6 +156,25 @@ def test_demo_observation_profile_rejects_window_override() -> None:
         cli_module._observation_configuration(args)
 
 
+def test_benchmark_accepts_explicit_counterbalanced_execution_order() -> None:
+    args = build_parser().parse_args(
+        [
+            "benchmark",
+            "--proposal",
+            "proposal",
+            "--target-url",
+            "http://127.0.0.1:8080",
+            "--context",
+            "kind-kubefit",
+            "--confirm-disposable-cluster",
+            "--execution-order",
+            "after-before",
+        ]
+    )
+
+    assert args.execution_order == "after-before"
+
+
 def test_readiness_prints_machine_readable_collection_progress(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -259,10 +278,11 @@ def test_benchmark_command_composes_execution_inside_target_lock(
     monkeypatch.setattr(cli_module, "KubectlManifestController", lambda **kwargs: "controller")
     monkeypatch.setattr(cli_module, "BenchmarkExecutionLock", FakeLock)
 
-    def execute(path, controller, measurement):
+    def execute(path, controller, measurement, *, execution_order):
         assert path == proposal.path
         assert controller == "controller"
         assert measurement == "measurement"
+        assert execution_order == "before-after"
         events.append("execute")
         return run
 
@@ -307,6 +327,7 @@ def test_benchmark_command_composes_execution_inside_target_lock(
     output = json.loads(capsys.readouterr().out)
     assert output["artifact_id"] == "benchmark-" + "a" * 32
     assert output["verdict"] == run.verdict.status
+    assert output["execution_order"] == "before-after"
     assert output["restored"] is True
 
 

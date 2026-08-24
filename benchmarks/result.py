@@ -93,6 +93,16 @@ class BenchmarkVerdict(BaseModel):
     cost_change_percent: Decimal | None
 
 
+def measurement_order(
+    before: BenchmarkMeasurement, after: BenchmarkMeasurement
+) -> Literal["before-after", "after-before"] | None:
+    if before.provenance.run_finished_at <= after.provenance.run_started_at:
+        return "before-after"
+    if after.provenance.run_finished_at <= before.provenance.run_started_at:
+        return "after-before"
+    return None
+
+
 def compare_benchmarks(
     before: BenchmarkMeasurement,
     after: BenchmarkMeasurement,
@@ -110,6 +120,23 @@ def compare_benchmarks(
             warnings=[],
             cost_change_percent=_cost_change(before, after),
         )
+
+    order = measurement_order(before, after)
+    assert order is not None
+    first, second = order.split("-")
+    labels = {"before": "baseline (before)", "after": "candidate (after)"}
+    checks.append(
+        BenchmarkCheck(
+            code="measurement_order_bias",
+            status="warning",
+            reason=(
+                f"{labels[first]} was measured before {labels[second]}; one sequential "
+                "trial cannot "
+                "separate resource effects from warm-up or time drift, so run the "
+                "opposite execution order as a counterbalanced trial"
+            ),
+        )
+    )
 
     for phase, limit in (
         ("steady", policy.steady_latency_regression_percent),
@@ -271,6 +298,11 @@ def _validity_checks(
             "baseline_recovered",
             before.runtime.traffic_spike_recovered,
             "baseline must recover during the fixed recovery phase",
+        ),
+        (
+            "measurement_intervals",
+            measurement_order(before, after) is not None,
+            "before and after measurement intervals must not overlap",
         ),
     )
     for code, valid, failure_reason in comparisons:

@@ -45,6 +45,8 @@ def test_publishes_complete_hashed_result_without_changing_proposal(
     assert (result.path / "evidence/k6/before-raw.json").read_bytes() == b"raw:before"
     assert (result.path / "evidence/k6/after-raw.json").read_bytes() == b"raw:after"
     assert "Workload restored: `true`" in (result.path / "report.md").read_text()
+    assert "Measurement order: `before-after`" in (result.path / "report.md").read_text()
+    assert "`measurement_order_bias` | warning" in (result.path / "report.md").read_text()
     assert "## Checks" in (result.path / "report.md").read_text()
     index = json.loads((result.path / "result.json").read_text())
     assert index["proposal_id"] == proposal.artifact_id

@@ -111,6 +111,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     benchmark.add_argument("--rollout-timeout-seconds", type=int, default=120)
     benchmark.add_argument("--k6-timeout-seconds", type=int, default=240)
+    benchmark.add_argument(
+        "--execution-order",
+        choices=("before-after", "after-before"),
+        default="before-after",
+        help="measurement order; run both orders as separate trials to counterbalance time bias",
+    )
     publish = subcommands.add_parser(
         "publish", help="commit a verified proposal and open or reuse a GitHub draft PR"
     )
@@ -355,7 +361,12 @@ def _run_benchmark(args: argparse.Namespace) -> None:
         namespace=proposal.target.namespace,
         deployment=proposal.target.deployment,
     ):
-        run = execute_benchmark(args.proposal, controller, measurement)
+        run = execute_benchmark(
+            args.proposal,
+            controller,
+            measurement,
+            execution_order=args.execution_order,
+        )
         artifact = write_benchmark_result(args.results_dir, run)
     print(
         json.dumps(
@@ -364,6 +375,7 @@ def _run_benchmark(args: argparse.Namespace) -> None:
                 "path": str(artifact.path),
                 "proposal_id": artifact.proposal_id,
                 "verdict": run.verdict.status,
+                "execution_order": args.execution_order,
                 "restored": run.restored,
                 "reused": artifact.reused,
             },

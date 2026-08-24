@@ -1,6 +1,6 @@
 import hashlib
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -63,7 +63,10 @@ def published_proposal(tmp_path: Path):
 
 
 def collector(events: list[str], *, fail_variant: str | None = None):
+    measurement_count = 0
+
     def collect(proposal, variant):
+        nonlocal measurement_count
         events.append(f"measure:{variant}")
         if variant == fail_variant:
             raise RuntimeError(f"measure:{variant}")
@@ -76,6 +79,20 @@ def collector(events: list[str], *, fail_variant: str | None = None):
             variant,
             proposal_id=proposal.artifact_id,
             request_cost_usd=request_cost,
+        )
+        started_at = datetime(2026, 8, 21, tzinfo=UTC) + timedelta(
+            minutes=5 * measurement_count
+        )
+        measurement_count += 1
+        measured = measured.model_copy(
+            update={
+                "provenance": measured.provenance.model_copy(
+                    update={
+                        "run_started_at": started_at,
+                        "run_finished_at": started_at + timedelta(seconds=160),
+                    }
+                )
+            }
         )
         summary_bytes = (
             K6RunSummary.model_validate(measured.model_dump()).model_dump_json().encode()
@@ -134,6 +151,47 @@ def test_executes_fixed_order_and_restores_before_returning(tmp_path: Path) -> N
         "kind: Service" not in manifest.read_text()
         for manifest in controller.applied_manifests
     )
+
+
+def test_executes_reverse_order_and_still_restores_baseline(tmp_path: Path) -> None:
+    proposal = published_proposal(tmp_path)
+    controller = RecordingController()
+
+    result = execute_benchmark(
+        proposal.path,
+        controller,
+        collector(controller.events),
+        execution_order="after-before",
+    )
+
+    assert result.before.variant == "before"
+    assert result.after.variant == "after"
+    assert "candidate (after) was measured before baseline (before)" in result.verdict.warnings[0]
+    assert controller.events == [
+        "verify",
+        "apply:after:1",
+        "wait:after:1",
+        "measure:after",
+        "apply:before:1",
+        "wait:before:1",
+        "measure:before",
+        "apply:before:2",
+        "wait:before:2",
+    ]
+
+
+def test_rejects_unknown_execution_order_before_loading_proposal(tmp_path: Path) -> None:
+    controller = RecordingController()
+
+    with pytest.raises(ValueError, match="execution order"):
+        execute_benchmark(
+            tmp_path / "missing",
+            controller,
+            collector(controller.events),
+            execution_order="random",  # type: ignore[arg-type]
+        )
+
+    assert controller.events == []
 
 
 @pytest.mark.parametrize(

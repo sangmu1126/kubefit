@@ -5,7 +5,7 @@ KubeFit observed this workload and proposes a reviewed resource change after a r
 - Target: `demo/demo` container `api`
 - Workload UID: `deployment-uid`
 - Proposal: `proposal-444bf37263f2da4d1ffb85512d245598`
-- Benchmark: `benchmark-784f7e21bb4aead35c2fbb5286f8c824`
+- Benchmark: `benchmark-1a5176c57070fa807f234db4a00bbbdd`
 - Benchmark verdict: **PASS**
 
 ## Proposed resources
@@ -40,7 +40,7 @@ Price source: `example://test`. This is a request-cost projection, not a guarant
 
 ## Review notes
 
-- No policy warnings were emitted.
+- baseline (before) was measured before candidate (after); one sequential trial cannot separate resource effects from warm-up or time drift, so run the opposite execution order as a counterbalanced trial
 
 ## Rollback
 

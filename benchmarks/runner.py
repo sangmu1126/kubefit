@@ -56,6 +56,11 @@ class ManifestController(Protocol):
 MeasurementCollector = Callable[
     [LoadedProposalBundle, Literal["before", "after"]], CollectedMeasurement
 ]
+ExecutionOrder = Literal["before-after", "after-before"]
+EXECUTION_VARIANTS: dict[ExecutionOrder, tuple[Literal["before", "after"], ...]] = {
+    "before-after": ("before", "after"),
+    "after-before": ("after", "before"),
+}
 CommandRunner = Callable[[Sequence[str]], str]
 Clock = Callable[[], float]
 Sleeper = Callable[[float], None]
@@ -246,7 +251,10 @@ def execute_benchmark(
     proposal_path: Path,
     controller: ManifestController,
     collect_measurement: MeasurementCollector,
+    execution_order: ExecutionOrder = "before-after",
 ) -> BenchmarkRun:
+    if execution_order not in EXECUTION_VARIANTS:
+        raise ValueError("execution order must be before-after or after-before")
     proposal = load_proposal_bundle(proposal_path)
     restore_required = False
     primary_error: BaseException | None = None
@@ -262,20 +270,22 @@ def execute_benchmark(
             proposal.workload_uid,
             proposal.workload_created_at,
         )
-        primary_stage = "apply_before"
         restore_required = True
-        controller.apply(proposal.before_manifest, proposal.target)
-        primary_stage = "wait_before_rollout"
-        controller.wait_for_rollout(proposal.target)
-        primary_stage = "measure_before"
-        before = collect_measurement(proposal, "before")
+        measurements: dict[Literal["before", "after"], CollectedMeasurement] = {}
+        manifests = {
+            "before": proposal.before_manifest,
+            "after": proposal.after_manifest,
+        }
+        for variant in EXECUTION_VARIANTS[execution_order]:
+            primary_stage = f"apply_{variant}"
+            controller.apply(manifests[variant], proposal.target)
+            primary_stage = f"wait_{variant}_rollout"
+            controller.wait_for_rollout(proposal.target)
+            primary_stage = f"measure_{variant}"
+            measurements[variant] = collect_measurement(proposal, variant)
 
-        primary_stage = "apply_after"
-        controller.apply(proposal.after_manifest, proposal.target)
-        primary_stage = "wait_after_rollout"
-        controller.wait_for_rollout(proposal.target)
-        primary_stage = "measure_after"
-        after = collect_measurement(proposal, "after")
+        before = measurements["before"]
+        after = measurements["after"]
         primary_stage = "compare"
         result = BenchmarkRun(
             proposal_id=proposal.artifact_id,
