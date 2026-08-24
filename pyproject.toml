@@ -29,6 +29,12 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["api", "collector", "recommender", "evaluator", "gitops", "benchmarks"]
+exclude = [
+  "/benchmarks/results/**",
+  "/benchmarks/pairs/**",
+  "/benchmarks/campaigns/**",
+  "/benchmarks/campaign-evidence/**",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

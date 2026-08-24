@@ -84,6 +84,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0060](0060-validation-informed-cpu-floor.md) | Validation-informed CPU floor | Raise an unsafe candidate monotonically and retain failed campaign evidence |
 | [0061](0061-live-pair-draft-publication.md) | Live pair Draft publication | Publish one verified pair idempotently without overstating an incomplete campaign |
 | [0062](0062-verified-v020-release.md) | Verified v0.2.0 release | Publish source-bound image/chart packages and verify anonymous installation |
+| [0063](0063-generated-evidence-package-boundary.md) | Generated evidence package boundary | Keep ignored local benchmark evidence out of wheels and Docker images |
 
 ## Visual language
 

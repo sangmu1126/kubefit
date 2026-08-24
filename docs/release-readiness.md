@@ -4,6 +4,12 @@ This page is the release decision boundary for KubeFit `v0.1.0`. It connects eac
 user-facing claim to evidence on the final integrated `main` commit and keeps
 post-MVP work out of the release claim.
 
+> **Historical snapshot:** Counts, package availability, and PR state below describe
+> the `v0.1.0` boundary. KubeFit later published `v0.2.0`; the older Draft PR #1 was
+> closed after the validation-backed Draft PR #23 superseded it. See the
+> [current README](../README.md#verified-mvp-evidence) and
+> [release record 0062](devlog/0062-verified-v020-release.md) for current evidence.
+
 ## Release candidate
 
 | Field | Value |
@@ -112,6 +118,6 @@ production-autonomous optimizer. The release does not claim:
 
 Benchmark mutation is restricted to an explicitly confirmed disposable `kind-*`
 cluster and restores the original manifest on every exit path after mutation starts.
-The publication command creates a Draft PR only; it never merges or deploys. Draft
-PR #1 remains open and unmerged as evidence that the human approval boundary was
-preserved.
+The publication command creates a Draft PR only; it never merges or deploys. At this
+historical boundary, Draft PR #1 remained open and unmerged as evidence that the human
+approval boundary was preserved; it was later closed when Draft PR #23 superseded it.
