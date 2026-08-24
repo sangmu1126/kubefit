@@ -332,6 +332,10 @@ operating an earlier serverless platform. It is independently designed and
 implemented as an open-source Kubernetes optimization tool. The prior project
 is context, not this repository's codebase or deployment architecture.
 
+## License
+
+KubeFit is distributed under the [Apache License 2.0](LICENSE).
+
 ## Safety principles
 
 - Read workloads and metrics; never mutate a cluster in the recommendation path.

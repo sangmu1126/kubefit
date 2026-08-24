@@ -233,6 +233,9 @@ propagating Ctrl+C and retaining both causes if restoration fails. Entry
 [0048](devlog/0048-verified-public-package-release.md) adds a source-bound
 multi-architecture image and OCI chart publisher with a credential-free anonymous
 pull/runtime gate. Live publication remains open until that hosted gate passes.
+Entry [0049](devlog/0049-apache-license-distribution.md) aligns the Apache-2.0
+declaration with a complete root license and carries it through wheel and image
+distribution without inventing an empty NOTICE file.
 
-Next, add the declared root license, then lock Python dependencies, expand CI version
-coverage, and reduce benchmark measurement-order noise in risk order.
+Next, lock Python dependencies, expand CI version coverage, and reduce benchmark
+measurement-order noise in risk order.

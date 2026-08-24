@@ -495,3 +495,15 @@ is an account-level owner action and is not silently broadened by the workflow.
 This establishes source and public-installation identity, not bit-for-bit build
 reproducibility. Python package ranges are still resolved during wheel construction
 and must be locked separately.
+
+## License distribution boundary
+
+The root `LICENSE` is the canonical Apache-2.0 text. Python packaging declares the
+SPDX expression and includes that exact file under wheel `.dist-info/licenses`; the
+Docker builder receives the same file before constructing and installing the wheel.
+The README links back to the root copy rather than duplicating legal text.
+
+KubeFit does not create an empty NOTICE file because the project currently has no
+NOTICE attribution content to preserve. Third-party packages retain their own
+licenses and remain separately visible through package metadata and the image SBOM;
+the KubeFit license does not replace them.

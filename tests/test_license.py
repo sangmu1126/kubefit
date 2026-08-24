@@ -22,3 +22,9 @@ def test_python_and_container_packages_include_the_root_license() -> None:
     assert project["license"] == "Apache-2.0"
     assert project["license-files"] == ["LICENSE"]
     assert "COPY pyproject.toml README.md LICENSE ./" in dockerfile
+
+
+def test_readme_links_the_distributed_license() -> None:
+    readme = ROOT.joinpath("README.md").read_text()
+
+    assert "[Apache License 2.0](LICENSE)" in readme
