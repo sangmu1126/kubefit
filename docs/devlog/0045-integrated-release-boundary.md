@@ -4,7 +4,7 @@
 - **Status:** validated locally and on GitHub-hosted runners
 - **Related phase:** MVP release preparation
 - **Integrated commit:** `caede3391ecf9e9d10633239857bd29bd3cf8991`
-- **Draft PR:** [sangmu1126/kubefit#6](https://github.com/sangmu1126/kubefit/pull/6)
+- **Documentation PR:** [sangmu1126/kubefit#6](https://github.com/sangmu1126/kubefit/pull/6), merged
 
 ## Why
 
@@ -82,8 +82,10 @@ independently passed all four jobs:
 | Helm | Passed | 7s |
 | Docker | Passed | 24s |
 
-The remaining validation is the final `main` run after this documentation PR is
-approved and merged.
+PR #6 was then approved and merged as `075c7220500ac760e17e3290f532b359986a7df7`.
+The resulting `main` workflow
+[run 32690444806](https://github.com/sangmu1126/kubefit/actions/runs/32690444806)
+passed Python, Dashboard, Helm, and Docker, including the packaged runtime smoke.
 
 ## Decision and limitations
 
@@ -94,5 +96,6 @@ savings, HPA optimization, or autonomous production operation.
 
 ## Next question
 
-After the release documentation is merged and `main` is green, does the exact
-verified commit qualify for the annotated `v0.1.0` tag?
+The release boundary is now complete. The next controlled action is to tag the final
+clean, four-gate-verified `main` commit as `v0.1.0` and independently verify the
+remote annotated tag target.

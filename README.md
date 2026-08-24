@@ -33,8 +33,9 @@ KubeFit's MVP is complete on `main`; the evidence is deliberately split by claim
 | The before/after workflow works on Kubernetes | [Passing disposable-kind benchmark](docs/devlog/0038-live-demo-benchmark.md) |
 | A verified result becomes a reviewable Git change | [Real idempotent Draft PR handoff](docs/devlog/0040-live-origin-draft-pr.md) |
 
-The final four-gate run is available in
-[GitHub Actions](https://github.com/sangmu1126/kubefit/actions/runs/32688444656).
+The feature baseline and merged release documentation both passed the four-gate
+workflow; the latter is available in
+[GitHub Actions](https://github.com/sangmu1126/kubefit/actions/runs/32690444806).
 See the [release-readiness record](docs/release-readiness.md) for the exact boundary
 between an MVP source release and claims that still require post-MVP hardening.
 
