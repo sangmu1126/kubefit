@@ -5,7 +5,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -49,6 +49,10 @@ class _PublishEvidence(BaseModel):
     pull_request_url: str = Field(pattern=r"^https://github\.com/")
     pull_request_reused: bool
     draft: Literal[True]
+    benchmark_campaign_evidence_id: str | None = Field(
+        default=None,
+        pattern=r"^benchmark-campaign-evidence-[0-9a-f]{32}$",
+    )
 
 
 class _GitHubPullRequestEvidence(BaseModel):
@@ -62,6 +66,7 @@ class _GitHubPullRequestEvidence(BaseModel):
     headRefOid: str = Field(pattern=r"^[0-9a-f]{40}$")
     baseRefName: str
     title: str
+    body: str | None = None
     changedFiles: Literal[1]
 
 
@@ -74,6 +79,17 @@ class VerifiedPublicationEvidence(BaseModel):
     benchmark_id: str = Field(pattern=r"^benchmark-[0-9a-f]{32}$")
     benchmark_pair_id: str = Field(pattern=r"^benchmark-pair-[0-9a-f]{32}$")
     benchmark_ids: list[str] = Field(min_length=2, max_length=2)
+    benchmark_campaign_evidence_id: str | None = Field(
+        default=None,
+        pattern=r"^benchmark-campaign-evidence-[0-9a-f]{32}$",
+    )
+    benchmark_campaign_id: str | None = Field(
+        default=None,
+        pattern=r"^benchmark-campaign-[0-9a-f]{32}$",
+    )
+    benchmark_campaign_pair_ids: list[
+        Annotated[str, Field(pattern=r"^benchmark-pair-[0-9a-f]{32}$")]
+    ] | None = Field(default=None, min_length=2, max_length=100)
     repository: str
     remote: str
     base_branch: str
@@ -89,9 +105,13 @@ def verify_publication_evidence(
     benchmark_path: Path,
     benchmark_pair_path: Path,
     evidence_directory: Path,
+    benchmark_campaign_evidence_path: Path | None = None,
 ) -> VerifiedPublicationEvidence:
     plan = build_pull_request_plan(
-        proposal_path, benchmark_path, benchmark_pair_path
+        proposal_path,
+        benchmark_path,
+        benchmark_pair_path,
+        benchmark_campaign_evidence_path,
     )
     files = _load_exact_evidence(evidence_directory)
     preflight = _parse_model(
@@ -124,6 +144,21 @@ def verify_publication_evidence(
         plan.benchmark_ids,
         "preflight benchmark IDs",
     )
+    _require_equal(
+        artifacts.get("benchmark_campaign_evidence_id"),
+        plan.benchmark_campaign_evidence_id,
+        "preflight benchmark campaign evidence ID",
+    )
+    _require_equal(
+        artifacts.get("benchmark_campaign_id"),
+        plan.benchmark_campaign_id,
+        "preflight benchmark campaign ID",
+    )
+    _require_equal(
+        artifacts.get("benchmark_campaign_pair_ids"),
+        plan.benchmark_campaign_pair_ids,
+        "preflight benchmark campaign pair IDs",
+    )
     _require_equal(artifacts.get("planned_branch"), plan.branch_name, "preflight branch")
     _require_equal(local.get("planned_path"), plan.file_change.path, "preflight file path")
     _require_equal(local.get("local_branch_state"), "absent", "initial local branch state")
@@ -151,6 +186,16 @@ def verify_publication_evidence(
             getattr(second, field), getattr(first, field), f"publication {field}"
         )
     _require_equal(first.branch, plan.branch_name, "published branch")
+    _require_equal(
+        first.benchmark_campaign_evidence_id,
+        plan.benchmark_campaign_evidence_id,
+        "published benchmark campaign evidence ID",
+    )
+    _require_equal(
+        second.benchmark_campaign_evidence_id,
+        first.benchmark_campaign_evidence_id,
+        "publication benchmark campaign evidence ID",
+    )
     _require_equal(remote.get("repository"), first.repository, "preflight repository")
     _require_equal(remote.get("remote"), first.remote, "preflight remote")
 
@@ -164,6 +209,12 @@ def verify_publication_evidence(
     _require_equal(github.headRefOid, first.commit_sha, "GitHub head SHA")
     _require_equal(github.baseRefName, base_branch, "GitHub base branch")
     _require_equal(github.title, plan.title, "GitHub pull request title")
+    if plan.benchmark_campaign_evidence_id is not None and github.body is None:
+        raise PublicationEvidenceError(
+            "GitHub pull request body is required for campaign evidence verification"
+        )
+    if github.body is not None:
+        _require_equal(github.body, plan.body, "GitHub pull request body")
 
     expected_ref = f"{first.commit_sha}\trefs/heads/{first.branch}\n".encode()
     _require_equal(files["remote-ref.txt"], expected_ref, "remote branch ref")
@@ -172,14 +223,25 @@ def verify_publication_evidence(
         name: hashlib.sha256(content).hexdigest()
         for name, content in sorted(files.items())
     }
+    identity_fields = {
+        "proposal_id": plan.proposal_id,
+        "benchmark_id": plan.benchmark_id,
+        "benchmark_pair_id": plan.benchmark_pair_id,
+        "benchmark_ids": plan.benchmark_ids,
+        "evidence_sha256": hashes,
+    }
+    if plan.benchmark_campaign_evidence_id is not None:
+        identity_fields.update(
+            {
+                "benchmark_campaign_evidence_id": (
+                    plan.benchmark_campaign_evidence_id
+                ),
+                "benchmark_campaign_id": plan.benchmark_campaign_id,
+                "benchmark_campaign_pair_ids": plan.benchmark_campaign_pair_ids,
+            }
+        )
     identity = json.dumps(
-        {
-            "proposal_id": plan.proposal_id,
-            "benchmark_id": plan.benchmark_id,
-            "benchmark_pair_id": plan.benchmark_pair_id,
-            "benchmark_ids": plan.benchmark_ids,
-            "evidence_sha256": hashes,
-        },
+        identity_fields,
         sort_keys=True,
         separators=(",", ":"),
     ).encode()
@@ -190,6 +252,9 @@ def verify_publication_evidence(
         benchmark_id=plan.benchmark_id,
         benchmark_pair_id=plan.benchmark_pair_id,
         benchmark_ids=plan.benchmark_ids,
+        benchmark_campaign_evidence_id=plan.benchmark_campaign_evidence_id,
+        benchmark_campaign_id=plan.benchmark_campaign_id,
+        benchmark_campaign_pair_ids=plan.benchmark_campaign_pair_ids,
         repository=first.repository,
         remote=first.remote,
         base_branch=base_branch,

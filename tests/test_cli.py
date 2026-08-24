@@ -699,6 +699,29 @@ def test_publish_commands_reject_unsafe_remote_names_before_execution() -> None:
             build_parser().parse_args(arguments)
 
 
+def test_publication_commands_accept_only_explicit_optional_campaign_evidence() -> None:
+    for command in ("publish", "publish-check", "verify-publication"):
+        arguments = [
+            command,
+            "--proposal",
+            "proposal",
+            "--benchmark",
+            "benchmark",
+            "--benchmark-pair",
+            "benchmark-pair",
+            "--benchmark-campaign-evidence",
+            "campaign-evidence",
+        ]
+        if command == "publish":
+            arguments.append("--confirm-publish")
+        if command == "verify-publication":
+            arguments.extend(["--evidence-dir", "publication-evidence"])
+
+        args = build_parser().parse_args(arguments)
+
+        assert args.benchmark_campaign_evidence == Path("campaign-evidence")
+
+
 def test_publish_rejects_missing_token_before_planning(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -741,8 +764,13 @@ def test_publish_composes_verified_stages_and_prints_safe_json(
         events.append("client")
         return github
 
-    def build(proposal: Path, benchmark: Path, pair: Path):
-        events.append(("plan", proposal, benchmark, pair))
+    def build(
+        proposal: Path,
+        benchmark: Path,
+        pair: Path,
+        campaign_evidence: Path | None,
+    ):
+        events.append(("plan", proposal, benchmark, pair, campaign_evidence))
         return plan
 
     def commit_plan(root: Path, value):
@@ -809,6 +837,7 @@ def test_publish_composes_verified_stages_and_prints_safe_json(
             Path("proposal-artifact"),
             Path("benchmark-artifact"),
             Path("pair-artifact"),
+            None,
         ),
         ("commit", tmp_path),
         ("publish", tmp_path, "upstream"),

@@ -3,11 +3,17 @@ from pathlib import Path
 
 import pytest
 
-from benchmarks import compare_benchmarks, write_benchmark_result
+from benchmarks import (
+    compare_benchmarks,
+    load_counterbalanced_pair,
+    write_benchmark_campaign_evidence,
+    write_benchmark_result,
+)
 from evaluator import AnalysisArtifact, AnalysisTarget
 from gitops import write_proposal_bundle
 from gitops.pull_request import PullRequestPlanError, build_pull_request_plan
 from tests.test_benchmark_artifact import completed_run
+from tests.test_benchmark_campaign_artifact import completed_campaign
 from tests.test_benchmark_pair_artifact import publication_artifacts
 from tests.test_bundle import proposal_inputs
 from tests.test_manifest import FIXTURES
@@ -39,6 +45,50 @@ def test_builds_golden_single_file_draft_plan(tmp_path: Path) -> None:
     assert plan.file_change.after_content == (FIXTURES / "expected.yaml").read_text()
     assert len(plan.resource_changes) == 4
     assert plan.body == EXPECTED_BODY.read_text()
+
+
+def test_attaches_only_explicit_completed_campaign_evidence(tmp_path: Path) -> None:
+    proposal, campaign, pair_paths = completed_campaign(
+        tmp_path / "campaign", planned_pairs=2
+    )
+    evidence = write_benchmark_campaign_evidence(
+        tmp_path / "campaign-evidence", campaign.path, pair_paths
+    )
+    primary_pair = load_counterbalanced_pair(pair_paths[0])
+
+    plan = build_pull_request_plan(
+        proposal.path,
+        primary_pair.before_after.path,
+        primary_pair.path,
+        evidence.path,
+    )
+
+    assert plan.benchmark_campaign_evidence_id == evidence.artifact_id
+    assert plan.benchmark_campaign_id == campaign.campaign_id
+    assert plan.benchmark_campaign_pair_ids == evidence.pair_ids
+    assert f"- Campaign evidence: `{evidence.artifact_id}`" in plan.body
+    assert "Campaign completion: `2/2` pairs" in plan.body
+    assert "## Preregistered repeated campaign" in plan.body
+    assert "not statistical significance or a confidence interval" in plan.body
+    for pair_id in evidence.pair_ids:
+        assert f"`{pair_id}`" in plan.body
+
+
+def test_rejects_campaign_that_does_not_contain_primary_pair(tmp_path: Path) -> None:
+    campaign_proposal, campaign, pair_paths = completed_campaign(
+        tmp_path / "campaign", planned_pairs=2
+    )
+    evidence = write_benchmark_campaign_evidence(
+        tmp_path / "campaign-evidence", campaign.path, pair_paths
+    )
+    proposal, benchmark, pair = publication_artifacts(tmp_path / "primary")
+    assert proposal.artifact_id == campaign_proposal.artifact_id
+    assert pair.artifact_id not in evidence.pair_ids
+
+    with pytest.raises(PullRequestPlanError, match="not included"):
+        build_pull_request_plan(
+            proposal.path, benchmark.path, pair.path, evidence.path
+        )
 
 
 def test_rejects_primary_benchmark_outside_the_verified_pair(tmp_path: Path) -> None:

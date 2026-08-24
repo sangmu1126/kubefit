@@ -7,7 +7,7 @@ import shutil
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -67,7 +67,7 @@ class BenchmarkCampaignCompletion(BaseModel):
     planned_pairs: int
     completed_pairs: int
     remaining_blocks: list[int]
-    pair_ids: list[str]
+    pair_ids: list[Annotated[str, Field(pattern=r"^benchmark-pair-[0-9a-f]{32}$")]]
     checks: list[BenchmarkCampaignCheck]
     invalid_reasons: list[str]
     limitations: list[str]

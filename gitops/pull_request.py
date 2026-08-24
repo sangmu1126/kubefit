@@ -3,9 +3,9 @@ from __future__ import annotations
 import hashlib
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from gitops.bundle import LoadedProposalBundle, load_proposal_bundle
 from gitops.manifest import ManifestTarget, ResourceChange
@@ -13,6 +13,7 @@ from gitops.manifest import ManifestTarget, ResourceChange
 if TYPE_CHECKING:
     from benchmarks import (
         CounterbalancedPairReview,
+        LoadedBenchmarkCampaignEvidence,
         LoadedBenchmarkResult,
         LoadedCounterbalancedPair,
         PairMetricComparison,
@@ -45,17 +46,46 @@ class PullRequestPlan(BaseModel):
     benchmark_id: str = Field(pattern=r"^benchmark-[0-9a-f]{32}$")
     benchmark_pair_id: str = Field(pattern=r"^benchmark-pair-[0-9a-f]{32}$")
     benchmark_ids: list[str] = Field(min_length=2, max_length=2)
+    benchmark_campaign_evidence_id: str | None = Field(
+        default=None,
+        pattern=r"^benchmark-campaign-evidence-[0-9a-f]{32}$",
+    )
+    benchmark_campaign_id: str | None = Field(
+        default=None,
+        pattern=r"^benchmark-campaign-[0-9a-f]{32}$",
+    )
+    benchmark_campaign_pair_ids: list[
+        Annotated[str, Field(pattern=r"^benchmark-pair-[0-9a-f]{32}$")]
+    ] | None = Field(default=None, min_length=2, max_length=100)
     target: ManifestTarget
     resource_changes: list[ResourceChange] = Field(min_length=1)
     file_change: RepositoryFileChange
+
+    @model_validator(mode="after")
+    def validate_campaign_reference(self) -> PullRequestPlan:
+        campaign_fields = (
+            self.benchmark_campaign_evidence_id,
+            self.benchmark_campaign_id,
+            self.benchmark_campaign_pair_ids,
+        )
+        if sum(value is not None for value in campaign_fields) not in {0, 3}:
+            raise ValueError("benchmark campaign reference must be complete or absent")
+        if (
+            self.benchmark_campaign_pair_ids is not None
+            and self.benchmark_pair_id not in self.benchmark_campaign_pair_ids
+        ):
+            raise ValueError("benchmark campaign reference must contain the primary pair")
+        return self
 
 
 def build_pull_request_plan(
     proposal_path: Path,
     benchmark_path: Path,
     benchmark_pair_path: Path,
+    benchmark_campaign_evidence_path: Path | None = None,
 ) -> PullRequestPlan:
     from benchmarks import (
+        load_benchmark_campaign_evidence,
         load_benchmark_result,
         load_counterbalanced_pair,
         review_loaded_counterbalanced_pair,
@@ -64,7 +94,12 @@ def build_pull_request_plan(
     proposal = load_proposal_bundle(proposal_path)
     benchmark = load_benchmark_result(benchmark_path)
     benchmark_pair = load_counterbalanced_pair(benchmark_pair_path)
-    _validate_artifacts(proposal, benchmark, benchmark_pair)
+    campaign_evidence = (
+        load_benchmark_campaign_evidence(benchmark_campaign_evidence_path)
+        if benchmark_campaign_evidence_path is not None
+        else None
+    )
+    _validate_artifacts(proposal, benchmark, benchmark_pair, campaign_evidence)
     pair_review = review_loaded_counterbalanced_pair(benchmark_pair)
 
     before_content = proposal.before_source_manifest.read_text()
@@ -82,7 +117,7 @@ def build_pull_request_plan(
             f"{proposal.target.namespace}/{proposal.target.deployment} resources"
         ),
         body=_render_pull_request_body(
-            proposal, benchmark, benchmark_pair, pair_review
+            proposal, benchmark, benchmark_pair, pair_review, campaign_evidence
         ),
         proposal_id=proposal.artifact_id,
         benchmark_id=benchmark.artifact_id,
@@ -92,6 +127,17 @@ def build_pull_request_plan(
                 benchmark_pair.before_after.artifact_id,
                 benchmark_pair.after_before.artifact_id,
             ]
+        ),
+        benchmark_campaign_evidence_id=(
+            campaign_evidence.artifact_id if campaign_evidence is not None else None
+        ),
+        benchmark_campaign_id=(
+            campaign_evidence.campaign_id if campaign_evidence is not None else None
+        ),
+        benchmark_campaign_pair_ids=(
+            campaign_evidence.completion.pair_ids
+            if campaign_evidence is not None
+            else None
         ),
         target=proposal.target,
         resource_changes=proposal.patch_report.changes,
@@ -108,6 +154,7 @@ def _validate_artifacts(
     proposal: LoadedProposalBundle,
     benchmark: LoadedBenchmarkResult,
     benchmark_pair: LoadedCounterbalancedPair,
+    campaign_evidence: LoadedBenchmarkCampaignEvidence | None,
 ) -> None:
     if proposal.workload_uid is None or proposal.workload_created_at is None:
         raise PullRequestPlanError("proposal does not contain workload identity evidence")
@@ -127,6 +174,15 @@ def _validate_artifacts(
         raise PullRequestPlanError("baseline benchmark cost conflicts with proposal")
     if benchmark.after.request_cost_usd != proposal.after_request_cost_usd:
         raise PullRequestPlanError("candidate benchmark cost conflicts with proposal")
+    if campaign_evidence is not None:
+        if campaign_evidence.proposal_id != proposal.artifact_id:
+            raise PullRequestPlanError(
+                "benchmark campaign evidence does not reference the proposal"
+            )
+        if benchmark_pair.artifact_id not in campaign_evidence.completion.pair_ids:
+            raise PullRequestPlanError(
+                "counterbalanced pair is not included in benchmark campaign evidence"
+            )
 
 
 def _branch_slug(namespace: str, deployment: str) -> str:
@@ -142,6 +198,7 @@ def _render_pull_request_body(
     benchmark: LoadedBenchmarkResult,
     benchmark_pair: LoadedCounterbalancedPair,
     pair_review: CounterbalancedPairReview,
+    campaign_evidence: LoadedBenchmarkCampaignEvidence | None,
 ) -> str:
     evaluation = proposal.evaluation
     before = benchmark.before
@@ -169,12 +226,28 @@ def _render_pull_request_body(
         ),
         f"- Benchmark verdict: **{benchmark.verdict.status.upper()}**",
         f"- Pair verdict: **{benchmark_pair.assessment.status.upper()}**",
-        "",
-        "## Proposed resources",
-        "",
-        "| Field | Current | Recommended |",
-        "|---|---:|---:|",
     ]
+    if campaign_evidence is not None:
+        lines.extend(
+            [
+                f"- Repeated campaign: `{campaign_evidence.campaign_id}`",
+                f"- Campaign evidence: `{campaign_evidence.artifact_id}`",
+                (
+                    "- Campaign completion: "
+                    f"`{campaign_evidence.completion.completed_pairs}/"
+                    f"{campaign_evidence.completion.planned_pairs}` pairs"
+                ),
+            ]
+        )
+    lines.extend(
+        [
+            "",
+            "## Proposed resources",
+            "",
+            "| Field | Current | Recommended |",
+            "|---|---:|---:|",
+        ]
+    )
     lines.extend(
         f"| `{change.field}` | `{_markdown_cell(change.current)}` | "
         f"`{_markdown_cell(change.recommended)}` |"
@@ -236,11 +309,11 @@ def _render_pull_request_body(
             "| Signal | Before-first | Candidate-first | Observed range | Direction |",
             "|---|---:|---:|---:|---|",
             *(_pair_metric_row(metric) for metric in pair_review.metrics),
-            "",
-            "## Review notes",
-            "",
         ]
     )
+    if campaign_evidence is not None:
+        lines.extend(_campaign_evidence_lines(campaign_evidence))
+    lines.extend(["", "## Review notes", ""])
     benchmark_warnings = [
         warning
         for warning in benchmark.verdict.warnings
@@ -271,6 +344,31 @@ def _render_pull_request_body(
         ]
     )
     return "\n".join(lines) + "\n"
+
+
+def _campaign_evidence_lines(
+    campaign_evidence: LoadedBenchmarkCampaignEvidence,
+) -> list[str]:
+    lines = [
+        "",
+        "## Preregistered repeated campaign",
+        "",
+        (
+            "All preregistered blocks completed and the supplied primary pair is one "
+            "of the retained blocks. This verifies collection discipline, not statistical "
+            "significance or a confidence interval."
+        ),
+        "",
+        "| Block | Chronological counterbalanced pair |",
+        "|---:|---|",
+    ]
+    lines.extend(
+        f"| {index} | `{pair_id}` |"
+        for index, pair_id in enumerate(
+            campaign_evidence.completion.pair_ids, start=1
+        )
+    )
+    return lines
 
 
 def _pair_metric_row(metric: PairMetricComparison) -> str:
