@@ -509,6 +509,12 @@ KubeFit itself with `--no-deps --no-build-isolation`. The runtime stage continue
 install only from the local wheel directory. Development tools therefore stay out of
 the production image and package resolution does not occur in the final stage.
 
+The hosted Python quality gate fans the same locked install, `pip check`, Ruff, and
+test commands across Python 3.12, 3.13, and 3.14. Matrix fail-fast is disabled so a
+failure on one interpreter does not cancel compatibility evidence for the others.
+Repository tests bind this active matrix to the declared `>=3.12` lower bound; adding
+a future supported minor remains an explicit policy update.
+
 The locks control Python distributions, not OS files, timestamps, or every byte of a
 container build. They narrow and expose the dependency input without claiming
 bit-for-bit reproducibility.

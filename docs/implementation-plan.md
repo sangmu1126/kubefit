@@ -238,7 +238,9 @@ declaration with a complete root license and carries it through wheel and image
 distribution without inventing an empty NOTICE file. Entry
 [0050](devlog/0050-hash-locked-python-environments.md) then separates runtime,
 development, and build dependency snapshots, requires hashes in CI and Docker, and
-proves the same locks on Python 3.12 and 3.14.
+proves the same locks on Python 3.12 and 3.14. Entry
+[0051](devlog/0051-supported-python-ci-matrix.md) continuously applies the same
+locked quality gate to Python 3.12, 3.13, and 3.14 on hosted runners without
+fail-fast cancellation.
 
-Next, expand hosted CI version coverage and reduce benchmark measurement-order noise
-in risk order.
+Next, reduce benchmark measurement-order noise and make its remaining bias explicit.
