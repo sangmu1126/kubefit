@@ -68,10 +68,12 @@ class _GitHubPullRequestEvidence(BaseModel):
 class VerifiedPublicationEvidence(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     verification_id: str = Field(pattern=r"^publication-[0-9a-f]{32}$")
     proposal_id: str = Field(pattern=r"^proposal-[0-9a-f]{32}$")
     benchmark_id: str = Field(pattern=r"^benchmark-[0-9a-f]{32}$")
+    benchmark_pair_id: str = Field(pattern=r"^benchmark-pair-[0-9a-f]{32}$")
+    benchmark_ids: list[str] = Field(min_length=2, max_length=2)
     repository: str
     remote: str
     base_branch: str
@@ -85,9 +87,12 @@ class VerifiedPublicationEvidence(BaseModel):
 def verify_publication_evidence(
     proposal_path: Path,
     benchmark_path: Path,
+    benchmark_pair_path: Path,
     evidence_directory: Path,
 ) -> VerifiedPublicationEvidence:
-    plan = build_pull_request_plan(proposal_path, benchmark_path)
+    plan = build_pull_request_plan(
+        proposal_path, benchmark_path, benchmark_pair_path
+    )
     files = _load_exact_evidence(evidence_directory)
     preflight = _parse_model(
         _PreflightEvidence, files["preflight.json"], "preflight.json"
@@ -109,6 +114,16 @@ def verify_publication_evidence(
     api = checks["github_api"]
     _require_equal(artifacts.get("proposal_id"), plan.proposal_id, "preflight proposal ID")
     _require_equal(artifacts.get("benchmark_id"), plan.benchmark_id, "preflight benchmark ID")
+    _require_equal(
+        artifacts.get("benchmark_pair_id"),
+        plan.benchmark_pair_id,
+        "preflight benchmark pair ID",
+    )
+    _require_equal(
+        artifacts.get("benchmark_ids"),
+        plan.benchmark_ids,
+        "preflight benchmark IDs",
+    )
     _require_equal(artifacts.get("planned_branch"), plan.branch_name, "preflight branch")
     _require_equal(local.get("planned_path"), plan.file_change.path, "preflight file path")
     _require_equal(local.get("local_branch_state"), "absent", "initial local branch state")
@@ -161,6 +176,8 @@ def verify_publication_evidence(
         {
             "proposal_id": plan.proposal_id,
             "benchmark_id": plan.benchmark_id,
+            "benchmark_pair_id": plan.benchmark_pair_id,
+            "benchmark_ids": plan.benchmark_ids,
             "evidence_sha256": hashes,
         },
         sort_keys=True,
@@ -171,6 +188,8 @@ def verify_publication_evidence(
         verification_id=verification_id,
         proposal_id=plan.proposal_id,
         benchmark_id=plan.benchmark_id,
+        benchmark_pair_id=plan.benchmark_pair_id,
+        benchmark_ids=plan.benchmark_ids,
         repository=first.repository,
         remote=first.remote,
         base_branch=base_branch,

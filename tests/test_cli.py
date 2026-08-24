@@ -185,6 +185,10 @@ def test_benchmark_pair_prints_machine_enforceable_assessment(
     paths: list[tuple[Path, Path]] = []
 
     class Assessment:
+        def model_dump(self, *, mode: str) -> dict[str, str]:
+            assert mode == "json"
+            return {"status": status}
+
         def model_dump_json(self, *, indent: int) -> str:
             assert indent == 2
             return json.dumps({"status": status})
@@ -195,12 +199,23 @@ def test_benchmark_pair_prints_machine_enforceable_assessment(
 
     Assessment.status = status
     monkeypatch.setattr(cli_module, "assess_counterbalanced_pair", assess)
+    monkeypatch.setattr(
+        cli_module,
+        "write_counterbalanced_pair",
+        lambda output, first, second: SimpleNamespace(
+            path=output / "benchmark-pair-test",
+            reused=False,
+            files=["pair.json"],
+        ),
+    )
     arguments = [
         "benchmark-pair",
         "--first",
         "first-result",
         "--second",
         "second-result",
+        "--output-dir",
+        "pair-results",
     ]
 
     if exit_code is None:
@@ -211,7 +226,14 @@ def test_benchmark_pair_prints_machine_enforceable_assessment(
         assert raised.value.code == exit_code
 
     assert paths == [(Path("first-result"), Path("second-result"))]
-    assert json.loads(capsys.readouterr().out) == {"status": status}
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == status
+    if status == "pass":
+        assert output["path"] == "pair-results/benchmark-pair-test"
+        assert output["reused"] is False
+        assert output["files"] == ["pair.json"]
+    else:
+        assert set(output) == {"status"}
 
 
 def test_readiness_prints_machine_readable_collection_progress(
@@ -493,6 +515,8 @@ def test_publish_requires_explicit_mutation_acknowledgement() -> None:
                 "proposal",
                 "--benchmark",
                 "benchmark",
+                "--benchmark-pair",
+                "benchmark-pair",
             ]
         )
 
@@ -505,6 +529,8 @@ def test_publish_parser_accepts_only_an_environment_variable_name() -> None:
             "proposal",
             "--benchmark",
             "benchmark",
+            "--benchmark-pair",
+            "benchmark-pair",
             "--github-token-env",
             "KUBEFIT_GITHUB_TOKEN",
             "--confirm-publish",
@@ -522,6 +548,8 @@ def test_publish_parser_accepts_only_an_environment_variable_name() -> None:
                 "proposal",
                 "--benchmark",
                 "benchmark",
+                "--benchmark-pair",
+                "benchmark-pair",
                 "--github-token-env",
                 "NOT-A-NAME",
                 "--confirm-publish",
@@ -537,6 +565,8 @@ def test_publish_commands_reject_unsafe_remote_names_before_execution() -> None:
             "proposal",
             "--benchmark",
             "benchmark",
+            "--benchmark-pair",
+            "benchmark-pair",
             "--remote",
             "--upload-pack=malicious",
         ]
@@ -564,6 +594,8 @@ def test_publish_rejects_missing_token_before_planning(
                 "proposal",
                 "--benchmark",
                 "benchmark",
+                "--benchmark-pair",
+                "benchmark-pair",
                 "--confirm-publish",
             ]
         )
@@ -586,8 +618,8 @@ def test_publish_composes_verified_stages_and_prints_safe_json(
         events.append("client")
         return github
 
-    def build(proposal: Path, benchmark: Path):
-        events.append(("plan", proposal, benchmark))
+    def build(proposal: Path, benchmark: Path, pair: Path):
+        events.append(("plan", proposal, benchmark, pair))
         return plan
 
     def commit_plan(root: Path, value):
@@ -621,6 +653,8 @@ def test_publish_composes_verified_stages_and_prints_safe_json(
             "proposal-artifact",
             "--benchmark",
             "benchmark-artifact",
+            "--benchmark-pair",
+            "pair-artifact",
             "--repository-root",
             str(tmp_path),
             "--remote",
@@ -647,7 +681,12 @@ def test_publish_composes_verified_stages_and_prints_safe_json(
     }
     assert events == [
         "client",
-        ("plan", Path("proposal-artifact"), Path("benchmark-artifact")),
+        (
+            "plan",
+            Path("proposal-artifact"),
+            Path("benchmark-artifact"),
+            Path("pair-artifact"),
+        ),
         ("commit", tmp_path),
         ("publish", tmp_path, "upstream"),
     ]
@@ -674,6 +713,8 @@ def test_publish_redacts_token_from_boundary_error(
                 "proposal",
                 "--benchmark",
                 "benchmark",
+                "--benchmark-pair",
+                "benchmark-pair",
                 "--confirm-publish",
             ]
         )
@@ -692,6 +733,8 @@ def test_publish_check_reports_missing_token_without_mutation(
     plan = SimpleNamespace(
         proposal_id="proposal-" + "a" * 32,
         benchmark_id="benchmark-" + "b" * 32,
+        benchmark_pair_id="benchmark-pair-" + "d" * 32,
+        benchmark_ids=["benchmark-" + "b" * 32, "benchmark-" + "e" * 32],
         branch_name="kubefit/demo",
     )
     local = SimpleNamespace(
@@ -732,6 +775,8 @@ def test_publish_check_reports_missing_token_without_mutation(
                 "proposal",
                 "--benchmark",
                 "benchmark",
+                "--benchmark-pair",
+                "benchmark-pair",
                 "--repository-root",
                 str(tmp_path),
             ]
@@ -761,6 +806,8 @@ def test_publish_check_reports_ready_without_claiming_write_permission(
     plan = SimpleNamespace(
         proposal_id="proposal-" + "a" * 32,
         benchmark_id="benchmark-" + "b" * 32,
+        benchmark_pair_id="benchmark-pair-" + "d" * 32,
+        benchmark_ids=["benchmark-" + "b" * 32, "benchmark-" + "e" * 32],
         branch_name="kubefit/demo",
     )
     local = SimpleNamespace(
@@ -805,6 +852,8 @@ def test_publish_check_reports_ready_without_claiming_write_permission(
             "proposal",
             "--benchmark",
             "benchmark",
+            "--benchmark-pair",
+            "benchmark-pair",
             "--repository-root",
             str(tmp_path),
         ]
@@ -846,6 +895,8 @@ def test_publish_check_stops_after_artifact_failure_and_redacts_token(
                 "proposal",
                 "--benchmark",
                 "benchmark",
+                "--benchmark-pair",
+                "benchmark-pair",
             ]
         )
 

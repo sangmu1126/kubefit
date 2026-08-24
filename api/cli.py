@@ -15,6 +15,7 @@ from benchmarks import (
     assess_counterbalanced_pair,
     execute_benchmark,
     write_benchmark_result,
+    write_counterbalanced_pair,
 )
 from collector import (
     DeploymentResources,
@@ -124,11 +125,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     benchmark_pair.add_argument("--first", required=True, type=Path)
     benchmark_pair.add_argument("--second", required=True, type=Path)
+    benchmark_pair.add_argument(
+        "--output-dir", type=Path, default=Path("benchmarks/pairs")
+    )
     publish = subcommands.add_parser(
         "publish", help="commit a verified proposal and open or reuse a GitHub draft PR"
     )
     publish.add_argument("--proposal", required=True, type=Path)
     publish.add_argument("--benchmark", required=True, type=Path)
+    publish.add_argument("--benchmark-pair", required=True, type=Path)
     publish.add_argument("--repository-root", type=Path, default=Path("."))
     publish.add_argument("--remote", type=_git_remote_name, default="origin")
     publish.add_argument(
@@ -149,6 +154,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     publish_check.add_argument("--proposal", required=True, type=Path)
     publish_check.add_argument("--benchmark", required=True, type=Path)
+    publish_check.add_argument("--benchmark-pair", required=True, type=Path)
     publish_check.add_argument("--repository-root", type=Path, default=Path("."))
     publish_check.add_argument("--remote", type=_git_remote_name, default="origin")
     publish_check.add_argument(
@@ -164,6 +170,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify_publication.add_argument("--proposal", required=True, type=Path)
     verify_publication.add_argument("--benchmark", required=True, type=Path)
+    verify_publication.add_argument("--benchmark-pair", required=True, type=Path)
     verify_publication.add_argument("--evidence-dir", required=True, type=Path)
     return parser
 
@@ -397,9 +404,19 @@ def _run_benchmark(args: argparse.Namespace) -> None:
 
 def _run_benchmark_pair(args: argparse.Namespace) -> None:
     assessment = assess_counterbalanced_pair(args.first, args.second)
-    print(assessment.model_dump_json(indent=2))
     if assessment.status != "pass":
+        print(assessment.model_dump_json(indent=2))
         raise SystemExit(2)
+    artifact = write_counterbalanced_pair(args.output_dir, args.first, args.second)
+    output = assessment.model_dump(mode="json")
+    output.update(
+        {
+            "path": str(artifact.path),
+            "reused": artifact.reused,
+            "files": artifact.files,
+        }
+    )
+    print(json.dumps(output, indent=2, sort_keys=True))
 
 
 def _run_propose(args: argparse.Namespace) -> None:
@@ -446,7 +463,9 @@ def _run_publish(args: argparse.Namespace) -> None:
         )
     try:
         github = GitHubRestClient(token)
-        plan = build_pull_request_plan(args.proposal, args.benchmark)
+        plan = build_pull_request_plan(
+            args.proposal, args.benchmark, args.benchmark_pair
+        )
         commit = commit_pull_request_plan(args.repository_root, plan)
         published = publish_pull_request(
             args.repository_root,
@@ -494,7 +513,9 @@ def _run_publish_check(args: argparse.Namespace) -> bool:
     }
 
     try:
-        plan = build_pull_request_plan(args.proposal, args.benchmark)
+        plan = build_pull_request_plan(
+            args.proposal, args.benchmark, args.benchmark_pair
+        )
     except Exception as exc:
         detail = _redact_secret(str(exc), token)
         checks.append({"name": "artifacts", "status": "blocked", "detail": detail})
@@ -506,6 +527,8 @@ def _run_publish_check(args: argparse.Namespace) -> bool:
             "status": "ready",
             "proposal_id": plan.proposal_id,
             "benchmark_id": plan.benchmark_id,
+            "benchmark_pair_id": plan.benchmark_pair_id,
+            "benchmark_ids": plan.benchmark_ids,
             "planned_branch": plan.branch_name,
         }
     )
@@ -627,6 +650,7 @@ def _run_verify_publication(args: argparse.Namespace) -> None:
         verified = verify_publication_evidence(
             args.proposal,
             args.benchmark,
+            args.benchmark_pair,
             args.evidence_dir,
         )
     except Exception as exc:

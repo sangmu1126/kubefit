@@ -304,11 +304,15 @@ stores measurements by logical role rather than chronological position, validate
 that their retained wall-clock intervals do not overlap, and emits a warning naming
 which role ran first. Either sequence still ends by applying and waiting for the
 baseline manifest. Opposite-order artifacts can be inspected together, but no paired
-metric aggregate exists. The read-only pair assessor fully verifies both artifacts,
+metric aggregate exists. The pair assessor fully verifies both artifacts,
 requires a shared proposal, opposite orders, and matching profile/cost bases, then
 compares every non-order policy check status and requires both verdicts to pass. Its
-canonical result is content-addressed independently of argument order. It is not yet
-persisted or connected to the publication preflight.
+canonical result is content-addressed independently of argument order. PASS is
+published atomically as a self-contained `benchmark-pair-<digest>` directory containing
+the assessment, report, canonical index, and complete copies of both benchmark bundles.
+Loading rehashes the exact 21-file set and independently replays both results and the
+pair decision. Publication preflight requires this artifact; FAIL and INVALID are never
+persisted as publishable evidence.
 
 The CLI accepts only an explicit `kind-*` context plus a required disposable-cluster
 acknowledgement. This is a product boundary rather than a claim that lower-level
@@ -322,14 +326,17 @@ loading regenerates the minimal patch from the full before source and evaluation
 then requires the persisted after source, diff, report, and isolated benchmark files
 to agree. Result loading verifies its canonical index and exact file set, reparses
 measurements and raw k6 evidence, recomputes the verdict, and regenerates its
-Markdown report.
+Markdown report. Pair loading repeats that verification for both embedded bundles,
+recomputes the canonical PASS assessment and report, and requires the separately
+supplied primary before-after result to be one of the pair members.
 
-Only a `pass` result referencing the exact proposal and the proposal-fixed before
-and after costs can produce a plan. The plan contains one repository-relative path,
-its expected before SHA-256, exact before/after bytes, deterministic branch/title,
-draft-only flag, evidence summary, and rollback guidance. A later repository adapter
-must compare the live file hash again before writing; planning itself performs no
-checkout, commit, push, or GitHub operation.
+Only a `pass` result inside a `pass` pair referencing the exact proposal and the
+proposal-fixed before and after costs can produce a plan. The plan contains one
+repository-relative path, its expected before SHA-256, exact before/after bytes,
+deterministic branch/title, draft-only flag, both pair member IDs, evidence summary,
+and rollback guidance. A later repository adapter must compare the live file hash
+again before writing; planning itself performs no checkout, commit, push, or GitHub
+operation.
 
 ## Transactional repository commit
 
@@ -419,22 +426,24 @@ same gate without parsing JSON, while the JSON retains the reason.
 
 ## Content-addressed publication evidence
 
-`kubefit verify-publication` consumes the immutable proposal and benchmark plus an
-exact directory containing `preflight.json`, `first-publish.json`,
+`kubefit verify-publication` consumes the immutable proposal, primary benchmark, and
+self-contained benchmark pair plus an exact directory containing `preflight.json`,
+`first-publish.json`,
 `second-publish.json`, `remote-ref.txt`, and `github-pr.json`. The directory and
 every entry must be regular and non-symlinked; any missing or additional name fails.
 
 The verifier rebuilds `PullRequestPlan`, then requires the ready preflight to bind
-the same artifact IDs, planned path, base, repository, remote, and initially absent
+the same proposal, benchmark, pair, and pair-member IDs, planned path, base,
+repository, remote, and initially absent
 local/remote branch. The first publication must report creation and the second must
 report reuse. Repository, branch, SHA, PR number, and URL must remain identical. The
 independent remote ref and GitHub PR evidence must prove the same SHA, open Draft
 state, head/base, planned title, and one changed file.
 
 Each source file is SHA-256 hashed. A canonical object containing the proposal ID,
-benchmark ID, and sorted hash map produces a deterministic `publication-<digest>`
-verification ID. This binds the locally verified bytes but does not authenticate who
-captured them or replace the live procedure.
+benchmark ID, pair ID, both pair-member IDs, and sorted hash map produces a
+deterministic `publication-<digest>` verification ID. This binds the locally verified
+bytes but does not authenticate who captured them or replace the live procedure.
 
 ## API image and Helm security boundary
 

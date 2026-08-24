@@ -11,7 +11,7 @@ from gitops.bundle import LoadedProposalBundle, load_proposal_bundle
 from gitops.manifest import ManifestTarget, ResourceChange
 
 if TYPE_CHECKING:
-    from benchmarks import LoadedBenchmarkResult
+    from benchmarks import LoadedBenchmarkResult, LoadedCounterbalancedPair
 
 
 class PullRequestPlanError(RuntimeError):
@@ -30,7 +30,7 @@ class RepositoryFileChange(BaseModel):
 class PullRequestPlan(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     draft: Literal[True] = True
     branch_name: str = Field(pattern=r"^kubefit/[a-z0-9][a-z0-9._-]*$")
     commit_message: str = Field(min_length=1)
@@ -38,6 +38,8 @@ class PullRequestPlan(BaseModel):
     body: str = Field(min_length=1)
     proposal_id: str = Field(pattern=r"^proposal-[0-9a-f]{32}$")
     benchmark_id: str = Field(pattern=r"^benchmark-[0-9a-f]{32}$")
+    benchmark_pair_id: str = Field(pattern=r"^benchmark-pair-[0-9a-f]{32}$")
+    benchmark_ids: list[str] = Field(min_length=2, max_length=2)
     target: ManifestTarget
     resource_changes: list[ResourceChange] = Field(min_length=1)
     file_change: RepositoryFileChange
@@ -46,12 +48,14 @@ class PullRequestPlan(BaseModel):
 def build_pull_request_plan(
     proposal_path: Path,
     benchmark_path: Path,
+    benchmark_pair_path: Path,
 ) -> PullRequestPlan:
-    from benchmarks import load_benchmark_result
+    from benchmarks import load_benchmark_result, load_counterbalanced_pair
 
     proposal = load_proposal_bundle(proposal_path)
     benchmark = load_benchmark_result(benchmark_path)
-    _validate_artifact_pair(proposal, benchmark)
+    benchmark_pair = load_counterbalanced_pair(benchmark_pair_path)
+    _validate_artifacts(proposal, benchmark, benchmark_pair)
 
     before_content = proposal.before_source_manifest.read_text()
     after_content = proposal.after_source_manifest.read_text()
@@ -67,9 +71,16 @@ def build_pull_request_plan(
             "KubeFit: optimize "
             f"{proposal.target.namespace}/{proposal.target.deployment} resources"
         ),
-        body=_render_pull_request_body(proposal, benchmark),
+        body=_render_pull_request_body(proposal, benchmark, benchmark_pair),
         proposal_id=proposal.artifact_id,
         benchmark_id=benchmark.artifact_id,
+        benchmark_pair_id=benchmark_pair.artifact_id,
+        benchmark_ids=sorted(
+            [
+                benchmark_pair.before_after.artifact_id,
+                benchmark_pair.after_before.artifact_id,
+            ]
+        ),
         target=proposal.target,
         resource_changes=proposal.patch_report.changes,
         file_change=RepositoryFileChange(
@@ -81,14 +92,21 @@ def build_pull_request_plan(
     )
 
 
-def _validate_artifact_pair(
+def _validate_artifacts(
     proposal: LoadedProposalBundle,
     benchmark: LoadedBenchmarkResult,
+    benchmark_pair: LoadedCounterbalancedPair,
 ) -> None:
     if proposal.workload_uid is None or proposal.workload_created_at is None:
         raise PullRequestPlanError("proposal does not contain workload identity evidence")
     if benchmark.proposal_id != proposal.artifact_id:
         raise PullRequestPlanError("benchmark result does not reference the proposal")
+    if benchmark_pair.proposal_id != proposal.artifact_id:
+        raise PullRequestPlanError("counterbalanced pair does not reference the proposal")
+    if benchmark.artifact_id != benchmark_pair.before_after.artifact_id:
+        raise PullRequestPlanError(
+            "primary benchmark must be the before-after member of the counterbalanced pair"
+        )
     if benchmark.verdict.status != "pass":
         raise PullRequestPlanError(
             f"benchmark verdict must be pass, got {benchmark.verdict.status}"
@@ -110,6 +128,7 @@ def _branch_slug(namespace: str, deployment: str) -> str:
 def _render_pull_request_body(
     proposal: LoadedProposalBundle,
     benchmark: LoadedBenchmarkResult,
+    benchmark_pair: LoadedCounterbalancedPair,
 ) -> str:
     evaluation = proposal.evaluation
     before = benchmark.before
@@ -127,7 +146,16 @@ def _render_pull_request_body(
         f"- Workload UID: `{proposal.workload_uid}`",
         f"- Proposal: `{proposal.artifact_id}`",
         f"- Benchmark: `{benchmark.artifact_id}`",
+        f"- Counterbalanced pair: `{benchmark_pair.artifact_id}`",
+        "- Pair benchmarks: "
+        + ", ".join(
+            f"`{benchmark_id}`"
+            for benchmark_id in sorted(
+                trial.benchmark_id for trial in benchmark_pair.assessment.trials
+            )
+        ),
         f"- Benchmark verdict: **{benchmark.verdict.status.upper()}**",
+        f"- Pair verdict: **{benchmark_pair.assessment.status.upper()}**",
         "",
         "## Proposed resources",
         "",
@@ -189,8 +217,15 @@ def _render_pull_request_body(
             "",
         ]
     )
+    benchmark_warnings = [
+        warning
+        for warning in benchmark.verdict.warnings
+        if "one sequential trial cannot" not in warning
+    ]
     notes = (
-        proposal.patch_report.eligibility_warnings + benchmark.verdict.warnings
+        proposal.patch_report.eligibility_warnings
+        + benchmark_warnings
+        + benchmark_pair.assessment.warnings
     )
     if notes:
         lines.extend(f"- {_markdown_cell(note)}" for note in notes)

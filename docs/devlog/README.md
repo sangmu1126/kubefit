@@ -75,6 +75,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0051](0051-supported-python-ci-matrix.md) | Supported Python CI matrix | Enforce the same locked quality gate on Python 3.12, 3.13, and 3.14 |
 | [0052](0052-counterbalanced-benchmark-order.md) | Counterbalanced benchmark order | Run either chronological order and expose unavoidable single-trial bias |
 | [0053](0053-counterbalanced-pair-assessment.md) | Counterbalanced pair assessment | Bind two verified opposite-order artifacts into one deterministic policy decision |
+| [0054](0054-persisted-pair-publication-gate.md) | Persisted pair publication gate | Require replayable opposite-order evidence throughout GitOps publication |
 
 ## Visual language
 
