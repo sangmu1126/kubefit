@@ -248,5 +248,10 @@ carries the remaining single-trial order bias into artifacts and PR review notes
 Entry [0053](devlog/0053-counterbalanced-pair-assessment.md) then fully verifies and
 binds two opposite-order artifacts into one content-addressed policy agreement
 decision without claiming two samples establish statistical significance.
+Entry [0054](devlog/0054-persisted-pair-publication-gate.md) persists PASS as a
+self-contained replayable artifact and makes that artifact, both member IDs, and the
+primary-result membership check mandatory throughout preflight, publication, and
+offline verification.
 
-Next, persist that assessment and require it in publication preflight.
+Next, expose pair-level metric direction and spread without presenting two trials as
+statistical significance.

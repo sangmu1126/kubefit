@@ -272,30 +272,32 @@ the Kubernetes API Service proxy for the application target: `kubectl port-forwa
 selects one backing Pod and disconnects when the benchmark rollout replaces it.
 Prometheus can remain port-forwarded because the benchmark does not roll it out.
 
-The two commands counterbalance chronological order but publish independent result
-artifacts. Every artifact records its actual order and emits a warning because one
-sequential trial cannot separate resource effects from warm-up or time drift. KubeFit
-does not yet aggregate the pair or require their verdicts to agree; compare both
-before selecting evidence for a Draft PR. The read-only pair command performs that
-identity, order, and policy-state comparison:
+The two commands counterbalance chronological order and first publish independent
+result artifacts. Every artifact records its actual order and emits a warning because
+one sequential trial cannot separate resource effects from warm-up or time drift. The
+pair command then verifies their identity, order, and policy-state agreement and, only
+for PASS, publishes a self-contained immutable bundle:
 
 ```bash
 kubefit benchmark-pair \
   --first benchmarks/results/benchmark-<before-first-digest> \
-  --second benchmarks/results/benchmark-<candidate-first-digest>
+  --second benchmarks/results/benchmark-<candidate-first-digest> \
+  --output-dir benchmarks/pairs
 ```
 
 The JSON status is `pass` only when both fully verified artifacts reference the same
 proposal, use opposite orders and identical profile/cost bases, expose identical
-non-order policy check states, and both individual verdicts pass. `fail` or `invalid`
-returns exit code 2 after printing the reasons. This assessment is not yet a required
-input to `publish` or `publish-check`.
+non-order policy check states, and both individual verdicts pass. PASS prints the
+`benchmark-pair-<digest>` path and reuse state. The directory contains the canonical
+assessment, report, hashes, and complete copies of both result bundles. `fail` or
+`invalid` returns exit code 2 after printing the reasons and does not publish a pair.
 
 ## Publish a verified Draft PR
 
-Publication requires a passing immutable benchmark result, a clean repository on an
-attached branch, and a credential-free public GitHub remote. Git push authentication
-must already be available through an SSH agent or Git credential helper. Supply the
+Publication requires a passing immutable benchmark result, a passing immutable pair
+containing that result, a clean repository on an attached branch, and a credential-free
+public GitHub remote. Git push authentication must already be available through an SSH
+agent or Git credential helper. Supply the
 GitHub API token through an environment variable, never as a command argument. For
 example, an existing GitHub CLI login can provide it without placing the value in
 shell history:
@@ -306,6 +308,7 @@ Run the read-only preflight first:
 GITHUB_TOKEN="$(gh auth token)" kubefit publish-check \
   --proposal .kubefit/proposals/proposal-<digest> \
   --benchmark benchmarks/results/benchmark-<digest> \
+  --benchmark-pair benchmarks/pairs/benchmark-pair-<digest> \
   --repository-root . \
   --remote origin
 ```
@@ -322,6 +325,7 @@ Then publish with an explicit acknowledgement:
 GITHUB_TOKEN="$(gh auth token)" kubefit publish \
   --proposal .kubefit/proposals/proposal-<digest> \
   --benchmark benchmarks/results/benchmark-<digest> \
+  --benchmark-pair benchmarks/pairs/benchmark-pair-<digest> \
   --repository-root . \
   --remote origin \
   --confirm-publish

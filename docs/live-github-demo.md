@@ -31,6 +31,7 @@ KUBEFIT_DEMO_REPOSITORY="${KUBEFIT_DEMO_OWNER}/${KUBEFIT_DEMO_REPO}"
 KUBEFIT_DEMO_REMOTE="kubefit-live-demo"
 KUBEFIT_PROPOSAL=".kubefit/proposals/proposal-<digest>"
 KUBEFIT_BENCHMARK="benchmarks/results/benchmark-<digest>"
+KUBEFIT_BENCHMARK_PAIR="benchmarks/pairs/benchmark-pair-<digest>"
 KUBEFIT_EVIDENCE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kubefit-live-evidence.XXXXXX")"
 
 test "$(git branch --show-current)" = "main"
@@ -104,6 +105,7 @@ step cannot run after a blocked check:
 GITHUB_TOKEN="$(gh auth token)" .venv/bin/kubefit publish-check \
   --proposal "$KUBEFIT_PROPOSAL" \
   --benchmark "$KUBEFIT_BENCHMARK" \
+  --benchmark-pair "$KUBEFIT_BENCHMARK_PAIR" \
   --repository-root . \
   --remote "$KUBEFIT_DEMO_REMOTE" \
   > "$KUBEFIT_EVIDENCE_DIR/preflight.json"
@@ -126,6 +128,7 @@ The first run must create the remote branch and Draft PR:
 GITHUB_TOKEN="$(gh auth token)" .venv/bin/kubefit publish \
   --proposal "$KUBEFIT_PROPOSAL" \
   --benchmark "$KUBEFIT_BENCHMARK" \
+  --benchmark-pair "$KUBEFIT_BENCHMARK_PAIR" \
   --repository-root . \
   --remote "$KUBEFIT_DEMO_REMOTE" \
   --confirm-publish \
@@ -144,6 +147,7 @@ Run the exact command again. The second run must reuse both objects:
 GITHUB_TOKEN="$(gh auth token)" .venv/bin/kubefit publish \
   --proposal "$KUBEFIT_PROPOSAL" \
   --benchmark "$KUBEFIT_BENCHMARK" \
+  --benchmark-pair "$KUBEFIT_BENCHMARK_PAIR" \
   --repository-root . \
   --remote "$KUBEFIT_DEMO_REMOTE" \
   --confirm-publish \
@@ -205,12 +209,14 @@ github-pr.json
 Copy these secret-free files to the eventual benchmark/demo evidence location only
 after inspecting them. They intentionally contain identifiers and URLs but no token.
 
-Finally, bind the exact five-file set back to the immutable proposal and benchmark:
+Finally, bind the exact five-file set back to the immutable proposal, primary
+benchmark, and benchmark pair:
 
 ```bash
 .venv/bin/kubefit verify-publication \
   --proposal "$KUBEFIT_PROPOSAL" \
   --benchmark "$KUBEFIT_BENCHMARK" \
+  --benchmark-pair "$KUBEFIT_BENCHMARK_PAIR" \
   --evidence-dir "$KUBEFIT_EVIDENCE_DIR" \
   > "${KUBEFIT_EVIDENCE_DIR}.verified.json"
 ```

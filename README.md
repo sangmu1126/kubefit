@@ -235,9 +235,10 @@ existing immutable proposal are currently required; see
 
 Operators can counterbalance time-order effects by running the same proposal once in
 each order. `kubefit benchmark-pair` fully verifies both content-addressed artifacts
-and emits one deterministic PASS/FAIL/INVALID policy-agreement assessment. It does not
-average two samples or claim statistical significance, and the assessment is not yet
-a mandatory publication input.
+and emits one deterministic PASS/FAIL/INVALID policy-agreement assessment. A passing
+assessment is published with complete copies of both benchmark bundles as an immutable
+`benchmark-pair-<digest>` artifact. It does not average two samples or claim statistical
+significance; this self-contained pair is a mandatory publication input.
 
 `kubefit analyze` emits a typed schema v2 artifact binding aggregate observation,
 policy, and evaluation evidence to Deployment UID and creation time. Loading it
@@ -249,12 +250,13 @@ evidence, while benchmark apply and restoration use separately hashed,
 single-Deployment manifests so neighboring Services or workloads are never
 reconciled.
 
-After a passing benchmark, `build_pull_request_plan` independently reloads both
-artifact directories, regenerates their semantic relationships, and produces a
-deterministic one-file draft PR contract. It includes the exact expected repository
-source hash, patched content, benchmark metrics, cost caveats, warnings, and rollback
-guidance. This stage is read-only; branch creation and GitHub publication remain
-separate adapters.
+After a passing benchmark pair, `build_pull_request_plan` independently reloads the
+proposal, primary before-after benchmark, and self-contained pair artifact. It replays
+both embedded benchmark results and their pair assessment, requires the primary result
+to be a member of that pair, and produces a deterministic one-file draft PR contract.
+The contract includes the exact expected repository source hash, patched content,
+benchmark metrics, pair identity, cost caveats, warnings, and rollback guidance. This
+stage is read-only; branch creation and GitHub publication remain separate adapters.
 
 `commit_pull_request_plan` applies that contract to an explicit clean Git top-level.
 It rechecks the source hash and bytes, rejects symlinks and detached HEAD, creates a
@@ -285,7 +287,7 @@ private disposable repository, captures first-create and second-reuse evidence, 
 archives rather than deletes the target by default.
 
 `kubefit verify-publication` then validates the runbook's exact five-file evidence
-set without network access. It rebuilds the proposal/benchmark plan, checks the
+set without network access. It rebuilds the proposal/benchmark/pair plan, checks the
 preflight, two publication outputs, remote ref, and GitHub Draft PR as one contract,
 hashes every file, and emits a deterministic `publication-<digest>` verification ID.
 
