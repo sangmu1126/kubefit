@@ -251,9 +251,10 @@ immutable plan fixes an explicit pair count, balances and randomizes which execu
 order starts each time block, and requires every planned block before completion.
 `kubefit benchmark-campaign-check` fully reloads supplied pair artifacts and rejects
 duplicates, proposal/profile/cost drift, overlapping time blocks, schedule violations,
-and outcome-dependent early stopping. Campaign completion is optional advanced
-evidence: it does not yet compute variance or replace the mandatory single-pair
-publication gate.
+and outcome-dependent early stopping. COMPLETE publishes an immutable, self-contained
+`benchmark-campaign-evidence-<digest>` with the plan and every pair bundle, then reloads
+it before returning success. Campaign completion is optional advanced evidence: it does
+not yet compute variance or replace the mandatory single-pair publication gate.
 
 `kubefit analyze` emits a typed schema v2 artifact binding aggregate observation,
 policy, and evaluation evidence to Deployment UID and creation time. Loading it

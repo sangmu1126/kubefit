@@ -339,7 +339,8 @@ kubefit benchmark-campaign-check \
   --pair benchmarks/pairs/benchmark-pair-<block-1-digest> \
   --pair benchmarks/pairs/benchmark-pair-<block-2-digest> \
   --pair benchmarks/pairs/benchmark-pair-<block-3-digest> \
-  --pair benchmarks/pairs/benchmark-pair-<block-4-digest>
+  --pair benchmarks/pairs/benchmark-pair-<block-4-digest> \
+  --output-dir benchmarks/campaign-evidence
 ```
 
 `complete` returns exit 0. A valid prefix is `incomplete` and returns exit 2, preventing
@@ -348,6 +349,15 @@ overlapping trial/block times, a different proposal, profile or cost basis, and 
 first-order schedule mismatch are `invalid` and also return exit 2. The checker does
 not calculate an average, variance, confidence interval, or publication authorization.
 The seed hash commits to the supplied seed but cannot prove how randomly it was chosen.
+
+On COMPLETE, the command writes and immediately reloads
+`benchmarks/campaign-evidence/benchmark-campaign-evidence-<digest>`. It contains the
+plan, completion, report, and complete copies of every pair and nested benchmark result.
+For `N` pairs the exact total is `21N + 5` files; three pairs therefore produce 68.
+Reversing `--pair` arguments reuses the same bytes because retained timestamps define
+chronology. INCOMPLETE or INVALID creates no output directory. The self-contained
+design is portable but duplicates raw k6 bytes, so inspect available disk before a
+large campaign.
 
 ## Publish a verified Draft PR
 

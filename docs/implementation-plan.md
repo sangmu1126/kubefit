@@ -260,6 +260,9 @@ Entry [0056](devlog/0056-preregistered-benchmark-campaign.md) freezes repeated-p
 count, balanced randomized first-order schedule, and a complete-all stopping rule
 before collection, then verifies exact chronological evidence without calculating a
 statistical effect.
+Entry [0057](devlog/0057-self-contained-campaign-evidence.md) persists only COMPLETE
+campaigns with their plan and every full pair bundle, then independently replays the
+entire nested evidence tree without changing the default publication requirement.
 
-Next, decide whether completed campaign evidence should remain an optional advanced
-review or become a stricter publication gate.
+Next, let an operator attach this optional advanced evidence to a Draft PR without
+making repeated campaigns mandatory for the MVP path.
