@@ -174,7 +174,7 @@ and exactly one changed file, `deploy/demo/overprovisioned-api.yaml`.
 
 ## Phase 6: presentation layer and packaging
 
-**Status: in progress.** Entry
+**Status: complete for the MVP (2026-08-24).** Entry
 [0028](devlog/0028-least-privilege-helm-package.md) adds a non-root API image and
 Helm chart with tokenless defaults, explicit resources/probes, and namespace-scoped
 opt-in read-only RBAC. Entry [0029](devlog/0029-kind-helm-integration.md) completes the
@@ -200,8 +200,12 @@ benchmark review and before/after visualization while explicitly separating inde
 metadata binding from complete raw-evidence verification. Entry
 [0043](devlog/0043-shareable-full-benchmark-review.md) adds an operator-configured
 artifact-ID URL that reuses complete filesystem verification without automatically
-publishing local evidence. Raw percentile recomputation from Prometheus, vulnerability
-policy, source provenance, signing, and external image/chart publication remain open.
+publishing local evidence. Entry
+[0044](devlog/0044-packaged-runtime-ci-gate.md) closes the phase by starting the exact
+packaged image in CI and checking its non-root runtime, health endpoint, dashboard,
+disabled storage default, failure logs, and deterministic cleanup. Raw percentile
+recomputation from Prometheus, vulnerability policy, source provenance, signing, and
+external image/chart publication remain post-MVP hardening work.
 
 **Goal:** make the completed workflow easy to install and demonstrate.
 
