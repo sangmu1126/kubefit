@@ -303,8 +303,8 @@ The runner accepts explicit `before-after` and `after-before` execution orders. 
 stores measurements by logical role rather than chronological position, validates
 that their retained wall-clock intervals do not overlap, and emits a warning naming
 which role ran first. Either sequence still ends by applying and waiting for the
-baseline manifest. Opposite-order artifacts can be inspected together, but no paired
-metric aggregate exists. The pair assessor fully verifies both artifacts,
+baseline manifest. Opposite-order artifacts can be inspected together, but no
+statistical aggregate exists. The pair assessor fully verifies both artifacts,
 requires a shared proposal, opposite orders, and matching profile/cost bases, then
 compares every non-order policy check status and requires both verdicts to pass. Its
 canonical result is content-addressed independently of argument order. PASS is
@@ -313,6 +313,15 @@ the assessment, report, canonical index, and complete copies of both benchmark b
 Loading rehashes the exact 21-file set and independently replays both results and the
 pair decision. Publication preflight requires this artifact; FAIL and INVALID are never
 persisted as publishable evidence.
+
+After that replay, a read-only review projection derives changes for steady/spike
+P95/P99 latency, CPU throttling P95, and spike recovery. It retains one comparison per
+execution order, classifies their joint direction as improved, regressed, unchanged,
+or mixed, and reports the observed minimum and maximum. It never changes the pair ID
+or stored bytes. A zero baseline yields an undefined percentage and a native-unit
+delta rather than an infinite or fabricated percent. The PR body and dashboard consume
+this same projection and explicitly state that two observations are not a confidence
+interval or variance estimate.
 
 The CLI accepts only an explicit `kind-*` context plus a required disposable-cluster
 acknowledgement. This is a product boundary rather than a claim that lower-level
@@ -334,7 +343,8 @@ Only a `pass` result inside a `pass` pair referencing the exact proposal and the
 proposal-fixed before and after costs can produce a plan. The plan contains one
 repository-relative path, its expected before SHA-256, exact before/after bytes,
 deterministic branch/title, draft-only flag, both pair member IDs, evidence summary,
-and rollback guidance. A later repository adapter must compare the live file hash
+both order-specific metric changes and their observed ranges, and rollback guidance.
+A later repository adapter must compare the live file hash
 again before writing; planning itself performs no checkout, commit, push, or GitHub
 operation.
 
