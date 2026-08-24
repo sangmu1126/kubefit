@@ -20,6 +20,24 @@ HPA recommendations, multi-cloud support, predictive incident detection,
 Terraform generation, and an AI chatbot are intentionally outside the first
 release.
 
+## Verified MVP evidence
+
+KubeFit's MVP is complete on `main`; the evidence is deliberately split by claim:
+
+| Claim | Reproducible evidence |
+|---|---|
+| Resource recommendations are deterministic and safety-gated | 328 Python tests on the final `main` commit |
+| The review UI builds and behaves as specified | 11 dashboard tests and a production Vite build |
+| The package renders with least-privilege defaults | Helm lint and default-template validation |
+| The production image actually starts | Docker startup, numeric non-root user, health, dashboard, and disabled-storage smoke checks |
+| The before/after workflow works on Kubernetes | [Passing disposable-kind benchmark](docs/devlog/0038-live-demo-benchmark.md) |
+| A verified result becomes a reviewable Git change | [Real idempotent Draft PR handoff](docs/devlog/0040-live-origin-draft-pr.md) |
+
+The final four-gate run is available in
+[GitHub Actions](https://github.com/sangmu1126/kubefit/actions/runs/32688444656).
+See the [release-readiness record](docs/release-readiness.md) for the exact boundary
+between an MVP source release and claims that still require post-MVP hardening.
+
 ## Repository layout
 
 ```text

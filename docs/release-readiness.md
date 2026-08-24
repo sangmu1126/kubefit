@@ -1,0 +1,110 @@
+# MVP release readiness
+
+This page is the release decision boundary for KubeFit `v0.1.0`. It connects each
+user-facing claim to evidence on the final integrated `main` commit and keeps
+post-MVP work out of the release claim.
+
+## Release candidate
+
+| Field | Value |
+|---|---|
+| Candidate version | `0.1.0` |
+| Integrated commit | `caede3391ecf9e9d10633239857bd29bd3cf8991` |
+| Integration date | 2026-08-24 |
+| GitHub Actions | [run 32688444656](https://github.com/sangmu1126/kubefit/actions/runs/32688444656) |
+| Source status | MVP feature phases complete; release documentation pending |
+| Published artifacts | None; image and chart publication are post-MVP |
+
+## Why the tag comes last
+
+A tag should identify a commit whose behavior and limitations are already explained.
+Tagging the implementation before its evidence boundary is checked into `main` would
+make the release page more confident than the tagged source itself.
+
+```mermaid
+flowchart LR
+    S[Separated feature and evidence commits] --> P[Reviewed pull requests]
+    P --> M[Integrated main commit]
+    M --> C{Four CI gates}
+    C -->|Python| T[328 tests and lint]
+    C -->|Dashboard| U[11 tests and production build]
+    C -->|Helm| H[Lint and rendered defaults]
+    C -->|Docker| D[Build and live runtime smoke]
+    T --> R[Documented release boundary]
+    U --> R
+    H --> R
+    D --> R
+    R --> V[v0.1.0 tag]
+```
+
+The tag is therefore an output of verified integration, not a substitute for it.
+
+## Evidence matrix
+
+| Release claim | Evidence | Result |
+|---|---|---|
+| Analyze a Deployment using Kubernetes and Prometheus evidence | Collector, recommendation, readiness, safety, and API regression tests | Passed |
+| Recommend CPU P95 and memory P99 requests/limits with explicit margins | Deterministic policy and rounding tests | Passed |
+| Separate illustrative request cost from latency, throttling, OOM, restart, and recovery risk | Evaluator and benchmark verdict tests | Passed |
+| Generate a minimal stale-safe YAML change | Golden manifest and repository transaction tests | Passed |
+| Restore a disposable cluster after before/after execution | [Live benchmark record](devlog/0038-live-demo-benchmark.md) | Passed; 2/2 Ready restored |
+| Preserve immutable proposal and benchmark evidence | Artifact hash, replay, and tamper-rejection tests | Passed |
+| Open an idempotent human-reviewed Draft PR | [Live GitHub handoff](devlog/0040-live-origin-draft-pr.md) | Passed; Draft PR #1 remains unmerged by design |
+| Serve the review UI from the production image | Local image replay and final GitHub Docker job | Passed |
+| Install with least-privilege Kubernetes defaults | Helm tests and disposable-kind chart verification | Passed |
+
+The live benchmark used a fixed controlled-demo profile and produced
+`benchmark-f84d0caf061d50a5d93bc03088eb0247` with a PASS verdict. Its 98.088%
+request-cost reduction is an illustrative model result, not a guaranteed cloud-bill
+reduction.
+
+## Final integrated validation
+
+The final `main` commit passed both local and GitHub-hosted checks:
+
+| Gate | Local result | GitHub-hosted result |
+|---|---:|---:|
+| Python | Ruff passed; 328 tests passed | Passed |
+| Dashboard | 11 tests passed; production build passed | Passed |
+| Helm | Lint and default render passed | Passed |
+| Docker | Image built; startup/runtime smoke passed | Passed |
+
+The Docker smoke starts the packaged image and checks its numeric non-root user,
+health response, bundled dashboard, storage-disabled default, failure logging, and
+exact-container cleanup. A successful image build alone is not counted as runtime
+evidence.
+
+## Release checklist
+
+- [x] MVP phases 1–6 completed and linked to development records.
+- [x] Feature work integrated through reviewed, mergeable pull requests.
+- [x] Final `main` passed all four hosted CI jobs.
+- [x] Final `main` passed the corresponding local checks.
+- [x] Real disposable-kind before/after benchmark recorded.
+- [x] Real idempotent Draft PR publication recorded.
+- [x] Scope exclusions and cost caveats stated in the repository.
+- [ ] Merge this release-readiness documentation into `main`.
+- [ ] Reconfirm the documentation merge's `main` CI run.
+- [ ] Create annotated tag `v0.1.0` from that verified commit.
+
+## Claims intentionally excluded from v0.1.0
+
+KubeFit `v0.1.0` is an MVP and portfolio-grade reference implementation, not a
+production-autonomous optimizer. The release does not claim:
+
+- direct production mutation, automatic merge, or automatic rollout;
+- HPA recommendations;
+- provider-accurate billing or realized invoice savings;
+- production-representative conclusions from the controlled one-hour demo;
+- raw Prometheus percentile recomputation from stored review artifacts;
+- vulnerability-policy enforcement, signed images, provenance attestations, or a
+  public image/chart registry;
+- multi-cloud support, incident prediction, Terraform generation, or an AI chatbot.
+
+## Rollback and recovery boundary
+
+Benchmark mutation is restricted to an explicitly confirmed disposable `kind-*`
+cluster and restores the original manifest on every exit path after mutation starts.
+The publication command creates a Draft PR only; it never merges or deploys. Draft
+PR #1 remains open and unmerged as evidence that the human approval boundary was
+preserved.
