@@ -4,3 +4,6 @@ description: Explainable, GitOps-first Kubernetes resource recommendations
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
+home: https://github.com/sangmu1126/kubefit
+sources:
+  - https://github.com/sangmu1126/kubefit

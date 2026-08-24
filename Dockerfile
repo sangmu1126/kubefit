@@ -1,4 +1,4 @@
-FROM node:24-alpine AS dashboard-builder
+FROM node:24-alpine@sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43 AS dashboard-builder
 
 WORKDIR /dashboard
 COPY dashboard/package.json dashboard/package-lock.json ./
@@ -6,7 +6,7 @@ RUN npm ci --ignore-scripts
 COPY dashboard ./
 RUN npm run build
 
-FROM python:3.14-slim AS builder
+FROM python:3.14-slim@sha256:ce40764625a4ff50df3548277632e7f96c4e77fe75fa848aae9885476e7df5a4 AS builder
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 WORKDIR /build
@@ -21,7 +21,7 @@ COPY recommender ./recommender
 
 RUN python -m pip wheel --no-cache-dir --wheel-dir /wheels .
 
-FROM python:3.14-slim AS runtime
+FROM python:3.14-slim@sha256:ce40764625a4ff50df3548277632e7f96c4e77fe75fa848aae9885476e7df5a4 AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

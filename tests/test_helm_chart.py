@@ -69,6 +69,16 @@ def test_default_chart_is_non_root_tokenless_and_has_no_rbac() -> None:
     assert pod_spec["volumes"] == [{"name": "tmp", "emptyDir": {}}]
 
 
+def test_default_image_is_bound_to_chart_application_version() -> None:
+    chart = yaml.safe_load(CHART.joinpath("Chart.yaml").read_text())
+    values = yaml.safe_load(CHART.joinpath("values.yaml").read_text())
+    deployment = by_kind(render(), "Deployment")[0]
+    image = deployment["spec"]["template"]["spec"]["containers"][0]["image"]
+
+    assert values["image"]["repository"] == "ghcr.io/sangmu1126/kubefit"
+    assert image == f'{values["image"]["repository"]}:{chart["appVersion"]}'
+
+
 def test_opt_in_rbac_is_namespace_scoped_and_read_only() -> None:
     documents = render(
         "--set",
@@ -160,11 +170,20 @@ def test_chart_schema_rejects_invalid_namespace() -> None:
 def test_container_image_runs_as_numeric_non_root_user() -> None:
     dockerfile = (ROOT / "Dockerfile").read_text()
 
-    assert "FROM node:24-alpine AS dashboard-builder" in dockerfile
+    node_base = (
+        "node:24-alpine@sha256:"
+        "d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43"
+    )
+    python_base = (
+        "python:3.14-slim@sha256:"
+        "ce40764625a4ff50df3548277632e7f96c4e77fe75fa848aae9885476e7df5a4"
+    )
+    assert f"FROM {node_base} AS dashboard-builder" in dockerfile
     assert "RUN npm ci --ignore-scripts" in dockerfile
     assert "RUN npm run build" in dockerfile
-    assert "FROM python:3.14-slim AS builder" in dockerfile
-    assert "FROM python:3.14-slim AS runtime" in dockerfile
+    assert f"FROM {python_base} AS builder" in dockerfile
+    assert f"FROM {python_base} AS runtime" in dockerfile
+    assert dockerfile.count("@sha256:") == 3
     assert "KUBEFIT_DASHBOARD_DIRECTORY=/opt/kubefit/dashboard" in dockerfile
     assert "COPY --from=dashboard-builder --chown=10001:10001" in dockerfile
     assert "--no-index --find-links=/wheels" in dockerfile

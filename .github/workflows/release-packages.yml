@@ -1,0 +1,191 @@
+name: Release packages
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing annotated vMAJOR.MINOR.PATCH tag to publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-packages-${{ inputs.release_tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify release contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      commit: ${{ steps.release.outputs.commit }}
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.release_tag || github.ref_name }}
+          fetch-depth: 0
+      - name: Verify annotated tag and package versions
+        id: release
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          if ! [[ "${RELEASE_TAG}" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "release tag must match vMAJOR.MINOR.PATCH" >&2
+            exit 1
+          fi
+          if [[ "$(git cat-file -t "refs/tags/${RELEASE_TAG}")" != "tag" ]]; then
+            echo "release tag must be annotated" >&2
+            exit 1
+          fi
+          release_commit="$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")"
+          if [[ "$(git rev-parse HEAD)" != "${release_commit}" ]]; then
+            echo "checkout does not match the release tag target" >&2
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "${release_commit}" origin/main; then
+            echo "release tag target must be reachable from origin/main" >&2
+            exit 1
+          fi
+          version="${RELEASE_TAG#v}"
+          project_version="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          chart_version="$(awk '$1 == "version:" {gsub(/\"/, "", $2); print $2}' deploy/helm/kubefit/Chart.yaml)"
+          app_version="$(awk '$1 == "appVersion:" {gsub(/\"/, "", $2); print $2}' deploy/helm/kubefit/Chart.yaml)"
+          if [[ "${project_version}" != "${version}" || "${chart_version}" != "${version}" || "${app_version}" != "${version}" ]]; then
+            echo "tag, Python package, chart, and app versions must match" >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "commit=${release_commit}" >> "${GITHUB_OUTPUT}"
+
+  publish-image:
+    name: Publish multi-architecture image
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: v${{ needs.verify.outputs.version }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: mode=max
+          sbom: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ needs.verify.outputs.version }}
+            ghcr.io/${{ github.repository }}:sha-${{ needs.verify.outputs.commit }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.verify.outputs.version }}
+            org.opencontainers.image.revision=${{ needs.verify.outputs.commit }}
+
+  publish-chart:
+    name: Publish OCI Helm chart
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: v${{ needs.verify.outputs.version }}
+      - name: Set up Helm
+        uses: azure/setup-helm@59b1c81c6280f5abebb1fb1bc585696daa7dfb42 # v5
+        with:
+          version: v4.2.4
+      - name: Package chart
+        run: helm package deploy/helm/kubefit --destination dist
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "${GHCR_TOKEN}" | helm registry login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
+      - name: Push chart
+        run: helm push "dist/kubefit-${{ needs.verify.outputs.version }}.tgz" "oci://ghcr.io/${{ github.repository_owner }}/charts"
+
+  verify-public:
+    name: Verify anonymous package pulls
+    needs:
+      - verify
+      - publish-image
+      - publish-chart
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out tagged verification scripts
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: v${{ needs.verify.outputs.version }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Set up Helm
+        uses: azure/setup-helm@59b1c81c6280f5abebb1fb1bc585696daa7dfb42 # v5
+        with:
+          version: v4.2.4
+      - name: Verify anonymous image pull and digest
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          EXPECTED_DIGEST: ${{ needs.publish-image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          actual_digest="$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{.Manifest.Digest}}')"
+          if [[ "${actual_digest}" != "${EXPECTED_DIGEST}" ]]; then
+            echo "::error::Public image digest does not match the image built by this run"
+            exit 1
+          fi
+      - name: Smoke test anonymously pulled image
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          set -euo pipefail
+          docker pull "${IMAGE}:${VERSION}"
+          if [[ "$(docker image inspect "${IMAGE}:${VERSION}" --format '{{.Config.User}}')" != "10001:10001" ]]; then
+            echo "::error::Published image does not use the expected numeric non-root user"
+            exit 1
+          fi
+          deploy/local/verify-image-runtime.sh "${IMAGE}:${VERSION}"
+      - name: Verify anonymous chart pull
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          set -euo pipefail
+          if ! helm pull "oci://ghcr.io/${GITHUB_REPOSITORY_OWNER}/charts/kubefit" --version "${VERSION}" --destination "${RUNNER_TEMP}"; then
+            echo "::error::Set both GHCR packages to public visibility, then re-run this workflow"
+            exit 1
+          fi
