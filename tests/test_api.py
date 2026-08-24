@@ -5,10 +5,15 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app, create_app
-from benchmarks import write_benchmark_result, write_counterbalanced_pair
+from benchmarks import (
+    write_benchmark_campaign_evidence,
+    write_benchmark_result,
+    write_counterbalanced_pair,
+)
 from evaluator import AnalysisArtifact, AnalysisTarget
 from tests.test_analysis_artifact import replayable_analysis
 from tests.test_benchmark_artifact import completed_run
+from tests.test_benchmark_campaign_artifact import completed_campaign
 from tests.test_benchmark_pair import published_pair
 from tests.test_benchmark_review import review_request
 from tests.test_manifest import eligible_evaluation
@@ -279,3 +284,54 @@ def test_app_rejects_unsafe_benchmark_pairs_root(tmp_path: Path) -> None:
 
     with pytest.raises(RuntimeError, match="benchmark pairs directory"):
         create_app(None, None, linked)
+
+
+def test_review_stored_campaign_replays_ordered_blocks_without_aggregation(
+    tmp_path: Path,
+) -> None:
+    _, campaign, pairs = completed_campaign(tmp_path, planned_pairs=3)
+    evidence = write_benchmark_campaign_evidence(
+        tmp_path / "campaign-evidence", campaign.path, pairs
+    )
+    configured_client = TestClient(
+        create_app(None, None, None, evidence.path.parent)
+    )
+
+    response = configured_client.get(
+        f"/v1/benchmark-campaigns/{evidence.artifact_id}/review"
+    )
+
+    assert response.status_code == 200
+    review = response.json()
+    assert review["artifact_id"] == evidence.artifact_id
+    assert review["verification_level"] == "campaign_full_artifact_replay"
+    assert review["status"] == "complete"
+    assert review["completed_pairs"] == review["planned_pairs"] == 3
+    assert review["aggregation_performed"] is False
+    assert [block["block"] for block in review["blocks"]] == [1, 2, 3]
+    assert all(
+        block["scheduled_first_order"] == block["observed_first_order"]
+        for block in review["blocks"]
+    )
+
+
+def test_review_stored_campaign_is_not_exposed_without_configuration() -> None:
+    response = client.get(
+        "/v1/benchmark-campaigns/"
+        "benchmark-campaign-evidence-00000000000000000000000000000000/review"
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == (
+        "stored benchmark campaign review is not configured"
+    )
+
+
+def test_app_rejects_unsafe_benchmark_campaign_root(tmp_path: Path) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    linked = tmp_path / "linked"
+    linked.symlink_to(target, target_is_directory=True)
+
+    with pytest.raises(RuntimeError, match="campaign evidence directory"):
+        create_app(None, None, None, linked)

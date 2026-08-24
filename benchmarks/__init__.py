@@ -31,6 +31,11 @@ from benchmarks.campaign_artifact import (
     load_benchmark_campaign_evidence,
     write_benchmark_campaign_evidence,
 )
+from benchmarks.campaign_review import (
+    BenchmarkCampaignBlockReview,
+    BenchmarkCampaignReview,
+    review_benchmark_campaign_evidence,
+)
 from benchmarks.lock import BenchmarkExecutionLock, BenchmarkLockError
 from benchmarks.measurement import (
     AlignedMeasurementCollector,
@@ -104,6 +109,8 @@ __all__ = [
     "BenchmarkCampaignEvidenceFileMetadata",
     "BenchmarkCampaignEvidenceIndex",
     "BenchmarkCampaignPlan",
+    "BenchmarkCampaignBlockReview",
+    "BenchmarkCampaignReview",
     "BenchmarkExecutionError",
     "BenchmarkExecutionLock",
     "BenchmarkLockError",
@@ -164,5 +171,6 @@ __all__ = [
     "review_full_benchmark_result",
     "review_benchmark_result",
     "review_counterbalanced_pair",
+    "review_benchmark_campaign_evidence",
     "review_loaded_counterbalanced_pair",
 ]

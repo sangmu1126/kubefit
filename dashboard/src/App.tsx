@@ -1,6 +1,7 @@
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import {
   evaluateResources,
+  fetchStoredBenchmarkCampaignReview,
   fetchStoredBenchmarkPairReview,
   fetchStoredBenchmarkReview,
   reviewAnalysisArtifact,
@@ -10,6 +11,7 @@ import { eligibleScenario, insufficientScenario } from "./scenarios";
 import type {
   CheckStatus,
   AnalysisReview,
+  BenchmarkCampaignReview,
   BenchmarkMeasurement,
   BenchmarkReview,
   CounterbalancedPairReview,
@@ -494,12 +496,112 @@ function PairResults({ review }: { review: CounterbalancedPairReview }) {
   );
 }
 
+function orderLabel(order: "before-after" | "after-before"): string {
+  return order === "before-after" ? "Before-first" : "Candidate-first";
+}
+
+function CampaignResults({ review }: { review: BenchmarkCampaignReview }) {
+  const startedAt = Math.min(
+    ...review.blocks.map((block) => Date.parse(block.measurement_started_at)),
+  );
+  const finishedAt = Math.max(
+    ...review.blocks.map((block) => Date.parse(block.measurement_finished_at)),
+  );
+  const span = Math.max(finishedAt - startedAt, 1);
+  const checksPassed = review.checks.filter((check) => check.status === "pass").length;
+  return (
+    <main className="results benchmark-results" aria-live="polite">
+      <section className="artifact-context" aria-labelledby="campaign-artifact-title">
+        <div>
+          <p className="eyebrow">PREREGISTERED CAMPAIGN · SCHEMA {review.schema_version}</p>
+          <h2 id="campaign-artifact-title">시간순 반복 검증 블록</h2>
+          <p>campaign <strong>{review.campaign_id}</strong></p>
+          <p>proposal <strong>{review.proposal_id}</strong></p>
+        </div>
+        <div className="artifact-verification">
+          <span>전체 캠페인 검사 {review.checks.length}/{review.checks.length}</span>
+          <strong>CAMPAIGN FULL ARTIFACT REPLAY</strong>
+          <code title={review.artifact_id}>{review.artifact_id}</code>
+        </div>
+        <details>
+          <summary>검증 범위와 한계</summary>
+          <ul>
+            {review.checks.map((check) => <li key={check.code}>✓ {check.reason}</li>)}
+            {review.limitations.map((limitation) => <li className="limitation" key={limitation}>△ {limitation}</li>)}
+          </ul>
+        </details>
+      </section>
+      <section className="benchmark-verdict pass">
+        <div>
+          <p className="eyebrow">PREREGISTERED COMPLETION GATE</p>
+          <h2>COMPLETE</h2>
+          <p>사전에 정한 모든 블록이 계획된 순서로 수집됐습니다.</p>
+        </div>
+        <span>✓</span>
+      </section>
+      <section className="metric-grid" aria-label="캠페인 검증 요약">
+        <article className="metric-card accent">
+          <p>완료 블록</p><strong>{review.completed_pairs}/{review.planned_pairs}</strong>
+          <span>complete-all stopping rule</span>
+        </article>
+        <article className="metric-card">
+          <p>검증 항목</p><strong>{checksPassed}/{review.checks.length}</strong>
+          <span>전체 중첩 artifact 재실행</span>
+        </article>
+        <article className="metric-card">
+          <p>통계 집계</p><strong>{review.aggregation_performed ? "수행" : "없음"}</strong>
+          <span>평균 · 신뢰구간 · 유의성 미계산</span>
+        </article>
+      </section>
+      <section className="panel campaign-review" aria-labelledby="campaign-blocks-title">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">CHRONOLOGICAL COLLECTION</p>
+            <h2 id="campaign-blocks-title">계획과 실제 실행 순서</h2>
+          </div>
+          <p>시간 위치와 측정 구간</p>
+        </div>
+        <p className="range-warning"><strong>반복 수집 규율만 보여줍니다.</strong> 블록을 평균내거나 통계적 신뢰도를 추정하지 않습니다.</p>
+        <div className="campaign-timeline">
+          {review.blocks.map((block) => {
+            const blockStart = Date.parse(block.measurement_started_at);
+            const blockFinish = Date.parse(block.measurement_finished_at);
+            const left = ((blockStart - startedAt) / span) * 100;
+            const width = Math.min(
+              Math.max(((blockFinish - blockStart) / span) * 100, 1.5),
+              100 - left,
+            );
+            return (
+              <article className="campaign-block" key={block.pair_id}>
+                <div className="campaign-block-heading">
+                  <span>{String(block.block).padStart(2, "0")}</span>
+                  <div><strong>Block {block.block}</strong><code title={block.pair_id}>{block.pair_id}</code></div>
+                  <b>PASS</b>
+                </div>
+                <div className="campaign-order">
+                  <span>계획 <strong>{orderLabel(block.scheduled_first_order)}</strong></span>
+                  <span>실제 <strong>{orderLabel(block.observed_first_order)}</strong></span>
+                </div>
+                <div className="campaign-timebar" aria-label={`Block ${block.block} 측정 시간 위치`}>
+                  <i className={block.observed_first_order} style={{ left: `${left}%`, width: `${width}%` }} />
+                </div>
+                <p>{new Date(block.measurement_started_at).toLocaleString("ko-KR")} → {new Date(block.measurement_finished_at).toLocaleString("ko-KR")}</p>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+    </main>
+  );
+}
+
 export default function App() {
   const [request, setRequest] = useState(() => cloneScenario(eligibleScenario));
   const [result, setResult] = useState<EvaluationResult | null>(null);
   const [artifactReview, setArtifactReview] = useState<AnalysisReview | null>(null);
   const [benchmarkReview, setBenchmarkReview] = useState<BenchmarkReview | null>(null);
   const [pairReview, setPairReview] = useState<CounterbalancedPairReview | null>(null);
+  const [campaignReview, setCampaignReview] = useState<BenchmarkCampaignReview | null>(null);
   const [loading, setLoading] = useState(false);
   const [artifactLoading, setArtifactLoading] = useState(false);
   const [benchmarkLoading, setBenchmarkLoading] = useState(false);
@@ -509,9 +611,29 @@ export default function App() {
     const parameters = new URLSearchParams(window.location.search);
     const artifactId = parameters.get("benchmark");
     const pairId = parameters.get("pair");
-    if (artifactId !== null && pairId !== null) {
-      setError("benchmark와 pair 링크를 동시에 지정할 수 없습니다.");
+    const campaignId = parameters.get("campaign");
+    if ([artifactId, pairId, campaignId].filter((value) => value !== null).length > 1) {
+      setError("benchmark, pair, campaign 링크는 하나만 지정할 수 있습니다.");
       return;
+    }
+    if (campaignId !== null) {
+      if (!/^benchmark-campaign-evidence-[0-9a-f]{32}$/.test(campaignId)) {
+        setError("benchmark campaign 링크의 artifact ID 형식이 올바르지 않습니다.");
+        return;
+      }
+      let active = true;
+      setBenchmarkLoading(true);
+      fetchStoredBenchmarkCampaignReview(campaignId)
+        .then((review) => {
+          if (active) setCampaignReview(review);
+        })
+        .catch((reason: unknown) => {
+          if (active) setError(reason instanceof Error ? reason.message : "저장된 benchmark campaign 검증에 실패했습니다.");
+        })
+        .finally(() => {
+          if (active) setBenchmarkLoading(false);
+        });
+      return () => { active = false; };
     }
     if (pairId !== null) {
       if (!/^benchmark-pair-[0-9a-f]{32}$/.test(pairId)) {
@@ -580,6 +702,7 @@ export default function App() {
     setArtifactReview(null);
     setBenchmarkReview(null);
     setPairReview(null);
+    setCampaignReview(null);
     setError(null);
   };
 
@@ -591,6 +714,7 @@ export default function App() {
     setError(null);
     setBenchmarkReview(null);
     setPairReview(null);
+    setCampaignReview(null);
     if (file.size > MAX_ANALYSIS_ARTIFACT_BYTES) {
       setError("analysis artifact는 1 MiB 이하여야 합니다.");
       return;
@@ -614,6 +738,7 @@ export default function App() {
     setArtifactReview(null);
     setBenchmarkReview(null);
     setPairReview(null);
+    setCampaignReview(null);
     setError(null);
     const selected = new Map<string, File>();
     for (const file of files) {
@@ -659,6 +784,7 @@ export default function App() {
     setArtifactReview(null);
     setBenchmarkReview(null);
     setPairReview(null);
+    setCampaignReview(null);
     setError(null);
     try {
       setResult(await evaluateResources(request));
@@ -794,7 +920,7 @@ export default function App() {
             {error && <p className="error" role="alert">{error}</p>}
           </form>
         </aside>
-        {pairReview ? <PairResults review={pairReview} /> : benchmarkReview ? <BenchmarkResults review={benchmarkReview} /> : result ? <Results result={result} review={artifactReview} /> : (
+        {campaignReview ? <CampaignResults review={campaignReview} /> : pairReview ? <PairResults review={pairReview} /> : benchmarkReview ? <BenchmarkResults review={benchmarkReview} /> : result ? <Results result={result} review={artifactReview} /> : (
           <main className="empty-state">
             <span>↳</span>
             <h2>아직 계산하지 않았습니다.</h2>

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import type {
   AnalysisReview,
+  BenchmarkCampaignReview,
   BenchmarkReview,
   CounterbalancedPairReview,
   EvaluationResult,
@@ -209,6 +210,58 @@ const pairReview: CounterbalancedPairReview = {
   ],
   limitations: [
     "the displayed range is the minimum and maximum of two observed order-specific changes, not a confidence interval",
+  ],
+};
+
+const campaignReview: BenchmarkCampaignReview = {
+  schema_version: 1,
+  artifact_id: "benchmark-campaign-evidence-" + "e".repeat(32),
+  campaign_id: "benchmark-campaign-" + "f".repeat(32),
+  proposal_id: benchmarkReview.proposal_id,
+  verification_level: "campaign_full_artifact_replay",
+  status: "complete",
+  planned_pairs: 3,
+  completed_pairs: 3,
+  stopping_rule: "complete_all_planned_pairs",
+  aggregation_performed: false,
+  blocks: [
+    {
+      block: 1,
+      pair_id: pairReview.artifact_id,
+      status: "pass",
+      scheduled_first_order: "before-after",
+      observed_first_order: "before-after",
+      measurement_started_at: "2026-08-21T01:00:00Z",
+      measurement_finished_at: "2026-08-21T01:30:00Z",
+      benchmark_ids: pairReview.benchmark_ids,
+    },
+    {
+      block: 2,
+      pair_id: "benchmark-pair-" + "a".repeat(32),
+      status: "pass",
+      scheduled_first_order: "after-before",
+      observed_first_order: "after-before",
+      measurement_started_at: "2026-08-21T03:00:00Z",
+      measurement_finished_at: "2026-08-21T03:30:00Z",
+      benchmark_ids: ["benchmark-" + "1".repeat(32), "benchmark-" + "2".repeat(32)],
+    },
+    {
+      block: 3,
+      pair_id: "benchmark-pair-" + "b".repeat(32),
+      status: "pass",
+      scheduled_first_order: "before-after",
+      observed_first_order: "before-after",
+      measurement_started_at: "2026-08-21T06:00:00Z",
+      measurement_finished_at: "2026-08-21T06:30:00Z",
+      benchmark_ids: ["benchmark-" + "3".repeat(32), "benchmark-" + "4".repeat(32)],
+    },
+  ],
+  checks: [
+    { code: "fixed_pair_count", status: "pass", reason: "all preregistered pairs are present" },
+    { code: "randomized_schedule", status: "pass", reason: "randomized_schedule is valid" },
+  ],
+  limitations: [
+    "completion verifies preregistered collection discipline and does not compute an aggregate treatment effect",
   ],
 };
 
@@ -435,17 +488,49 @@ describe("KubeFit dashboard", () => {
     );
   });
 
-  it("rejects ambiguous benchmark and pair links without calling the API", () => {
+  it("loads a completed campaign as chronological blocks without aggregation", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(campaignReview), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    window.history.replaceState({}, "", `/?campaign=${campaignReview.artifact_id}`);
+
+    render(<App />);
+
+    expect(await screen.findByText("CAMPAIGN FULL ARTIFACT REPLAY")).toBeInTheDocument();
+    expect(screen.getByText("3/3")).toBeInTheDocument();
+    expect(screen.getByText("없음")).toBeInTheDocument();
+    expect(screen.getAllByText("Candidate-first")).toHaveLength(2);
+    expect(screen.getByLabelText("Block 2 측정 시간 위치")).toBeInTheDocument();
+    expect(screen.getByText(/블록을 평균내거나 통계적 신뢰도를 추정하지 않습니다/)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/v1/benchmark-campaigns/${campaignReview.artifact_id}/review`,
+    );
+  });
+
+  it("rejects a malformed campaign query without calling the API", () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    window.history.replaceState({}, "", "/?campaign=../../secret");
+
+    render(<App />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("artifact ID 형식");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects ambiguous review links without calling the API", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
     window.history.replaceState(
       {},
       "",
-      `/?benchmark=${benchmarkReview.artifact_id}&pair=${pairReview.artifact_id}`,
+      `/?benchmark=${benchmarkReview.artifact_id}&campaign=${campaignReview.artifact_id}`,
     );
 
     render(<App />);
 
-    expect(screen.getByRole("alert")).toHaveTextContent("동시에 지정할 수 없습니다");
+    expect(screen.getByRole("alert")).toHaveTextContent("하나만 지정할 수 있습니다");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

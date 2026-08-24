@@ -228,3 +228,34 @@ export interface CounterbalancedPairReview {
   }>;
   limitations: string[];
 }
+
+export interface BenchmarkCampaignBlockReview {
+  block: number;
+  pair_id: string;
+  status: "pass";
+  scheduled_first_order: "before-after" | "after-before";
+  observed_first_order: "before-after" | "after-before";
+  measurement_started_at: string;
+  measurement_finished_at: string;
+  benchmark_ids: [string, string];
+}
+
+export interface BenchmarkCampaignReview {
+  schema_version: 1;
+  artifact_id: string;
+  campaign_id: string;
+  proposal_id: string;
+  verification_level: "campaign_full_artifact_replay";
+  status: "complete";
+  planned_pairs: number;
+  completed_pairs: number;
+  stopping_rule: "complete_all_planned_pairs";
+  aggregation_performed: false;
+  blocks: BenchmarkCampaignBlockReview[];
+  checks: Array<{
+    code: string;
+    status: "pass" | "incomplete" | "invalid";
+    reason: string;
+  }>;
+  limitations: string[];
+}

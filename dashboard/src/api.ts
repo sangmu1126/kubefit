@@ -1,5 +1,6 @@
 import type {
   AnalysisReview,
+  BenchmarkCampaignReview,
   BenchmarkReview,
   BenchmarkReviewRequest,
   CounterbalancedPairReview,
@@ -95,4 +96,18 @@ export async function fetchStoredBenchmarkPairReview(
   }
 
   return (await response.json()) as CounterbalancedPairReview;
+}
+
+export async function fetchStoredBenchmarkCampaignReview(
+  artifactId: string,
+): Promise<BenchmarkCampaignReview> {
+  const response = await fetch(
+    `/v1/benchmark-campaigns/${encodeURIComponent(artifactId)}/review`,
+  );
+
+  if (!response.ok) {
+    throw await responseError(response, "저장된 benchmark campaign 검증 실패");
+  }
+
+  return (await response.json()) as BenchmarkCampaignReview;
 }
