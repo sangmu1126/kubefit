@@ -236,6 +236,98 @@ def test_benchmark_pair_prints_machine_enforceable_assessment(
         assert set(output) == {"status"}
 
 
+def test_benchmark_campaign_plan_reads_seed_file_and_prints_frozen_schedule(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    seed = tmp_path / "seed"
+    seed.write_bytes(b"campaign seed")
+    calls = []
+    artifact = SimpleNamespace(
+        path=Path("campaigns/benchmark-campaign-test"),
+        reused=False,
+    )
+    plan = SimpleNamespace(
+        model_dump=lambda *, mode: {
+            "campaign_id": "benchmark-campaign-" + "a" * 32,
+            "planned_pairs": 3,
+            "schedule": [{"block": 1, "first_trial_order": "after-before"}],
+        }
+    )
+    monkeypatch.setattr(
+        cli_module,
+        "write_benchmark_campaign_plan",
+        lambda output, proposal, pairs, randomization_seed: (
+            calls.append((output, proposal, pairs, randomization_seed)) or artifact
+        ),
+    )
+    monkeypatch.setattr(
+        cli_module, "load_benchmark_campaign_plan", lambda path: plan
+    )
+
+    cli_module.main(
+        [
+            "benchmark-campaign-plan",
+            "--proposal",
+            "proposal",
+            "--planned-pairs",
+            "3",
+            "--randomization-seed-file",
+            str(seed),
+            "--output-dir",
+            "campaigns",
+        ]
+    )
+
+    assert calls == [(Path("campaigns"), Path("proposal"), 3, b"campaign seed")]
+    output = json.loads(capsys.readouterr().out)
+    assert output["campaign_id"].startswith("benchmark-campaign-")
+    assert output["path"] == "campaigns/benchmark-campaign-test"
+    assert output["reused"] is False
+
+
+@pytest.mark.parametrize(("status", "exit_code"), [("complete", None), ("incomplete", 2)])
+def test_benchmark_campaign_check_is_machine_enforceable(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    status: str,
+    exit_code: int | None,
+) -> None:
+    calls = []
+
+    class Completion:
+        def model_dump_json(self, *, indent: int) -> str:
+            assert indent == 2
+            return json.dumps({"status": status})
+
+    Completion.status = status
+    monkeypatch.setattr(
+        cli_module,
+        "assess_benchmark_campaign",
+        lambda plan, pairs: calls.append((plan, pairs)) or Completion(),
+    )
+    arguments = [
+        "benchmark-campaign-check",
+        "--plan",
+        "campaign",
+        "--pair",
+        "pair-one",
+        "--pair",
+        "pair-two",
+    ]
+
+    if exit_code is None:
+        cli_module.main(arguments)
+    else:
+        with pytest.raises(SystemExit) as raised:
+            cli_module.main(arguments)
+        assert raised.value.code == exit_code
+
+    assert calls == [(Path("campaign"), [Path("pair-one"), Path("pair-two")])]
+    assert json.loads(capsys.readouterr().out) == {"status": status}
+
+
 def test_readiness_prints_machine_readable_collection_progress(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],

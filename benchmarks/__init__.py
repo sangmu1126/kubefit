@@ -10,6 +10,18 @@ from benchmarks.artifact import (
     load_benchmark_result,
     write_benchmark_result,
 )
+from benchmarks.campaign import (
+    BenchmarkCampaignArtifact,
+    BenchmarkCampaignBlock,
+    BenchmarkCampaignCheck,
+    BenchmarkCampaignCompletion,
+    BenchmarkCampaignError,
+    BenchmarkCampaignPlan,
+    assess_benchmark_campaign,
+    create_benchmark_campaign_plan,
+    load_benchmark_campaign_plan,
+    write_benchmark_campaign_plan,
+)
 from benchmarks.lock import BenchmarkExecutionLock, BenchmarkLockError
 from benchmarks.measurement import (
     AlignedMeasurementCollector,
@@ -73,6 +85,12 @@ from benchmarks.runner import (
 
 __all__ = [
     "BenchmarkCheck",
+    "BenchmarkCampaignArtifact",
+    "BenchmarkCampaignBlock",
+    "BenchmarkCampaignCheck",
+    "BenchmarkCampaignCompletion",
+    "BenchmarkCampaignError",
+    "BenchmarkCampaignPlan",
     "BenchmarkExecutionError",
     "BenchmarkExecutionLock",
     "BenchmarkLockError",
@@ -116,12 +134,16 @@ __all__ = [
     "TimedK6Result",
     "compare_benchmarks",
     "assess_counterbalanced_pair",
+    "assess_benchmark_campaign",
+    "create_benchmark_campaign_plan",
     "measurement_order",
     "execute_benchmark",
     "recovery_from_k6_raw",
     "load_benchmark_result",
+    "load_benchmark_campaign_plan",
     "load_counterbalanced_pair",
     "write_benchmark_result",
+    "write_benchmark_campaign_plan",
     "write_counterbalanced_pair",
     "review_full_benchmark_result",
     "review_benchmark_result",

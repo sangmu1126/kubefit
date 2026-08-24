@@ -12,8 +12,11 @@ from benchmarks import (
     DeploymentRuntimeSnapshotter,
     KubectlManifestController,
     SubprocessK6Executor,
+    assess_benchmark_campaign,
     assess_counterbalanced_pair,
     execute_benchmark,
+    load_benchmark_campaign_plan,
+    write_benchmark_campaign_plan,
     write_benchmark_result,
     write_counterbalanced_pair,
 )
@@ -128,6 +131,22 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark_pair.add_argument(
         "--output-dir", type=Path, default=Path("benchmarks/pairs")
     )
+    campaign_plan = subcommands.add_parser(
+        "benchmark-campaign-plan",
+        help="preregister a balanced randomized schedule of repeated benchmark pairs",
+    )
+    campaign_plan.add_argument("--proposal", required=True, type=Path)
+    campaign_plan.add_argument("--planned-pairs", required=True, type=int)
+    campaign_plan.add_argument("--randomization-seed-file", required=True, type=Path)
+    campaign_plan.add_argument(
+        "--output-dir", type=Path, default=Path("benchmarks/campaigns")
+    )
+    campaign_check = subcommands.add_parser(
+        "benchmark-campaign-check",
+        help="verify collected pairs against a preregistered campaign without mutation",
+    )
+    campaign_check.add_argument("--plan", required=True, type=Path)
+    campaign_check.add_argument("--pair", required=True, action="append", type=Path)
     publish = subcommands.add_parser(
         "publish", help="commit a verified proposal and open or reuse a GitHub draft PR"
     )
@@ -192,6 +211,12 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.command == "benchmark-pair":
         _run_benchmark_pair(args)
+        return
+    if args.command == "benchmark-campaign-plan":
+        _run_benchmark_campaign_plan(args)
+        return
+    if args.command == "benchmark-campaign-check":
+        _run_benchmark_campaign_check(args)
         return
     if args.command == "propose":
         _run_propose(args)
@@ -417,6 +442,38 @@ def _run_benchmark_pair(args: argparse.Namespace) -> None:
         }
     )
     print(json.dumps(output, indent=2, sort_keys=True))
+
+
+def _run_benchmark_campaign_plan(args: argparse.Namespace) -> None:
+    seed_path = args.randomization_seed_file
+    if seed_path.is_symlink() or not seed_path.is_file():
+        raise SystemExit("randomization seed must be a regular, non-symlinked file")
+    seed = seed_path.read_bytes()
+    artifact = write_benchmark_campaign_plan(
+        args.output_dir,
+        args.proposal,
+        args.planned_pairs,
+        seed,
+    )
+    plan = load_benchmark_campaign_plan(artifact.path)
+    print(
+        json.dumps(
+            {
+                **plan.model_dump(mode="json"),
+                "path": str(artifact.path),
+                "reused": artifact.reused,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+def _run_benchmark_campaign_check(args: argparse.Namespace) -> None:
+    completion = assess_benchmark_campaign(args.plan, args.pair)
+    print(completion.model_dump_json(indent=2))
+    if completion.status != "complete":
+        raise SystemExit(2)
 
 
 def _run_propose(args: argparse.Namespace) -> None:
