@@ -234,8 +234,10 @@ existing immutable proposal are currently required; see
 [`docs/local-development.md`](docs/local-development.md).
 
 Operators can counterbalance time-order effects by running the same proposal once in
-each order. Those runs remain separate content-addressed artifacts; KubeFit does not
-yet aggregate their variance or require agreement automatically.
+each order. `kubefit benchmark-pair` fully verifies both content-addressed artifacts
+and emits one deterministic PASS/FAIL/INVALID policy-agreement assessment. It does not
+average two samples or claim statistical significance, and the assessment is not yet
+a mandatory publication input.
 
 `kubefit analyze` emits a typed schema v2 artifact binding aggregate observation,
 policy, and evaluation evidence to Deployment UID and creation time. Loading it

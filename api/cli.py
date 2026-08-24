@@ -12,6 +12,7 @@ from benchmarks import (
     DeploymentRuntimeSnapshotter,
     KubectlManifestController,
     SubprocessK6Executor,
+    assess_counterbalanced_pair,
     execute_benchmark,
     write_benchmark_result,
 )
@@ -117,6 +118,12 @@ def build_parser() -> argparse.ArgumentParser:
         default="before-after",
         help="measurement order; run both orders as separate trials to counterbalance time bias",
     )
+    benchmark_pair = subcommands.add_parser(
+        "benchmark-pair",
+        help="assess two opposite-order benchmark artifacts without cluster mutation",
+    )
+    benchmark_pair.add_argument("--first", required=True, type=Path)
+    benchmark_pair.add_argument("--second", required=True, type=Path)
     publish = subcommands.add_parser(
         "publish", help="commit a verified proposal and open or reuse a GitHub draft PR"
     )
@@ -175,6 +182,9 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.command == "benchmark":
         _run_benchmark(args)
+        return
+    if args.command == "benchmark-pair":
+        _run_benchmark_pair(args)
         return
     if args.command == "propose":
         _run_propose(args)
@@ -383,6 +393,13 @@ def _run_benchmark(args: argparse.Namespace) -> None:
             sort_keys=True,
         )
     )
+
+
+def _run_benchmark_pair(args: argparse.Namespace) -> None:
+    assessment = assess_counterbalanced_pair(args.first, args.second)
+    print(assessment.model_dump_json(indent=2))
+    if assessment.status != "pass":
+        raise SystemExit(2)
 
 
 def _run_propose(args: argparse.Namespace) -> None:

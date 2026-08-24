@@ -22,6 +22,13 @@ from benchmarks.measurement import (
     TimedK6Result,
     recovery_from_k6_raw,
 )
+from benchmarks.pair import (
+    CounterbalancedPairAssessment,
+    CounterbalancedPairCheck,
+    CounterbalancedPairError,
+    CounterbalancedTrial,
+    assess_counterbalanced_pair,
+)
 from benchmarks.result import (
     BenchmarkCheck,
     BenchmarkMeasurement,
@@ -56,6 +63,10 @@ __all__ = [
     "BenchmarkMeasurement",
     "BenchmarkMeasurementError",
     "CollectedMeasurement",
+    "CounterbalancedPairAssessment",
+    "CounterbalancedPairCheck",
+    "CounterbalancedPairError",
+    "CounterbalancedTrial",
     "BenchmarkPolicy",
     "BenchmarkRun",
     "BENCHMARK_RESULT_PAYLOAD_PATHS",
@@ -80,6 +91,7 @@ __all__ = [
     "SubprocessK6Executor",
     "TimedK6Result",
     "compare_benchmarks",
+    "assess_counterbalanced_pair",
     "measurement_order",
     "execute_benchmark",
     "recovery_from_k6_raw",
