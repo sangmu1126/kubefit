@@ -2,7 +2,12 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
-import type { AnalysisReview, BenchmarkReview, EvaluationResult } from "./types";
+import type {
+  AnalysisReview,
+  BenchmarkReview,
+  CounterbalancedPairReview,
+  EvaluationResult,
+} from "./types";
 
 const result: EvaluationResult = {
   current: {
@@ -125,6 +130,86 @@ const fullBenchmarkReview: BenchmarkReview = {
     { code: "verdict_replay", status: "pass", reason: "verdict replayed" },
   ],
   limitations: ["fixed demo traffic is not representative production traffic"],
+};
+
+const pairReview: CounterbalancedPairReview = {
+  schema_version: 1,
+  artifact_id: "benchmark-pair-" + "c".repeat(32),
+  proposal_id: benchmarkReview.proposal_id,
+  verification_level: "pair_full_artifact_replay",
+  status: "pass",
+  benchmark_ids: [benchmarkReview.artifact_id, "benchmark-" + "d".repeat(32)],
+  metrics: [
+    {
+      code: "steady_latency_p95",
+      label: "Steady latency P95",
+      unit: "ms",
+      lower_is_better: true,
+      direction: "improved",
+      delta_min: -2,
+      delta_max: -1,
+      change_percent_min: -20,
+      change_percent_max: -10,
+      trials: [
+        {
+          benchmark_id: benchmarkReview.artifact_id,
+          measurement_order: "before-after",
+          before: 10,
+          after: 8,
+          delta: -2,
+          change_percent: -20,
+          direction: "improved",
+        },
+        {
+          benchmark_id: "benchmark-" + "d".repeat(32),
+          measurement_order: "after-before",
+          before: 10,
+          after: 9,
+          delta: -1,
+          change_percent: -10,
+          direction: "improved",
+        },
+      ],
+    },
+    {
+      code: "cpu_throttling_p95",
+      label: "CPU throttling P95",
+      unit: "%",
+      lower_is_better: true,
+      direction: "mixed",
+      delta_min: -0.2,
+      delta_max: 0.1,
+      change_percent_min: null,
+      change_percent_max: null,
+      trials: [
+        {
+          benchmark_id: benchmarkReview.artifact_id,
+          measurement_order: "before-after",
+          before: 0,
+          after: 0.1,
+          delta: 0.1,
+          change_percent: null,
+          direction: "regressed",
+        },
+        {
+          benchmark_id: "benchmark-" + "d".repeat(32),
+          measurement_order: "after-before",
+          before: 0.2,
+          after: 0,
+          delta: -0.2,
+          change_percent: -100,
+          direction: "improved",
+        },
+      ],
+    },
+  ],
+  checks: [
+    { code: "opposite_orders", status: "pass", reason: "opposite orders verified" },
+    { code: "both_trials_pass", status: "pass", reason: "both trials passed" },
+  ],
+  limitations: [
+    "the displayed range is the minimum and maximum of two observed order-specific changes, not a confidence interval",
+  ],
 };
 
 function directoryFile(path: string, content = `{\"path\":\"${path}\"}`): File {
@@ -325,6 +410,42 @@ describe("KubeFit dashboard", () => {
     render(<App />);
 
     expect(screen.getByRole("alert")).toHaveTextContent("artifact ID 형식");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("loads a fully replayed pair and visualizes two observations without statistical claims", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(pairReview), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    window.history.replaceState({}, "", `/?pair=${pairReview.artifact_id}`);
+
+    render(<App />);
+
+    expect(await screen.findByText("PAIR FULL ARTIFACT REPLAY")).toBeInTheDocument();
+    expect(screen.getByText("1/2")).toBeInTheDocument();
+    expect(screen.getAllByText("두 순서 모두 개선")).toHaveLength(2);
+    expect(screen.getByText("순서별 방향 불일치")).toBeInTheDocument();
+    expect(screen.getByText(/신뢰구간이나 통계적 유의성이 아닙니다/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Steady latency P95 두 실행 순서 관측 범위")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/v1/benchmark-pairs/${pairReview.artifact_id}/review`,
+    );
+  });
+
+  it("rejects ambiguous benchmark and pair links without calling the API", () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    window.history.replaceState(
+      {},
+      "",
+      `/?benchmark=${benchmarkReview.artifact_id}&pair=${pairReview.artifact_id}`,
+    );
+
+    render(<App />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("동시에 지정할 수 없습니다");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

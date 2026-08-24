@@ -5,10 +5,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app, create_app
-from benchmarks import write_benchmark_result
+from benchmarks import write_benchmark_result, write_counterbalanced_pair
 from evaluator import AnalysisArtifact, AnalysisTarget
 from tests.test_analysis_artifact import replayable_analysis
 from tests.test_benchmark_artifact import completed_run
+from tests.test_benchmark_pair import published_pair
 from tests.test_benchmark_review import review_request
 from tests.test_manifest import eligible_evaluation
 
@@ -239,3 +240,42 @@ def test_app_rejects_unsafe_benchmark_results_root(tmp_path: Path) -> None:
 
     with pytest.raises(RuntimeError, match="regular directory"):
         create_app(None, linked)
+
+
+def test_review_stored_pair_replays_both_trials_and_metric_ranges(tmp_path: Path) -> None:
+    _, trials = published_pair(tmp_path)
+    pair = write_counterbalanced_pair(
+        tmp_path / "pairs", trials[0].path, trials[1].path
+    )
+    configured_client = TestClient(create_app(None, None, pair.path.parent))
+
+    response = configured_client.get(
+        f"/v1/benchmark-pairs/{pair.artifact_id}/review"
+    )
+
+    assert response.status_code == 200
+    review = response.json()
+    assert review["artifact_id"] == pair.artifact_id
+    assert review["verification_level"] == "pair_full_artifact_replay"
+    assert len(review["metrics"]) == 6
+    assert review["metrics"][0]["direction"] == "unchanged"
+    assert "not a confidence interval" in review["limitations"][0]
+
+
+def test_review_stored_pair_is_not_exposed_without_configuration() -> None:
+    response = client.get(
+        "/v1/benchmark-pairs/benchmark-pair-00000000000000000000000000000000/review"
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "stored benchmark pair review is not configured"
+
+
+def test_app_rejects_unsafe_benchmark_pairs_root(tmp_path: Path) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    linked = tmp_path / "linked"
+    linked.symlink_to(target, target_is_directory=True)
+
+    with pytest.raises(RuntimeError, match="benchmark pairs directory"):
+        create_app(None, None, linked)

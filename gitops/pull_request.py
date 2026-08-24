@@ -11,7 +11,12 @@ from gitops.bundle import LoadedProposalBundle, load_proposal_bundle
 from gitops.manifest import ManifestTarget, ResourceChange
 
 if TYPE_CHECKING:
-    from benchmarks import LoadedBenchmarkResult, LoadedCounterbalancedPair
+    from benchmarks import (
+        CounterbalancedPairReview,
+        LoadedBenchmarkResult,
+        LoadedCounterbalancedPair,
+        PairMetricComparison,
+    )
 
 
 class PullRequestPlanError(RuntimeError):
@@ -50,12 +55,17 @@ def build_pull_request_plan(
     benchmark_path: Path,
     benchmark_pair_path: Path,
 ) -> PullRequestPlan:
-    from benchmarks import load_benchmark_result, load_counterbalanced_pair
+    from benchmarks import (
+        load_benchmark_result,
+        load_counterbalanced_pair,
+        review_loaded_counterbalanced_pair,
+    )
 
     proposal = load_proposal_bundle(proposal_path)
     benchmark = load_benchmark_result(benchmark_path)
     benchmark_pair = load_counterbalanced_pair(benchmark_pair_path)
     _validate_artifacts(proposal, benchmark, benchmark_pair)
+    pair_review = review_loaded_counterbalanced_pair(benchmark_pair)
 
     before_content = proposal.before_source_manifest.read_text()
     after_content = proposal.after_source_manifest.read_text()
@@ -71,7 +81,9 @@ def build_pull_request_plan(
             "KubeFit: optimize "
             f"{proposal.target.namespace}/{proposal.target.deployment} resources"
         ),
-        body=_render_pull_request_body(proposal, benchmark, benchmark_pair),
+        body=_render_pull_request_body(
+            proposal, benchmark, benchmark_pair, pair_review
+        ),
         proposal_id=proposal.artifact_id,
         benchmark_id=benchmark.artifact_id,
         benchmark_pair_id=benchmark_pair.artifact_id,
@@ -129,6 +141,7 @@ def _render_pull_request_body(
     proposal: LoadedProposalBundle,
     benchmark: LoadedBenchmarkResult,
     benchmark_pair: LoadedCounterbalancedPair,
+    pair_review: CounterbalancedPairReview,
 ) -> str:
     evaluation = proposal.evaluation
     before = benchmark.before
@@ -213,6 +226,17 @@ def _render_pull_request_body(
                 after.runtime.traffic_spike_recovery_seconds,
             ),
             "",
+            "## Counterbalanced observed changes",
+            "",
+            (
+                "These are the two observed order-specific changes and their range, "
+                "not a confidence interval. Lower values are better."
+            ),
+            "",
+            "| Signal | Before-first | Candidate-first | Observed range | Direction |",
+            "|---|---:|---:|---:|---|",
+            *(_pair_metric_row(metric) for metric in pair_review.metrics),
+            "",
             "## Review notes",
             "",
         ]
@@ -247,6 +271,32 @@ def _render_pull_request_body(
         ]
     )
     return "\n".join(lines) + "\n"
+
+
+def _pair_metric_row(metric: PairMetricComparison) -> str:
+    trials = {trial.measurement_order: trial for trial in metric.trials}
+    before_first = trials["before-after"]
+    candidate_first = trials["after-before"]
+    if (
+        before_first.change_percent is not None
+        and candidate_first.change_percent is not None
+        and metric.change_percent_min is not None
+        and metric.change_percent_max is not None
+    ):
+        first = f"{before_first.change_percent:+.3f}%"
+        second = f"{candidate_first.change_percent:+.3f}%"
+        observed_range = (
+            f"{metric.change_percent_min:+.3f}% to "
+            f"{metric.change_percent_max:+.3f}%"
+        )
+    else:
+        first = f"{before_first.delta:+.3f}{metric.unit}"
+        second = f"{candidate_first.delta:+.3f}{metric.unit}"
+        observed_range = f"{metric.delta_min:+.3f} to {metric.delta_max:+.3f}{metric.unit}"
+    return (
+        f"| {metric.label} | {first} | {second} | {observed_range} | "
+        f"{metric.direction} |"
+    )
 
 
 def _row(label: str, before: object, after: object) -> str:

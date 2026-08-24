@@ -187,3 +187,44 @@ export interface BenchmarkReview {
   }>;
   limitations: string[];
 }
+
+export type PairMetricDirection = "improved" | "regressed" | "unchanged" | "mixed";
+
+export interface PairMetricTrial {
+  benchmark_id: string;
+  measurement_order: "before-after" | "after-before";
+  before: number;
+  after: number;
+  delta: number;
+  change_percent: number | null;
+  direction: Exclude<PairMetricDirection, "mixed">;
+}
+
+export interface PairMetricComparison {
+  code: string;
+  label: string;
+  unit: "ms" | "%" | "s";
+  lower_is_better: true;
+  direction: PairMetricDirection;
+  delta_min: number;
+  delta_max: number;
+  change_percent_min: number | null;
+  change_percent_max: number | null;
+  trials: [PairMetricTrial, PairMetricTrial];
+}
+
+export interface CounterbalancedPairReview {
+  schema_version: 1;
+  artifact_id: string;
+  proposal_id: string;
+  verification_level: "pair_full_artifact_replay";
+  status: "pass";
+  benchmark_ids: [string, string];
+  metrics: PairMetricComparison[];
+  checks: Array<{
+    code: string;
+    status: "pass" | "fail" | "invalid" | "warning";
+    reason: string;
+  }>;
+  limitations: string[];
+}

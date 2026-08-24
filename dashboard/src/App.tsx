@@ -1,6 +1,7 @@
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import {
   evaluateResources,
+  fetchStoredBenchmarkPairReview,
   fetchStoredBenchmarkReview,
   reviewAnalysisArtifact,
   reviewBenchmarkArtifact,
@@ -11,11 +12,13 @@ import type {
   AnalysisReview,
   BenchmarkMeasurement,
   BenchmarkReview,
+  CounterbalancedPairReview,
   EvaluationRequest,
   EvaluationResult,
   Resources,
   RiskLevel,
   DecimalValue,
+  PairMetricComparison,
 } from "./types";
 
 const MAX_ANALYSIS_ARTIFACT_BYTES = 1024 * 1024;
@@ -386,18 +389,149 @@ function BenchmarkResults({ review }: { review: BenchmarkReview }) {
   );
 }
 
+function pairDirectionLabel(direction: PairMetricComparison["direction"]): string {
+  return {
+    improved: "두 순서 모두 개선",
+    regressed: "두 순서 모두 악화",
+    unchanged: "두 순서 모두 동일",
+    mixed: "순서별 방향 불일치",
+  }[direction];
+}
+
+function formatPairChange(metric: PairMetricComparison, order: "before-after" | "after-before"): string {
+  const trial = metric.trials.find((item) => item.measurement_order === order)!;
+  return trial.change_percent === null
+    ? `${trial.delta >= 0 ? "+" : ""}${trial.delta.toFixed(3)}${metric.unit}`
+    : `${trial.change_percent >= 0 ? "+" : ""}${trial.change_percent.toFixed(3)}%`;
+}
+
+function PairMetricRange({ metric }: { metric: PairMetricComparison }) {
+  const maxMagnitude = Math.max(Math.abs(metric.delta_min), Math.abs(metric.delta_max), 0.001);
+  const position = (delta: number) => 50 + (delta / maxMagnitude) * 48;
+  const low = position(metric.delta_min);
+  const high = position(metric.delta_max);
+  const byOrder = Object.fromEntries(
+    metric.trials.map((trial) => [trial.measurement_order, trial]),
+  ) as Record<"before-after" | "after-before", PairMetricComparison["trials"][number]>;
+  return (
+    <article className={`pair-metric ${metric.direction}`}>
+      <div className="pair-metric-copy">
+        <strong>{metric.label}</strong>
+        <span>{pairDirectionLabel(metric.direction)}</span>
+      </div>
+      <div className="range-plot" aria-label={`${metric.label} 두 실행 순서 관측 범위`}>
+        <i className="zero-line" />
+        <i className="observed-range" style={{ left: `${low}%`, width: `${Math.max(high - low, 2)}%` }} />
+        <i className="order-point before-first" style={{ left: `${position(byOrder["before-after"].delta)}%` }} />
+        <i className="order-point candidate-first" style={{ left: `${position(byOrder["after-before"].delta)}%` }} />
+      </div>
+      <div className="pair-values">
+        <span><i className="before-first" />Before-first <strong>{formatPairChange(metric, "before-after")}</strong></span>
+        <span><i className="candidate-first" />Candidate-first <strong>{formatPairChange(metric, "after-before")}</strong></span>
+      </div>
+    </article>
+  );
+}
+
+function PairResults({ review }: { review: CounterbalancedPairReview }) {
+  const agreements = review.metrics.filter((metric) => metric.direction !== "mixed").length;
+  const improvements = review.metrics.filter((metric) => metric.direction === "improved").length;
+  const mixed = review.metrics.length - agreements;
+  return (
+    <main className="results benchmark-results" aria-live="polite">
+      <section className="artifact-context" aria-labelledby="pair-artifact-title">
+        <div>
+          <p className="eyebrow">COUNTERBALANCED PAIR · SCHEMA {review.schema_version}</p>
+          <h2 id="pair-artifact-title">두 실행 순서의 관측 변화</h2>
+          <p>proposal <strong>{review.proposal_id}</strong></p>
+        </div>
+        <div className="artifact-verification">
+          <span>전체 페어 검사 {review.checks.length}/{review.checks.length}</span>
+          <strong>PAIR FULL ARTIFACT REPLAY</strong>
+          <code title={review.artifact_id}>{review.artifact_id}</code>
+        </div>
+        <details>
+          <summary>검증 범위와 한계</summary>
+          <ul>
+            {review.checks.map((check) => <li key={check.code}>✓ {check.reason}</li>)}
+            {review.limitations.map((limitation) => <li className="limitation" key={limitation}>△ {limitation}</li>)}
+          </ul>
+        </details>
+      </section>
+      <section className="benchmark-verdict pass">
+        <div>
+          <p className="eyebrow">COUNTERBALANCED POLICY GATE</p>
+          <h2>PASS</h2>
+          <p>두 반대 실행 순서가 같은 안전 정책을 통과했습니다.</p>
+        </div>
+        <span>✓</span>
+      </section>
+      <section className="metric-grid" aria-label="페어 관측 요약">
+        <article className="metric-card accent">
+          <p>방향 일치</p><strong>{agreements}/{review.metrics.length}</strong>
+          <span>동일 포함 · 순서별 변화 방향 비교</span>
+        </article>
+        <article className="metric-card">
+          <p>두 순서 모두 개선</p><strong>{improvements}</strong>
+          <span>낮을수록 좋은 핵심 신호 기준</span>
+        </article>
+        <article className="metric-card">
+          <p>방향 불일치</p><strong>{mixed}</strong>
+          <span>불일치가 있어도 정책 한계 내 PASS 가능</span>
+        </article>
+      </section>
+      <section className="panel pair-observations" aria-labelledby="pair-observations-title">
+        <div className="section-heading">
+          <div><p className="eyebrow">TWO ORDER-SPECIFIC OBSERVATIONS</p><h2 id="pair-observations-title">변화 방향과 관측 범위</h2></div>
+          <p>← 개선 · 0 · 악화 →</p>
+        </div>
+        <p className="range-warning"><strong>표본 2개의 최소–최대 범위입니다.</strong> 신뢰구간이나 통계적 유의성이 아닙니다.</p>
+        <div className="pair-metric-list">
+          {review.metrics.map((metric) => <PairMetricRange key={metric.code} metric={metric} />)}
+        </div>
+      </section>
+    </main>
+  );
+}
+
 export default function App() {
   const [request, setRequest] = useState(() => cloneScenario(eligibleScenario));
   const [result, setResult] = useState<EvaluationResult | null>(null);
   const [artifactReview, setArtifactReview] = useState<AnalysisReview | null>(null);
   const [benchmarkReview, setBenchmarkReview] = useState<BenchmarkReview | null>(null);
+  const [pairReview, setPairReview] = useState<CounterbalancedPairReview | null>(null);
   const [loading, setLoading] = useState(false);
   const [artifactLoading, setArtifactLoading] = useState(false);
   const [benchmarkLoading, setBenchmarkLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const artifactId = new URLSearchParams(window.location.search).get("benchmark");
+    const parameters = new URLSearchParams(window.location.search);
+    const artifactId = parameters.get("benchmark");
+    const pairId = parameters.get("pair");
+    if (artifactId !== null && pairId !== null) {
+      setError("benchmark와 pair 링크를 동시에 지정할 수 없습니다.");
+      return;
+    }
+    if (pairId !== null) {
+      if (!/^benchmark-pair-[0-9a-f]{32}$/.test(pairId)) {
+        setError("benchmark pair 링크의 artifact ID 형식이 올바르지 않습니다.");
+        return;
+      }
+      let active = true;
+      setBenchmarkLoading(true);
+      fetchStoredBenchmarkPairReview(pairId)
+        .then((review) => {
+          if (active) setPairReview(review);
+        })
+        .catch((reason: unknown) => {
+          if (active) setError(reason instanceof Error ? reason.message : "저장된 benchmark pair 검증에 실패했습니다.");
+        })
+        .finally(() => {
+          if (active) setBenchmarkLoading(false);
+        });
+      return () => { active = false; };
+    }
     if (artifactId === null) return;
     if (!/^benchmark-[0-9a-f]{32}$/.test(artifactId)) {
       setError("benchmark 링크의 artifact ID 형식이 올바르지 않습니다.");
@@ -445,6 +579,7 @@ export default function App() {
     setResult(null);
     setArtifactReview(null);
     setBenchmarkReview(null);
+    setPairReview(null);
     setError(null);
   };
 
@@ -455,6 +590,7 @@ export default function App() {
     setArtifactReview(null);
     setError(null);
     setBenchmarkReview(null);
+    setPairReview(null);
     if (file.size > MAX_ANALYSIS_ARTIFACT_BYTES) {
       setError("analysis artifact는 1 MiB 이하여야 합니다.");
       return;
@@ -477,6 +613,7 @@ export default function App() {
     setResult(null);
     setArtifactReview(null);
     setBenchmarkReview(null);
+    setPairReview(null);
     setError(null);
     const selected = new Map<string, File>();
     for (const file of files) {
@@ -521,6 +658,7 @@ export default function App() {
     setLoading(true);
     setArtifactReview(null);
     setBenchmarkReview(null);
+    setPairReview(null);
     setError(null);
     try {
       setResult(await evaluateResources(request));
@@ -656,7 +794,7 @@ export default function App() {
             {error && <p className="error" role="alert">{error}</p>}
           </form>
         </aside>
-        {benchmarkReview ? <BenchmarkResults review={benchmarkReview} /> : result ? <Results result={result} review={artifactReview} /> : (
+        {pairReview ? <PairResults review={pairReview} /> : benchmarkReview ? <BenchmarkResults review={benchmarkReview} /> : result ? <Results result={result} review={artifactReview} /> : (
           <main className="empty-state">
             <span>↳</span>
             <h2>아직 계산하지 않았습니다.</h2>
