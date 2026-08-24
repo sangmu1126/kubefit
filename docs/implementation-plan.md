@@ -227,8 +227,9 @@ Terraform generation, and an AI chatbot remain outside the first release.
 collector audit finding by retaining Prometheus Pod identities and timestamps,
 pairing CPU/memory evidence, and gating extreme current-Pod sample skew. The
 immutable `v0.1.0` source tag remains unchanged; these fixes target a later patch
-release.
+release. Entry [0047](devlog/0047-interrupt-safe-benchmark-restoration.md) then
+closes the benchmark interruption gap by restoring the original Deployment before
+propagating Ctrl+C and retaining both causes if restoration fails.
 
-Next, make benchmark restoration survive operator interruption, then address public
-package reproducibility, licensing, dependency pins, CI version coverage, and
-measurement-order noise in risk order.
+Next, address public package reproducibility, then licensing, dependency pins, CI
+version coverage, and measurement-order noise in risk order.

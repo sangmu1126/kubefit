@@ -172,6 +172,48 @@ def test_restores_after_measurement_failure(tmp_path: Path) -> None:
     assert controller.events[-2:] == ["apply:before:2", "wait:before:2"]
 
 
+@pytest.mark.parametrize("interrupted_variant", ["before", "after"])
+def test_restores_then_reraises_keyboard_interrupt(
+    tmp_path: Path, interrupted_variant: str
+) -> None:
+    proposal = published_proposal(tmp_path)
+    controller = RecordingController()
+    interruption = KeyboardInterrupt()
+    base_collector = collector(controller.events)
+
+    def interrupting_collector(proposal, variant):
+        if variant == interrupted_variant:
+            controller.events.append(f"measure:{variant}")
+            raise interruption
+        return base_collector(proposal, variant)
+
+    with pytest.raises(KeyboardInterrupt) as raised:
+        execute_benchmark(proposal.path, controller, interrupting_collector)
+
+    assert raised.value is interruption
+    assert controller.events[-2:] == ["apply:before:2", "wait:before:2"]
+
+
+def test_reports_restoration_failure_after_keyboard_interrupt(tmp_path: Path) -> None:
+    proposal = published_proposal(tmp_path)
+    controller = RecordingController({"apply:before:2"})
+    interruption = KeyboardInterrupt()
+    base_collector = collector(controller.events)
+
+    def interrupting_collector(proposal, variant):
+        if variant == "after":
+            controller.events.append(f"measure:{variant}")
+            raise interruption
+        return base_collector(proposal, variant)
+
+    with pytest.raises(BenchmarkExecutionError) as raised:
+        execute_benchmark(proposal.path, controller, interrupting_collector)
+
+    assert raised.value.stage == "measure_after"
+    assert raised.value.cause is interruption
+    assert str(raised.value.restoration_error) == "apply:before:2"
+
+
 def test_identity_failure_never_applies_or_restores(tmp_path: Path) -> None:
     proposal = published_proposal(tmp_path)
     controller = RecordingController({"verify"})

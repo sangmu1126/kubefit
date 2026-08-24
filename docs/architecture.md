@@ -239,6 +239,10 @@ cluster controller. It then applies and measures before and after sequentially. 
 soon as the first apply begins, every exit path attempts to reapply before and wait
 for its Deployment rollout. A successful result is returned only after restoration;
 if execution and restoration both fail, both causes remain available to the caller.
+This includes one operator `KeyboardInterrupt`: the runner restores first and then
+re-raises the same interrupt instead of converting Ctrl+C into an ordinary benchmark
+error. It does not mask a second interrupt during restoration, so this remains a
+best-effort process boundary rather than an external transactional controller.
 Rollout completion is followed by a stricter stabilization gate: exactly the desired
 number of selector-matching Pods must remain, none may be terminating, and the target
 container in every Pod must be Running and Ready. Runtime snapshots therefore begin
