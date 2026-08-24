@@ -79,6 +79,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0055](0055-counterbalanced-metric-range-review.md) | Counterbalanced metric range review | Show two order-specific changes without inventing statistical confidence |
 | [0056](0056-preregistered-benchmark-campaign.md) | Preregistered benchmark campaign | Freeze repeated-pair order and stopping rules before observing outcomes |
 | [0057](0057-self-contained-campaign-evidence.md) | Self-contained campaign evidence | Persist only COMPLETE campaigns with every replayable nested pair |
+| [0058](0058-optional-campaign-pr-evidence.md) | Optional campaign PR evidence | Bind an explicit completed campaign to the Draft PR and offline proof |
 
 ## Visual language
 

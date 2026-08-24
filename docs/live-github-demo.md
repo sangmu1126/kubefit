@@ -181,7 +181,7 @@ test "$(cut -f1 "$KUBEFIT_EVIDENCE_DIR/remote-ref.txt")" = "$KUBEFIT_FIRST_SHA"
 
 gh pr view "$KUBEFIT_FIRST_PR" \
   --repo "$KUBEFIT_DEMO_REPOSITORY" \
-  --json number,url,state,isDraft,headRefName,headRefOid,baseRefName,title,changedFiles \
+  --json number,url,state,isDraft,headRefName,headRefOid,baseRefName,title,body,changedFiles \
   > "$KUBEFIT_EVIDENCE_DIR/github-pr.json"
 
 jq -e --arg branch "$KUBEFIT_BRANCH" --arg sha "$KUBEFIT_FIRST_SHA" '
@@ -225,7 +225,9 @@ The verification result is deliberately written next to, not inside, the evidenc
 directory. The verifier rejects missing and additional files, recalculates every
 SHA-256, rebuilds the pull request plan, and emits a deterministic
 `publication-<digest>` ID. Preserve the five-file directory and its sibling result
-together.
+together. If publication used `--benchmark-campaign-evidence`, pass the same option to
+`verify-publication`; in that mode the captured `body` is required and must exactly
+match the replayed campaign-backed plan.
 
 ## 6. Preserve or explicitly remove the target
 

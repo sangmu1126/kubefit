@@ -272,8 +272,12 @@ both embedded benchmark results and their pair assessment, requires the primary 
 to be a member of that pair, and produces a deterministic one-file draft PR contract.
 The contract includes the exact expected repository source hash, patched content,
 benchmark metrics, pair identity, both order-specific changes and their observed
-range, cost caveats, warnings, and rollback guidance. This
-stage is read-only; branch creation and GitHub publication remain separate adapters.
+range, cost caveats, warnings, and rollback guidance. Supplying
+`--benchmark-campaign-evidence` explicitly also reloads the complete repeated campaign,
+requires the mandatory pair to be one of its chronological blocks, and adds the
+campaign IDs and block table to the same PR body. Omitting it preserves the normal
+pair-only publication path. This stage is read-only; branch creation and GitHub
+publication remain separate adapters.
 
 `commit_pull_request_plan` applies that contract to an explicit clean Git top-level.
 It rechecks the source hash and bytes, rejects symlinks and detached HEAD, creates a
@@ -307,6 +311,8 @@ archives rather than deletes the target by default.
 set without network access. It rebuilds the proposal/benchmark/pair plan, checks the
 preflight, two publication outputs, remote ref, and GitHub Draft PR as one contract,
 hashes every file, and emits a deterministic `publication-<digest>` verification ID.
+When optional campaign evidence is supplied, it additionally binds the campaign IDs
+and requires the independently captured GitHub body to equal the generated body.
 
 The example prices are illustrative, not a cloud-provider price claim. Live
 analysis requires the caller to provide CPU and memory rates plus a source label.

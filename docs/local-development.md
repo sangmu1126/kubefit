@@ -402,6 +402,21 @@ The token needs repository pull-request write access, while Git push uses the
 repository's existing Git authentication. `--github-token-env NAME` can select a
 different environment variable by name; the token value is never a CLI option.
 
+To attach a completed repeated campaign, add the same explicit option to both commands:
+
+```bash
+--benchmark-campaign-evidence \
+  benchmarks/campaign-evidence/benchmark-campaign-evidence-<digest>
+```
+
+The campaign must reference the same proposal and contain the mandatory
+`--benchmark-pair`. KubeFit replays the entire nested artifact and adds its IDs,
+completion count, chronological block table, and a no-significance caveat to the PR
+body. Omitting the option preserves the standard pair-only gate. This references
+verified evidence in the review contract; it does not upload the raw campaign bundle to
+GitHub. Choose the option before the first publication because KubeFit refuses to
+rewrite a divergent existing Draft PR body.
+
 The command creates or reuses the deterministic local commit, creates the remote
 branch only if absent, and opens or reuses an exact matching Draft PR. It prints
 only repository, branch, commit, PR URL/number, and reuse flags as JSON. It does not

@@ -263,6 +263,10 @@ statistical effect.
 Entry [0057](devlog/0057-self-contained-campaign-evidence.md) persists only COMPLETE
 campaigns with their plan and every full pair bundle, then independently replays the
 entire nested evidence tree without changing the default publication requirement.
+Entry [0058](devlog/0058-optional-campaign-pr-evidence.md) lets an operator explicitly
+bind that evidence to preflight, Draft PR body, publication output, and offline proof,
+while requiring the mandatory pair to belong to the campaign and leaving omission
+fully backward-compatible.
 
-Next, let an operator attach this optional advanced evidence to a Draft PR without
-making repeated campaigns mandatory for the MVP path.
+Next, decide whether a read-only campaign dashboard adds enough review value without
+turning repeated evidence into an implied statistical aggregate.
