@@ -1,9 +1,10 @@
 # 0044: Testing the packaged runtime in CI
 
 - **Date:** 2026-08-24
-- **Status:** validated locally; GitHub-hosted validation pending
+- **Status:** validated locally and on GitHub-hosted runners
 - **Related phase:** Phase 6 — presentation layer and packaging
 - **Feature commit:** `57ffbd5 ci: smoke test packaged runtime`
+- **Draft PR:** [sangmu1126/kubefit#5](https://github.com/sangmu1126/kubefit/pull/5)
 
 ## Why
 
@@ -107,6 +108,25 @@ docker ps --all --filter name=kubefit-runtime-verify --format '{{.Names}}'
 | Packaged dashboard title | Passed |
 | Unconfigured benchmark storage | HTTP 404 |
 | Temporary containers after exit | 0 |
+| GitHub Actions run | [32688071560](https://github.com/sangmu1126/kubefit/actions/runs/32688071560), all four jobs passed |
+
+### GitHub-hosted validation
+
+Draft PR #5 targets `feat/shareable-benchmark-review`, so its eight-file diff contains only
+the runtime gate and its evidence. GitHub reported the PR as Draft, open, and mergeable.
+All four jobs passed on the first run:
+
+| Job | Result | Duration |
+|---|---|---:|
+| Python | Passed | 27s |
+| Docker | Passed | 22s |
+| Dashboard | Passed | 15s |
+| Helm | Passed | 4s |
+
+The Docker job log independently shows the `Smoke test packaged runtime` step starting
+`kubefit:ci` and printing the success assertion for startup, health, dashboard, and
+disabled storage. This distinguishes the new runtime evidence from a job that merely
+retained the old build-only commands.
 
 ## Decision and limitations
 
@@ -116,7 +136,7 @@ The script remains tokenless and does not mount Kubernetes credentials or benchm
 
 This smoke test does not replace the disposable-kind Helm verification, exercise optional
 RBAC, or validate configured benchmark storage. Those paths have separate local integration
-evidence. The GitHub-hosted result must be recorded after the branch is published.
+evidence.
 
 ## Next question
 
