@@ -34,7 +34,7 @@ be mistaken for one another:
 
 | Claim | Reproducible evidence |
 |---|---|
-| Resource recommendations are deterministic and safety-gated | 394 Python tests on the integrated `main` commit |
+| Resource recommendations and package boundaries are deterministic and safety-gated | 396 Python tests on the audited post-release branch |
 | The review UI builds and behaves as specified | 15 dashboard tests and a production Vite build |
 | The package renders with least-privilege defaults | Helm lint and default-template validation |
 | The production image actually starts | Docker startup, numeric non-root user, health, dashboard, and disabled-storage smoke checks |
@@ -55,8 +55,10 @@ deploy it.
 The [v0.1.0 release-readiness record](docs/release-readiness.md) preserves the earlier
 MVP source boundary. Records [0060](docs/devlog/0060-validation-informed-cpu-floor.md),
 [0061](docs/devlog/0061-live-pair-draft-publication.md), and
-[0062](docs/devlog/0062-verified-v020-release.md) document the later counterbalanced
-validation, authenticated Draft publication, and verified public package release.
+[0062](docs/devlog/0062-verified-v020-release.md), then
+[0063](docs/devlog/0063-generated-evidence-package-boundary.md) document the later
+counterbalanced validation, authenticated Draft publication, verified public package
+release, and post-release package-content audit.
 
 ## Repository layout
 

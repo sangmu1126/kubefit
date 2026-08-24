@@ -283,6 +283,11 @@ Python, dashboard, Helm, and image versions, publishes both multi-architecture i
 and OCI chart, and verifies anonymous pull plus container startup before creating the
 public GitHub release. It also retires the superseded generated Draft PR while keeping
 the current validation-backed proposal unmerged.
+Entry [0063](devlog/0063-generated-evidence-package-boundary.md) audits a dirty local
+build rather than only a clean CI checkout, finds ignored pair and campaign artifacts
+inside the resulting wheel, and makes generated-data exclusion an executable wheel and
+Docker-context contract. It also distinguishes a local demo bundle from evidence that
+has actually been approved for public distribution.
 
 The MVP implementation and submission release are complete. Further work starts as a
 new post-MVP decision: campaign drill-down, supply-chain signing, or production-cluster
