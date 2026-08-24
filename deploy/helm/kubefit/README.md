@@ -13,7 +13,7 @@ gate for a version, install the OCI chart without a source checkout:
 ```bash
 helm upgrade --install kubefit \
   oci://ghcr.io/sangmu1126/charts/kubefit \
-  --version 0.1.0 \
+  --version 0.2.0 \
   --namespace kubefit-system \
   --create-namespace \
   --wait
