@@ -274,6 +274,10 @@ Entry [0060](devlog/0060-validation-informed-cpu-floor.md) records a live contro
 demo in which the counterbalanced gate rejected an aggressive floor, adds a monotonic
 schema v2 reanalysis path, and preserves an incomplete repeated campaign instead of
 weakening latency policy or selecting favorable reruns.
+Entry [0061](devlog/0061-live-pair-draft-publication.md) exercises the pair-only MVP
+publication boundary against the project repository, proves idempotent Draft PR reuse
+and offline evidence verification, and captures the fully replayed pair dashboard
+without representing the incomplete campaign as attached evidence.
 
 Next, decide how a campaign block can drill into its nested pair review without
 requiring a second storage root or weakening path containment.
