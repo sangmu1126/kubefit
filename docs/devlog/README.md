@@ -68,6 +68,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0044](0044-packaged-runtime-ci-gate.md) | Packaged runtime CI gate | Start the built image and verify health, dashboard, defaults, logs, and cleanup |
 | [0045](0045-integrated-release-boundary.md) | Integrated release boundary | Map the merged MVP to exact evidence, exclusions, and a tag-ready checklist |
 | [0046](0046-pod-bound-prometheus-evidence.md) | Pod-bound Prometheus evidence | Pair CPU and memory by Pod/time and reject current-replica sample skew |
+| [0047](0047-interrupt-safe-benchmark-restoration.md) | Interrupt-safe benchmark restoration | Restore the original Deployment before propagating Ctrl+C |
 
 ## Visual language
 
