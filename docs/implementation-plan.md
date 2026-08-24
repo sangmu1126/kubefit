@@ -219,3 +219,16 @@ external image/chart publication remain post-MVP hardening work.
 
 HPA recommendations, multi-cloud pricing catalogs, predictive incident detection,
 Terraform generation, and an AI chatbot remain outside the first release.
+
+## Post-v0.1.0 correctness hardening
+
+**Status: in progress (2026-08-24).** Entry
+[0046](devlog/0046-pod-bound-prometheus-evidence.md) closes the highest-priority
+collector audit finding by retaining Prometheus Pod identities and timestamps,
+pairing CPU/memory evidence, and gating extreme current-Pod sample skew. The
+immutable `v0.1.0` source tag remains unchanged; these fixes target a later patch
+release.
+
+Next, make benchmark restoration survive operator interruption, then address public
+package reproducibility, licensing, dependency pins, CI version coverage, and
+measurement-order noise in risk order.

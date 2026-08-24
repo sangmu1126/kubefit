@@ -21,14 +21,26 @@ class WorkloadMetrics:
     sample_count: int
     observation_coverage: float
     metric_pod_count: int
+    minimum_current_pod_sample_count: int
     cpu_throttling_p95_percent: float | None
     cpu_throttling_max_percent: float | None
     cpu_throttling_sample_count: int
     cpu_throttling_pod_count: int
     cpu_throttling_observation_coverage: float
+    minimum_current_pod_throttling_sample_count: int
     requested_start: datetime
     query_start: datetime
     history_clipped: bool
+
+
+@dataclass(frozen=True)
+class MetricSeries:
+    metric: dict[str, str]
+    samples: tuple[tuple[float, float], ...]
+
+    @property
+    def values(self) -> list[float]:
+        return [value for _, value in self.samples]
 
 
 def percentile(values: list[float], quantile: float) -> float:
@@ -64,7 +76,7 @@ class PrometheusClient:
 
     def query_range_series(
         self, query: str, start: datetime, end: datetime, step_seconds: int = 300
-    ) -> list[list[float]]:
+    ) -> list[MetricSeries]:
         response = self._client.get(
             "/api/v1/query_range",
             params={
@@ -78,12 +90,17 @@ class PrometheusClient:
         payload = response.json()
         if payload.get("status") != "success":
             raise PrometheusError(payload.get("error", "Prometheus query failed"))
-        series_values: list[list[float]] = []
+        metric_series: list[MetricSeries] = []
         for series in payload.get("data", {}).get("result", []):
-            values = [float(value) for _, value in series.get("values", [])]
-            if values:
-                series_values.append(values)
-        return series_values
+            samples = tuple(
+                (float(timestamp), float(value))
+                for timestamp, value in series.get("values", [])
+            )
+            if samples:
+                metric_series.append(
+                    MetricSeries(metric=dict(series.get("metric", {})), samples=samples)
+                )
+        return metric_series
 
     def query_range(
         self, query: str, start: datetime, end: datetime, step_seconds: int = 300
@@ -91,7 +108,7 @@ class PrometheusClient:
         return [
             value
             for series in self.query_range_series(query, start, end, step_seconds)
-            for value in series
+            for value in series.values
         ]
 
     def benchmark_cpu_throttling_p95(
@@ -140,7 +157,8 @@ class PrometheusClient:
         series = self.query_range_series(query, query_start, end, step_seconds)
         if not series:
             raise PrometheusError("Prometheus returned no throttling samples for benchmark")
-        return max(percentile(values, 0.95) for values in series)
+        series_by_pod = _series_by_pod(series, "benchmark CPU throttling")
+        return max(percentile(item.values, 0.95) for item in series_by_pod.values())
 
     def workload_metrics(
         self,
@@ -211,46 +229,122 @@ class PrometheusClient:
         if not cpu_series or not memory_series:
             raise PrometheusError("Prometheus returned no samples for the workload")
 
+        cpu_by_pod = _series_by_pod(cpu_series, "CPU usage")
+        memory_by_pod = _series_by_pod(memory_series, "memory usage")
+        common_pods = cpu_by_pod.keys() & memory_by_pod.keys()
+        if not common_pods:
+            raise PrometheusError(
+                "CPU and memory metrics have no matching Pod identities"
+            )
+        paired_by_pod = {
+            pod: _paired_samples(cpu_by_pod[pod], memory_by_pod[pod])
+            for pod in common_pods
+        }
+        paired_by_pod = {
+            pod: samples for pod, samples in paired_by_pod.items() if samples
+        }
+        if not paired_by_pod:
+            raise PrometheusError(
+                "CPU and memory metrics have no matching Pod timestamps"
+            )
+        current_pods = set(pods)
+        current_usage_pods = current_pods & paired_by_pod.keys()
+        throttling_by_pod = (
+            _series_by_pod(throttling_series, "CPU throttling")
+            if throttling_series
+            else {}
+        )
+        current_throttling_pods = current_pods & throttling_by_pod.keys()
+
         # Resources are applied per Pod, so retain the busiest replica rather than
         # averaging it away or applying a Deployment-wide sum to every replica.
-        cpu_p95_cores = max(percentile(values, 0.95) for values in cpu_series)
-        memory_p99_bytes = max(percentile(values, 0.99) for values in memory_series)
-        cpu_sample_count = sum(len(values) for values in cpu_series)
-        memory_sample_count = sum(len(values) for values in memory_series)
+        cpu_p95_cores = max(
+            percentile([cpu for cpu, _ in samples], 0.95)
+            for samples in paired_by_pod.values()
+        )
+        memory_p99_bytes = max(
+            percentile([memory for _, memory in samples], 0.99)
+            for samples in paired_by_pod.values()
+        )
         expected_per_pod = (
             math.floor((end - requested_start).total_seconds() / step_seconds) + 1
         )
         expected_total = expected_per_pod * len(pods)
-        observed_samples = min(cpu_sample_count, memory_sample_count)
+        observed_samples = sum(len(samples) for samples in paired_by_pod.values())
         return WorkloadMetrics(
             cpu_p95_millicores=cpu_p95_cores * 1000,
             memory_p99_mib=memory_p99_bytes / (1024 * 1024),
-            cpu_max_millicores=max(max(values) for values in cpu_series) * 1000,
-            memory_max_mib=max(max(values) for values in memory_series) / (1024 * 1024),
+            cpu_max_millicores=max(
+                cpu for samples in paired_by_pod.values() for cpu, _ in samples
+            )
+            * 1000,
+            memory_max_mib=max(
+                memory for samples in paired_by_pod.values() for _, memory in samples
+            )
+            / (1024 * 1024),
             observation_days=observation_days,
             step_seconds=step_seconds,
             sample_count=observed_samples,
             observation_coverage=min(1.0, observed_samples / expected_total),
-            metric_pod_count=min(len(cpu_series), len(memory_series)),
+            metric_pod_count=len(current_usage_pods),
+            minimum_current_pod_sample_count=min(
+                (len(paired_by_pod[pod]) for pod in current_pods), default=0
+            )
+            if current_pods <= paired_by_pod.keys()
+            else 0,
             cpu_throttling_p95_percent=(
-                max(percentile(values, 0.95) for values in throttling_series)
-                if throttling_series
+                max(percentile(series.values, 0.95) for series in throttling_by_pod.values())
+                if throttling_by_pod
                 else None
             ),
             cpu_throttling_max_percent=(
-                max(max(values) for values in throttling_series)
-                if throttling_series
+                max(max(series.values) for series in throttling_by_pod.values())
+                if throttling_by_pod
                 else None
             ),
             cpu_throttling_sample_count=sum(
-                len(values) for values in throttling_series
+                len(series.samples) for series in throttling_by_pod.values()
             ),
-            cpu_throttling_pod_count=len(throttling_series),
+            cpu_throttling_pod_count=len(current_throttling_pods),
             cpu_throttling_observation_coverage=min(
                 1.0,
-                sum(len(values) for values in throttling_series) / expected_total,
+                sum(len(series.samples) for series in throttling_by_pod.values())
+                / expected_total,
             ),
+            minimum_current_pod_throttling_sample_count=min(
+                (len(throttling_by_pod[pod].samples) for pod in current_pods),
+                default=0,
+            )
+            if current_pods <= throttling_by_pod.keys()
+            else 0,
             requested_start=requested_start,
             query_start=query_start,
             history_clipped=query_start > requested_start,
         )
+
+
+def _series_by_pod(
+    series: list[MetricSeries], metric_name: str
+) -> dict[str, MetricSeries]:
+    result: dict[str, MetricSeries] = {}
+    for item in series:
+        pod = item.metric.get("pod")
+        if not pod:
+            raise PrometheusError(f"{metric_name} series is missing the Pod label")
+        if pod in result:
+            raise PrometheusError(
+                f"{metric_name} returned duplicate series for Pod {pod}"
+            )
+        result[pod] = item
+    return result
+
+
+def _paired_samples(
+    cpu: MetricSeries, memory: MetricSeries
+) -> list[tuple[float, float]]:
+    memory_by_timestamp = dict(memory.samples)
+    return [
+        (cpu_value, memory_by_timestamp[timestamp])
+        for timestamp, cpu_value in cpu.samples
+        if timestamp in memory_by_timestamp
+    ]

@@ -22,6 +22,8 @@ class MetricReadinessProgress(BaseModel):
     required_observation_coverage: float = Field(ge=0, le=1)
     pod_count: int = Field(ge=0)
     required_pod_count: int = Field(ge=1)
+    minimum_current_pod_sample_count: int | None = Field(default=None, ge=0)
+    required_current_pod_sample_count: int = Field(ge=1)
 
 
 class ReplicaReadinessProgress(BaseModel):
@@ -96,6 +98,9 @@ def assess_observation_readiness(
         expected_per_pod * desired * policy.minimum_observation_coverage
     )
     required_sample_count = max(policy.minimum_sample_count, coverage_sample_count)
+    required_current_pod_sample_count = math.ceil(
+        policy.minimum_sample_count / desired
+    )
     usage = MetricReadinessProgress(
         sample_count=observed.sample_count or 0,
         required_sample_count=required_sample_count,
@@ -103,6 +108,10 @@ def assess_observation_readiness(
         required_observation_coverage=policy.minimum_observation_coverage,
         pod_count=observed.metric_pod_count or 0,
         required_pod_count=desired,
+        minimum_current_pod_sample_count=(
+            observed.minimum_current_pod_sample_count
+        ),
+        required_current_pod_sample_count=required_current_pod_sample_count,
     )
     throttling = MetricReadinessProgress(
         sample_count=observed.cpu_throttling_sample_count or 0,
@@ -111,6 +120,10 @@ def assess_observation_readiness(
         required_observation_coverage=policy.minimum_observation_coverage,
         pod_count=observed.cpu_throttling_pod_count or 0,
         required_pod_count=desired,
+        minimum_current_pod_sample_count=(
+            observed.minimum_current_pod_throttling_sample_count
+        ),
+        required_current_pod_sample_count=required_current_pod_sample_count,
     )
     replicas = ReplicaReadinessProgress(
         desired=desired,
@@ -139,6 +152,8 @@ def assess_observation_readiness(
             0,
             usage.required_sample_count - usage.sample_count,
             throttling.required_sample_count - throttling.sample_count,
+            _current_pod_sample_deficit(usage) * desired,
+            _current_pod_sample_deficit(throttling) * desired,
         )
         intervals = math.ceil(additional_samples / desired)
         estimate = observed_at + timedelta(
@@ -170,6 +185,16 @@ def assess_observation_readiness(
         patch_eligibility=eligibility,
         reasons=reasons,
         estimate_assumptions=assumptions,
+    )
+
+
+def _current_pod_sample_deficit(progress: MetricReadinessProgress) -> int:
+    if progress.minimum_current_pod_sample_count is None:
+        return 0
+    return max(
+        0,
+        progress.required_current_pod_sample_count
+        - progress.minimum_current_pod_sample_count,
     )
 
 

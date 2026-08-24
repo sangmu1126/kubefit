@@ -277,8 +277,46 @@ def test_formats_singular_metric_evidence() -> None:
     )
 
     assert any("1 metric sample provides" in item for item in result.evidence)
-    assert any("1 Pod identity across" in item for item in result.evidence)
+    assert any("1 current Pod identity" in item for item in result.evidence)
     assert any("authorizes 1 ReplicaSet" in item for item in result.evidence)
+
+
+def test_blocks_aggregate_samples_skewed_to_one_current_pod() -> None:
+    result = recommend_resources(
+        CurrentResources(
+            cpu_request_millicores=1000,
+            cpu_limit_millicores=2000,
+            memory_request_mib=2048,
+            memory_limit_mib=4096,
+        ),
+        ObservedUsage(
+            cpu_p95_millicores=230,
+            memory_p99_mib=710,
+            cpu_max_millicores=400,
+            memory_max_mib=900,
+            sample_count=122,
+            observation_coverage=1,
+            desired_replicas=2,
+            available_replicas=2,
+            observed_replicas=2,
+            metric_pod_count=2,
+            minimum_current_pod_sample_count=1,
+            cpu_throttling_p95_percent=0.2,
+            cpu_throttling_sample_count=122,
+            cpu_throttling_pod_count=2,
+            cpu_throttling_observation_coverage=1,
+            minimum_current_pod_throttling_sample_count=1,
+            container_status_count=2,
+            restart_count=0,
+            oom_killed_count=0,
+        ),
+    )
+
+    assert result.readiness.status == "insufficient_data"
+    assert any(
+        "at least 50 are required per current Pod" in reason
+        for reason in result.readiness.reasons
+    )
 
 
 def test_rejects_limit_below_request() -> None:
