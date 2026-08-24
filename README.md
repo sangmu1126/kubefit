@@ -87,9 +87,11 @@ percentile aggregation replay. Run it with the API using the commands in the
 packages its immutable production bundle into the same non-root API image used by
 Helm.
 
-Repository CI separates Python, dashboard, Helm, and Docker failures. The Docker gate
-does not stop at image construction: it starts the packaged image on an ephemeral
-loopback port, verifies the numeric non-root user, health endpoint, dashboard HTML, and
+Repository CI separates Python, dashboard, Helm, and Docker failures. The Python gate
+runs the same hash-locked install, compatibility check, lint, and test sequence on
+Python 3.12, 3.13, and 3.14 without fail-fast cancellation. The Docker gate does not
+stop at image construction: it starts the packaged image on an ephemeral loopback
+port, verifies the numeric non-root user, health endpoint, dashboard HTML, and
 disabled-by-default benchmark storage, then removes the exact temporary container.
 
 The separate `Release packages` workflow accepts only an existing annotated semantic
