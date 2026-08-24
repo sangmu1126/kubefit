@@ -175,6 +175,45 @@ def test_benchmark_accepts_explicit_counterbalanced_execution_order() -> None:
     assert args.execution_order == "after-before"
 
 
+@pytest.mark.parametrize(("status", "exit_code"), [("pass", None), ("fail", 2)])
+def test_benchmark_pair_prints_machine_enforceable_assessment(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    status: str,
+    exit_code: int | None,
+) -> None:
+    paths: list[tuple[Path, Path]] = []
+
+    class Assessment:
+        def model_dump_json(self, *, indent: int) -> str:
+            assert indent == 2
+            return json.dumps({"status": status})
+
+    def assess(first: Path, second: Path):
+        paths.append((first, second))
+        return Assessment()
+
+    Assessment.status = status
+    monkeypatch.setattr(cli_module, "assess_counterbalanced_pair", assess)
+    arguments = [
+        "benchmark-pair",
+        "--first",
+        "first-result",
+        "--second",
+        "second-result",
+    ]
+
+    if exit_code is None:
+        cli_module.main(arguments)
+    else:
+        with pytest.raises(SystemExit) as raised:
+            cli_module.main(arguments)
+        assert raised.value.code == exit_code
+
+    assert paths == [(Path("first-result"), Path("second-result"))]
+    assert json.loads(capsys.readouterr().out) == {"status": status}
+
+
 def test_readiness_prints_machine_readable_collection_progress(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
