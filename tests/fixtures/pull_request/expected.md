@@ -41,6 +41,19 @@ Price source: `example://test`. This is a request-cost projection, not a guarant
 | Restarts | 0 | 0 |
 | Spike recovery (s) | 10.0 | 10.0 |
 
+## Counterbalanced observed changes
+
+These are the two observed order-specific changes and their range, not a confidence interval. Lower values are better.
+
+| Signal | Before-first | Candidate-first | Observed range | Direction |
+|---|---:|---:|---:|---|
+| Steady latency P95 | +0.000% | +0.000% | +0.000% to +0.000% | unchanged |
+| Steady latency P99 | +0.000% | +0.000% | +0.000% to +0.000% | unchanged |
+| Spike latency P95 | +0.000% | +0.000% | +0.000% to +0.000% | unchanged |
+| Spike latency P99 | +0.000% | +0.000% | +0.000% to +0.000% | unchanged |
+| CPU throttling P95 | +0.000% | +0.000% | +0.000% to +0.000% | unchanged |
+| Traffic-spike recovery | +0.000% | +0.000% | +0.000% to +0.000% | unchanged |
+
 ## Review notes
 
 - two opposite-order trials reduce directional order bias but do not estimate run-to-run variance or establish statistical significance

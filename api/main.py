@@ -11,7 +11,10 @@ from pydantic import BaseModel, Field
 from benchmarks import (
     BenchmarkReview,
     BenchmarkReviewRequest,
+    CounterbalancedPairArtifactError,
+    CounterbalancedPairReview,
     review_benchmark_result,
+    review_counterbalanced_pair,
     review_full_benchmark_result,
 )
 from evaluator import (
@@ -26,6 +29,7 @@ from recommender import CurrentResources, ObservedUsage, ResourceRecommendation,
 
 _DASHBOARD_DIRECTORY_ENV = "KUBEFIT_DASHBOARD_DIRECTORY"
 _BENCHMARK_RESULTS_DIRECTORY_ENV = "KUBEFIT_BENCHMARK_RESULTS_DIRECTORY"
+_BENCHMARK_PAIRS_DIRECTORY_ENV = "KUBEFIT_BENCHMARK_PAIRS_DIRECTORY"
 
 
 class RecommendationRequest(BaseModel):
@@ -43,10 +47,15 @@ class EvaluationRequest(BaseModel):
 def create_app(
     dashboard_directory: Path | None = None,
     benchmark_results_directory: Path | None = None,
+    benchmark_pairs_directory: Path | None = None,
 ) -> FastAPI:
     if benchmark_results_directory is not None:
         benchmark_results_directory = _validate_benchmark_results_directory(
             benchmark_results_directory
+        )
+    if benchmark_pairs_directory is not None:
+        benchmark_pairs_directory = _validate_benchmark_pairs_directory(
+            benchmark_pairs_directory
         )
     application = FastAPI(
         title="KubeFit API",
@@ -104,6 +113,30 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    @application.get(
+        "/v1/benchmark-pairs/{artifact_id}/review",
+        response_model=CounterbalancedPairReview,
+    )
+    def review_stored_benchmark_pair(
+        artifact_id: Annotated[
+            str, ApiPath(pattern=r"^benchmark-pair-[0-9a-f]{32}$")
+        ],
+    ) -> CounterbalancedPairReview:
+        if benchmark_pairs_directory is None:
+            raise HTTPException(
+                status_code=404,
+                detail="stored benchmark pair review is not configured",
+            )
+        pair_path = benchmark_pairs_directory / artifact_id
+        if not pair_path.exists():
+            raise HTTPException(status_code=404, detail="benchmark pair was not found")
+        try:
+            return review_counterbalanced_pair(pair_path)
+        except (CounterbalancedPairArtifactError, OSError, ValueError) as exc:
+            raise HTTPException(
+                status_code=422, detail="complete benchmark pair is invalid"
+            ) from exc
+
     if dashboard_directory is not None:
         index_file, assets_directory = _validate_dashboard_directory(
             dashboard_directory
@@ -138,6 +171,12 @@ def _validate_benchmark_results_directory(directory: Path) -> Path:
     return directory.resolve()
 
 
+def _validate_benchmark_pairs_directory(directory: Path) -> Path:
+    if directory.is_symlink() or not directory.is_dir():
+        raise RuntimeError("benchmark pairs directory must be a regular directory")
+    return directory.resolve()
+
+
 def _dashboard_directory_from_environment() -> Path | None:
     configured = os.environ.get(_DASHBOARD_DIRECTORY_ENV)
     return Path(configured) if configured else None
@@ -148,7 +187,13 @@ def _benchmark_results_directory_from_environment() -> Path | None:
     return Path(configured) if configured else None
 
 
+def _benchmark_pairs_directory_from_environment() -> Path | None:
+    configured = os.environ.get(_BENCHMARK_PAIRS_DIRECTORY_ENV)
+    return Path(configured) if configured else None
+
+
 app = create_app(
     _dashboard_directory_from_environment(),
     _benchmark_results_directory_from_environment(),
+    _benchmark_pairs_directory_from_environment(),
 )

@@ -128,6 +128,24 @@ legend { width: 100%; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1
 .caveats summary { cursor: pointer; font-weight: 700; color: var(--ink); }
 .caveats li { margin: 6px 0; }
 .benchmark-checks { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; }
+.range-warning { margin: -8px 0 24px; padding: 12px 14px; border-left: 3px solid var(--orange); background: #f5ebe2; color: #6d5545; font-size: 11px; }
+.pair-metric-list { border-top: 1px solid var(--line); }
+.pair-metric { display: grid; grid-template-columns: 170px minmax(180px, 1fr) 250px; gap: 20px; align-items: center; padding: 20px 0; border-bottom: 1px solid #deddd5; }
+.pair-metric-copy strong, .pair-metric-copy span { display: block; }
+.pair-metric-copy strong { font-size: 11px; }
+.pair-metric-copy span { margin-top: 4px; color: #68706c; font-size: 9px; }
+.pair-metric.mixed .pair-metric-copy span, .pair-metric.regressed .pair-metric-copy span { color: #a13e2e; }
+.range-plot { position: relative; height: 28px; }
+.range-plot::before { content: ""; position: absolute; top: 13px; right: 0; left: 0; height: 1px; background: #c9c8c0; }
+.zero-line { position: absolute; top: 4px; bottom: 4px; left: 50%; width: 1px; background: var(--ink); }
+.observed-range { position: absolute; top: 11px; height: 5px; min-width: 5px; border-radius: 3px; background: #9fa39e; }
+.order-point { position: absolute; top: 8px; width: 11px; height: 11px; margin-left: -5px; border: 2px solid var(--paper); border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,.15); }
+.before-first { background: var(--green); }
+.candidate-first { background: var(--orange); }
+.pair-values { display: grid; gap: 5px; font: 9px ui-monospace, "SFMono-Regular", monospace; }
+.pair-values span { display: grid; grid-template-columns: 8px 1fr auto; gap: 7px; align-items: center; }
+.pair-values i { width: 7px; height: 7px; border-radius: 50%; }
+.pair-values strong { font-size: 10px; }
 .empty-state { min-height: 500px; display: grid; place-content: center; padding: 40px; border: 1px dashed #aaa9a1; text-align: center; }
 .empty-state span { color: var(--green); font-size: 44px; }
 .empty-state h2 { margin: 12px 0 7px; font-size: 22px; }
@@ -146,6 +164,7 @@ footer { padding: 24px clamp(20px, 5vw, 72px); border-top: 1px solid var(--line)
   .metric-grid, .evidence-grid { grid-template-columns: 1fr; }
   .benchmark-checks { grid-template-columns: 1fr; }
   .comparison-head, .resource-row { grid-template-columns: 92px 1fr 1fr; gap: 8px; }
+  .pair-metric { grid-template-columns: 1fr; gap: 10px; }
   .panel { padding: 20px; }
   .decision { min-height: 210px; }
   .artifact-context { grid-template-columns: 1fr; }

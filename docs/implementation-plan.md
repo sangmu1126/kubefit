@@ -252,6 +252,10 @@ Entry [0054](devlog/0054-persisted-pair-publication-gate.md) persists PASS as a
 self-contained replayable artifact and makes that artifact, both member IDs, and the
 primary-result membership check mandatory throughout preflight, publication, and
 offline verification.
+Entry [0055](devlog/0055-counterbalanced-metric-range-review.md) derives six
+order-aware metric comparisons after full replay and renders the two observed points,
+their direction, and minimum–maximum range in both the Draft PR and dashboard without
+calling it a confidence interval.
 
-Next, expose pair-level metric direction and spread without presenting two trials as
-statistical significance.
+Next, define a repeated-pair collection protocol before adding any variance or
+confidence statistic.

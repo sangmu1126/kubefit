@@ -38,6 +38,13 @@ from benchmarks.pair_artifact import (
     load_counterbalanced_pair,
     write_counterbalanced_pair,
 )
+from benchmarks.pair_review import (
+    CounterbalancedPairReview,
+    PairMetricComparison,
+    PairMetricTrial,
+    review_counterbalanced_pair,
+    review_loaded_counterbalanced_pair,
+)
 from benchmarks.result import (
     BenchmarkCheck,
     BenchmarkMeasurement,
@@ -80,6 +87,9 @@ __all__ = [
     "CounterbalancedPairFileMetadata",
     "CounterbalancedPairIndex",
     "CounterbalancedTrial",
+    "CounterbalancedPairReview",
+    "PairMetricComparison",
+    "PairMetricTrial",
     "LoadedCounterbalancedPair",
     "BenchmarkPolicy",
     "BenchmarkRun",
@@ -115,4 +125,6 @@ __all__ = [
     "write_counterbalanced_pair",
     "review_full_benchmark_result",
     "review_benchmark_result",
+    "review_counterbalanced_pair",
+    "review_loaded_counterbalanced_pair",
 ]

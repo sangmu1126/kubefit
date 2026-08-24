@@ -102,11 +102,14 @@ workflow is a release mechanism, not current publication evidence; use a version
 after that version's final anonymous verification job has passed.
 
 Benchmark results can be reviewed either by selecting a local result directory or
-through `/?benchmark=benchmark-<digest>`. A shareable query is enabled only when the
-API has an explicit read-only `KUBEFIT_BENCHMARK_RESULTS_DIRECTORY`. The server then
-revalidates the complete file set, individual and aggregate digests, raw k6 evidence,
-Markdown report, and replayed verdict before returning `full_artifact_replay`. KubeFit
-does not publish benchmark artifacts or make a local directory public automatically.
+through `/?benchmark=benchmark-<digest>`. Counterbalanced pairs use
+`/?pair=benchmark-pair-<digest>`. Shareable queries are enabled only when the API has
+the corresponding explicit read-only `KUBEFIT_BENCHMARK_RESULTS_DIRECTORY` or
+`KUBEFIT_BENCHMARK_PAIRS_DIRECTORY`. The server revalidates the complete evidence
+before returning a review. Pair review plots both order-specific changes and their
+observed minimum–maximum range; it labels that range as two observations, not a
+confidence interval. KubeFit does not publish artifacts or make a local directory
+public automatically.
 
 After building `kubefit:dev`, `deploy/local/generate-image-sbom.sh` resolves the
 mutable tag to its complete local image ID and publishes a verified SPDX 2.3
@@ -239,6 +242,9 @@ and emits one deterministic PASS/FAIL/INVALID policy-agreement assessment. A pas
 assessment is published with complete copies of both benchmark bundles as an immutable
 `benchmark-pair-<digest>` artifact. It does not average two samples or claim statistical
 significance; this self-contained pair is a mandatory publication input.
+The same verified pair supplies an order-aware metric table in the Draft PR and a
+read-only dashboard plot. It reports whether both changes improved, regressed, stayed
+equal, or pointed in different directions, without averaging the two trials.
 
 `kubefit analyze` emits a typed schema v2 artifact binding aggregate observation,
 policy, and evaluation evidence to Deployment UID and creation time. Loading it
@@ -255,7 +261,8 @@ proposal, primary before-after benchmark, and self-contained pair artifact. It r
 both embedded benchmark results and their pair assessment, requires the primary result
 to be a member of that pair, and produces a deterministic one-file draft PR contract.
 The contract includes the exact expected repository source hash, patched content,
-benchmark metrics, pair identity, cost caveats, warnings, and rollback guidance. This
+benchmark metrics, pair identity, both order-specific changes and their observed
+range, cost caveats, warnings, and rollback guidance. This
 stage is read-only; branch creation and GitHub publication remain separate adapters.
 
 `commit_pull_request_plan` applies that contract to an explicit clean Git top-level.

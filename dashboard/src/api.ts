@@ -2,6 +2,7 @@ import type {
   AnalysisReview,
   BenchmarkReview,
   BenchmarkReviewRequest,
+  CounterbalancedPairReview,
   EvaluationRequest,
   EvaluationResult,
 } from "./types";
@@ -80,4 +81,18 @@ export async function fetchStoredBenchmarkReview(
   }
 
   return (await response.json()) as BenchmarkReview;
+}
+
+export async function fetchStoredBenchmarkPairReview(
+  artifactId: string,
+): Promise<CounterbalancedPairReview> {
+  const response = await fetch(
+    `/v1/benchmark-pairs/${encodeURIComponent(artifactId)}/review`,
+  );
+
+  if (!response.ok) {
+    throw await responseError(response, "저장된 benchmark pair 검증 실패");
+  }
+
+  return (await response.json()) as CounterbalancedPairReview;
 }
