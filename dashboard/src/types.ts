@@ -107,3 +107,75 @@ export interface AnalysisReview {
   }>;
   limitations: string[];
 }
+
+export interface BenchmarkPhaseMetrics {
+  expected_iterations: number;
+  completed_iterations: number;
+  requests: number;
+  error_rate: number;
+  latency_p95_ms: number;
+  latency_p99_ms: number;
+}
+
+export interface BenchmarkMeasurement {
+  schema_version: 1;
+  profile_version: string;
+  proposal_id: string;
+  variant: "before" | "after";
+  dropped_iterations: number;
+  steady: BenchmarkPhaseMetrics;
+  spike: BenchmarkPhaseMetrics;
+  recovery: BenchmarkPhaseMetrics;
+  runtime: {
+    cpu_throttling_p95_percent: number;
+    oom_killed_count: number;
+    restart_count: number;
+    traffic_spike_recovery_seconds: number;
+    traffic_spike_recovered: boolean;
+  };
+  provenance: {
+    run_started_at: string;
+    run_finished_at: string;
+    pods: string[];
+    k6_summary_sha256: string;
+    k6_raw_sha256: string;
+    prometheus_rate_window_seconds: number;
+  };
+  request_cost_usd: DecimalValue;
+}
+
+export interface BenchmarkVerdict {
+  status: "pass" | "fail" | "invalid";
+  checks: Array<{
+    code: string;
+    status: "pass" | "fail" | "invalid" | "warning";
+    reason: string;
+  }>;
+  failures: string[];
+  invalid_reasons: string[];
+  warnings: string[];
+  cost_change_percent: DecimalValue | null;
+}
+
+export interface BenchmarkReviewRequest {
+  result_json: string;
+  before_json: string;
+  after_json: string;
+  verdict_json: string;
+}
+
+export interface BenchmarkReview {
+  schema_version: 1;
+  artifact_id: string;
+  proposal_id: string;
+  verification_level: "index_bound_replay";
+  before: BenchmarkMeasurement;
+  after: BenchmarkMeasurement;
+  verdict: BenchmarkVerdict;
+  checks: Array<{
+    code: "index_identity" | "selected_payload_hashes" | "proposal_binding" | "raw_evidence_binding" | "verdict_replay";
+    status: "pass";
+    reason: string;
+  }>;
+  limitations: string[];
+}

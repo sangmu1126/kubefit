@@ -5,8 +5,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app, create_app
+from benchmarks import write_benchmark_result
 from evaluator import AnalysisArtifact, AnalysisTarget
 from tests.test_analysis_artifact import replayable_analysis
+from tests.test_benchmark_artifact import completed_run
+from tests.test_benchmark_review import review_request
 from tests.test_manifest import eligible_evaluation
 
 client = TestClient(app)
@@ -156,3 +159,32 @@ def test_review_analysis_v2_reports_replayed_recommendation() -> None:
     assert review["artifact_schema_version"] == 2
     assert review["verification_level"] == "recommendation_replayed"
     assert review["checks"][-1]["code"] == "recommendation_replay"
+
+
+def test_review_benchmark_returns_index_bound_replayed_verdict(tmp_path: Path) -> None:
+    _, run = completed_run(tmp_path)
+    published = write_benchmark_result(tmp_path / "results", run)
+
+    response = client.post(
+        "/v1/benchmark-reviews",
+        json=review_request(published.path).model_dump(),
+    )
+
+    assert response.status_code == 200
+    review = response.json()
+    assert review["artifact_id"] == published.artifact_id
+    assert review["verification_level"] == "index_bound_replay"
+    assert review["verdict"] == run.verdict.model_dump(mode="json")
+    assert review["checks"][-1]["code"] == "verdict_replay"
+
+
+def test_review_benchmark_rejects_tampered_selected_payload(tmp_path: Path) -> None:
+    _, run = completed_run(tmp_path)
+    published = write_benchmark_result(tmp_path / "results", run)
+    request = review_request(published.path).model_dump()
+    request["before_json"] += " "
+
+    response = client.post("/v1/benchmark-reviews", json=request)
+
+    assert response.status_code == 422
+    assert "before.json" in response.text

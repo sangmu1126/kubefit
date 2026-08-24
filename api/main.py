@@ -1,11 +1,12 @@
 import os
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from benchmarks import BenchmarkReview, BenchmarkReviewRequest, review_benchmark_result
 from evaluator import (
     AnalysisArtifact,
     AnalysisReview,
@@ -58,6 +59,13 @@ def create_app(dashboard_directory: Path | None = None) -> FastAPI:
     @application.post("/v1/analysis-reviews", response_model=AnalysisReview)
     def review_analysis(artifact: AnalysisArtifact) -> AnalysisReview:
         return review_analysis_artifact(artifact)
+
+    @application.post("/v1/benchmark-reviews", response_model=BenchmarkReview)
+    def review_benchmark(request: BenchmarkReviewRequest) -> BenchmarkReview:
+        try:
+            return review_benchmark_result(request)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     if dashboard_directory is not None:
         index_file, assets_directory = _validate_dashboard_directory(
