@@ -86,6 +86,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0062](0062-verified-v020-release.md) | Verified v0.2.0 release | Publish source-bound image/chart packages and verify anonymous installation |
 | [0063](0063-generated-evidence-package-boundary.md) | Generated evidence package boundary | Keep ignored local benchmark evidence out of wheels and Docker images |
 | [0064](0064-public-replayable-pair-demo.md) | Public replayable pair demo | Download, verify, and replay the exact pair from one loopback-only command |
+| [0065](0065-decision-journey-showcase.md) | Decision Journey Showcase | Connect the retained failure, constrained refinement, replayed Pair, and Draft PR without duplicating analysis |
 
 ## Visual language
 

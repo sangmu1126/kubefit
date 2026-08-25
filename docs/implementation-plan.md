@@ -292,6 +292,11 @@ Entry [0064](devlog/0064-public-replayable-pair-demo.md) publishes that inspecte
 only after explicit approval, verifies an anonymous redownload against both the pinned
 and GitHub-reported digest, and reduces the reviewer path to one loopback-only Docker
 command that still performs full server-side artifact replay.
+Entry [0065](devlog/0065-decision-journey-showcase.md) adds a focused read-only
+presentation route over the retained failure, monotonic refinement, API-replayed Pair,
+and Draft PR boundary. It keeps recorded values linked to committed evidence, derives
+the active PASS from the existing review API, and preserves the older public image's
+compatible Pair-detail default until a release includes the new frontend.
 
 The MVP implementation and submission release are complete. Further work starts as a
 new post-MVP decision: campaign drill-down, supply-chain signing, or production-cluster

@@ -156,6 +156,19 @@ both opposite-order benchmark bundles before the dashboard displays `PASS`. The 
 binds only to loopback, never contacts Kubernetes, and removes its container on
 Ctrl+C. Set `KUBEFIT_DEMO_PORT` if port 8000 is already in use.
 
+To present the current source's read-only Decision Journey instead of the `v0.2.0`
+Pair detail, build and run it with the same script:
+
+```bash
+KUBEFIT_DEMO_BUILD_LOCAL=true ./deploy/local/run-verified-pair-demo.sh
+```
+
+This route connects the recorded `reject → refine → verify → Draft PR` narrative to
+the same server-replayed Pair. Static cost and observation values link to committed
+evidence; the `PASS`, check count, and order-aware metrics come from the review API.
+The public-image default remains on Pair detail until a release containing the
+Showcase is published.
+
 ### Open only the editable review scenario
 
 The published image contains both FastAPI and the React review dashboard. No local
