@@ -34,8 +34,8 @@ be mistaken for one another:
 
 | Claim | Reproducible evidence |
 |---|---|
-| Resource recommendations, package boundaries, and the demo contract are safety-gated | 399 Python tests on the audited post-release branch |
-| The review UI builds and behaves as specified | 15 dashboard tests and a production Vite build |
+| Resource recommendations, package boundaries, and the demo contract are safety-gated | 400 Python tests on the audited release branch |
+| The review UI builds and behaves as specified | 18 dashboard tests and a production Vite build |
 | The package renders with least-privilege defaults | Helm lint and default-template validation |
 | The production image actually starts | Docker startup, numeric non-root user, health, dashboard, and disabled-storage smoke checks |
 | Controlled observation works on Kubernetes | 100,501 requests, 0 errors, and 100% usage/throttling coverage in [record 0060](docs/devlog/0060-validation-informed-cpu-floor.md) |
@@ -43,7 +43,7 @@ be mistaken for one another:
 | One counterbalanced pair passed complete replay | [Pair and refinement evidence](docs/devlog/0060-validation-informed-cpu-floor.md) |
 | A verified pair becomes a reviewable Git change | Idempotent resource [Draft PR #23](https://github.com/sangmu1126/kubefit/pull/23) and [publication record 0061](docs/devlog/0061-live-pair-draft-publication.md) |
 | Repeated evidence is not overstated | The preregistered campaign remains explicitly `incomplete`; no aggregate or significance claim is made |
-| Public packages are installable without repository credentials | [v0.2.0 release](https://github.com/sangmu1126/kubefit/releases/tag/v0.2.0) and successful [anonymous package verification](https://github.com/sangmu1126/kubefit/actions/runs/32751718176) |
+| Public packages are installable without repository credentials | [v0.3.0 release](https://github.com/sangmu1126/kubefit/releases/tag/v0.3.0) and the [anonymous package verification workflow](https://github.com/sangmu1126/kubefit/actions/workflows/release-packages.yml) |
 
 The latest live resource PR passed Python 3.12, 3.13, and 3.14 plus Dashboard, Helm,
 and Docker in [GitHub Actions](https://github.com/sangmu1126/kubefit/actions/runs/32749825481).
@@ -56,9 +56,11 @@ The [v0.1.0 release-readiness record](docs/release-readiness.md) preserves the e
 MVP source boundary. Records [0060](docs/devlog/0060-validation-informed-cpu-floor.md),
 [0061](docs/devlog/0061-live-pair-draft-publication.md), and
 [0062](docs/devlog/0062-verified-v020-release.md), then
-[0063](docs/devlog/0063-generated-evidence-package-boundary.md) document the later
+[0063](docs/devlog/0063-generated-evidence-package-boundary.md),
+[0064](docs/devlog/0064-public-replayable-pair-demo.md), and
+[0065](docs/devlog/0065-decision-journey-showcase.md) document the later
 counterbalanced validation, authenticated Draft publication, verified public package
-release, and post-release package-content audit.
+release, package-content audit, replayable public evidence, and presentation boundary.
 
 ## Repository layout
 
@@ -151,13 +153,13 @@ verifies its pinned SHA-256, mounts it read-only, and starts the published image
 ./deploy/local/run-verified-pair-demo.sh
 ```
 
-Open the printed `http://127.0.0.1:8000/?pair=benchmark-pair-...` URL. The API replays
-both opposite-order benchmark bundles before the dashboard displays `PASS`. The script
+Open the printed `http://127.0.0.1:8000/?showcase=decision-journey` URL. The API replays
+both opposite-order benchmark bundles before the Showcase displays `PASS`. The script
 binds only to loopback, never contacts Kubernetes, and removes its container on
 Ctrl+C. Set `KUBEFIT_DEMO_PORT` if port 8000 is already in use.
 
-To present the current source's read-only Decision Journey instead of the `v0.2.0`
-Pair detail, build and run it with the same script:
+To test uncommitted current-source changes instead of the published `v0.3.0` image,
+build and run with the same script:
 
 ```bash
 KUBEFIT_DEMO_BUILD_LOCAL=true ./deploy/local/run-verified-pair-demo.sh
@@ -166,8 +168,8 @@ KUBEFIT_DEMO_BUILD_LOCAL=true ./deploy/local/run-verified-pair-demo.sh
 This route connects the recorded `reject → refine → verify → Draft PR` narrative to
 the same server-replayed Pair. Static cost and observation values link to committed
 evidence; the `PASS`, check count, and order-aware metrics come from the review API.
-The public-image default remains on Pair detail until a release containing the
-Showcase is published.
+The released default and local-build path both use the same digest-pinned Pair; only
+the application image source differs.
 
 ### Open only the editable review scenario
 
@@ -176,7 +178,7 @@ Node.js or Kubernetes cluster is required for the editable review scenario:
 
 ```bash
 docker run --rm -p 127.0.0.1:8000:8000 \
-  ghcr.io/sangmu1126/kubefit:0.2.0
+  ghcr.io/sangmu1126/kubefit:0.3.0
 ```
 
 Open `http://127.0.0.1:8000`. This default screen evaluates editable example inputs

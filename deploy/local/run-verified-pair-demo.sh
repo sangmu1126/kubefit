@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-release_version="0.2.0"
+release_version="0.3.0"
+evidence_release_version="0.2.0"
 pair_id="benchmark-pair-dbc41864dd0dba9537ef228ebb340f60"
 archive_name="kubefit-demo-evidence-v0.2.0.tar.gz"
 expected_sha256="c646b4483083f8fcedafb397d1cc2355391bc9f98b15a6b157e22b30f2793239"
-download_url="https://github.com/sangmu1126/kubefit/releases/download/v${release_version}/${archive_name}"
+download_url="https://github.com/sangmu1126/kubefit/releases/download/v${evidence_release_version}/${archive_name}"
 image_reference="${KUBEFIT_DEMO_IMAGE:-ghcr.io/sangmu1126/kubefit:${release_version}}"
 build_local="${KUBEFIT_DEMO_BUILD_LOCAL:-false}"
 local_port="${KUBEFIT_DEMO_PORT:-8000}"
-cache_root="${KUBEFIT_DEMO_CACHE_DIRECTORY:-${PWD}/.kubefit/demo/${release_version}}"
+cache_root="${KUBEFIT_DEMO_CACHE_DIRECTORY:-${PWD}/.kubefit/demo/${evidence_release_version}}"
 archive_path="${cache_root}/${archive_name}"
 evidence_root="${cache_root}/evidence-${expected_sha256}"
 pairs_directory="${evidence_root}/pairs"
@@ -37,10 +38,8 @@ if [[ "${build_local}" == "true" ]]; then
   image_reference="kubefit:decision-journey"
   echo "Building the current KubeFit source for the Decision Journey..."
   docker build --tag "${image_reference}" .
-  demo_query="showcase=decision-journey"
-else
-  demo_query="pair=${pair_id}"
 fi
+demo_query="showcase=decision-journey"
 
 sha256_file() {
   if command -v sha256sum >/dev/null 2>&1; then
