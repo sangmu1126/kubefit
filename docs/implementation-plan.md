@@ -297,6 +297,11 @@ presentation route over the retained failure, monotonic refinement, API-replayed
 and Draft PR boundary. It keeps recorded values linked to committed evidence, derives
 the active PASS from the existing review API, and preserves the older public image's
 compatible Pair-detail default until a release includes the new frontend.
+Entry [0066](devlog/0066-verified-v030-showcase-release.md) publishes that frontend as
+the `v0.3.0` multi-architecture image and OCI chart, passes anonymous package checks,
+and verifies the one-command Showcase against the public image. It deliberately keeps
+the controlled Pair on its original `v0.2.0` asset and digest rather than relabeling
+historical evidence as newly collected release data.
 
 The MVP implementation and submission release are complete. Further work starts as a
 new post-MVP decision: campaign drill-down, supply-chain signing, or production-cluster
