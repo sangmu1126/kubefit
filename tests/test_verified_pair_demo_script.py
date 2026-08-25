@@ -17,6 +17,15 @@ def test_verified_pair_demo_binds_public_evidence_identity() -> None:
     assert "benchmark-pair-dbc41864dd0dba9537ef228ebb340f60" in content
     assert "https://github.com/sangmu1126/kubefit/releases/download/" in content
     assert "ghcr.io/sangmu1126/kubefit:${release_version}" in content
+    assert 'demo_query="pair=${pair_id}"' in content
+
+
+def test_verified_pair_demo_can_build_the_current_showcase_source() -> None:
+    content = SCRIPT.read_text()
+
+    assert "KUBEFIT_DEMO_BUILD_LOCAL" in content
+    assert 'docker build --tag "${image_reference}" .' in content
+    assert 'demo_query="showcase=decision-journey"' in content
 
 
 def test_verified_pair_demo_keeps_evidence_read_only_and_loopback_only() -> None:

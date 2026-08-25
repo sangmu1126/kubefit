@@ -8,6 +8,11 @@ import {
   reviewBenchmarkArtifact,
 } from "./api";
 import { eligibleScenario, insufficientScenario } from "./scenarios";
+import {
+  DECISION_JOURNEY_ID,
+  VERIFIED_PAIR_ID,
+  decisionJourneyEvidence,
+} from "./showcase";
 import type {
   CheckStatus,
   AnalysisReview,
@@ -595,6 +600,113 @@ function CampaignResults({ review }: { review: BenchmarkCampaignReview }) {
   );
 }
 
+function EvidenceLink({ href, children }: { href: string; children: string }) {
+  return <a href={href} target="_blank" rel="noreferrer">{children} ↗</a>;
+}
+
+function DecisionJourney({
+  review,
+  loading,
+  error,
+}: {
+  review: CounterbalancedPairReview | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  const evidence = decisionJourneyEvidence;
+  const agreements = review?.metrics.filter((metric) => metric.direction !== "mixed").length ?? 0;
+  const mixed = review?.metrics.filter((metric) => metric.direction === "mixed").length ?? 0;
+  const throttling = review?.metrics.find((metric) => metric.code === "cpu_throttling_p95");
+  const throttlingValues = throttling?.trials.map((trial) => trial.after) ?? [];
+  const throttlingSummary = throttlingValues.length > 0 && throttlingValues.every((value) => value === 0)
+    ? "0%"
+    : "검증 상세 참조";
+  const verificationReady = review?.status === "pass";
+
+  return (
+    <main className="showcase" id="top" aria-live="polite">
+      <section className="showcase-hero">
+        <div>
+          <p className="eyebrow">RECORDED DECISION JOURNEY · READ ONLY</p>
+          <h1>비용보다 안전을<br />먼저 검증했습니다.</h1>
+          <p>
+            98% 절감 후보를 바로 적용하지 않았습니다. 실패한 10m 제안을 보존하고,
+            재분석한 20m 제안을 반대 순서로 검증한 뒤 Draft PR까지만 만들었습니다.
+          </p>
+        </div>
+        <div className={`showcase-verdict ${verificationReady ? "verified" : "pending"}`}>
+          <span>{loading ? "REPLAYING" : verificationReady ? "PAIR REPLAY VERIFIED" : "PAIR REPLAY UNAVAILABLE"}</span>
+          <strong>{loading ? "…" : verificationReady ? "PASS" : "—"}</strong>
+          <small>{review ? `${review.checks.length}/${review.checks.length} checks · 2/2 orders` : "공개 증거를 API로 재검증"}</small>
+        </div>
+      </section>
+
+      {error && (
+        <p className="showcase-error" role="alert">
+          기록된 여정은 표시하지만 Pair 재검증은 불러오지 못했습니다: {error}
+        </p>
+      )}
+
+      <section className="showcase-metrics" aria-label="발표 핵심 지표">
+        <article><span>예시 요율 기반 비용 투영</span><strong>{evidence.costProjection.changePercent}%</strong><small>AWS 청구서 절감 실측이 아님</small></article>
+        <article><span>고정 부하 요청 오류</span><strong>{evidence.observation.errors}</strong><small>{evidence.observation.requests.toLocaleString()} requests</small></article>
+        <article><span>Candidate throttling P95</span><strong>{throttlingSummary}</strong><small>Pair artifact replay 기준</small></article>
+        <article><span>반대 실행 순서 검증</span><strong>{review ? "2/2" : "—"}</strong><small>{review ? `${agreements}/${review.metrics.length} 방향 일치 · ${mixed} mixed` : "API 연결 대기"}</small></article>
+        <article className="draft"><span>GitOps 변경 상태</span><strong>DRAFT</strong><small>자동 병합·배포 없음</small></article>
+      </section>
+
+      <section className="journey-panel" aria-labelledby="journey-title">
+        <div className="showcase-section-heading">
+          <div><p className="eyebrow">WHY → HOW → WHAT</p><h2 id="journey-title">한 번의 성공 대신, 판단 과정을 남겼습니다.</h2></div>
+          <p>기록값은 커밋된 개발 기록, PASS는 현재 API replay 결과입니다.</p>
+        </div>
+        <div className="journey-flow">
+          <article>
+            <b>01</b><i>OBSERVE</i><h3>과다 할당을 관측</h3>
+            <p>1000m/2000m CPU와 2Gi/4Gi 메모리 상태에서 한 시간 동안 고정 부하를 수집했습니다.</p>
+            <dl><div><dt>requests</dt><dd>{evidence.observation.requests.toLocaleString()}</dd></div><div><dt>coverage</dt><dd>{evidence.observation.usageCoveragePercent}%</dd></div></dl>
+            <EvidenceLink href={evidence.sources.refinement}>관측 근거</EvidenceLink>
+          </article>
+          <article className="rejected">
+            <b>02</b><i>REJECT</i><h3>10m 후보를 거부</h3>
+            <p>비용 절감 폭이 커도 steady P99가 정책 한계를 넘자 실패 artifact를 그대로 보존했습니다.</p>
+            <dl><div><dt>CPU</dt><dd>10m / 20m</dd></div><div><dt>steady P99</dt><dd>+{evidence.rejected.steadyP99ChangePercent}%</dd></div></dl>
+            <EvidenceLink href={evidence.sources.refinement}>실패 기록</EvidenceLink>
+          </article>
+          <article>
+            <b>03</b><i>REFINE</i><h3>정책 입력으로 재분석</h3>
+            <p>새로운 유휴 구간을 고르지 않고 보존된 schema v2 입력에 단조 증가 CPU floor를 적용했습니다.</p>
+            <dl><div><dt>CPU</dt><dd>20m / 40m</dd></div><div><dt>Memory</dt><dd>32Mi / 48Mi</dd></div></dl>
+            <EvidenceLink href={evidence.sources.refinement}>재분석 경계</EvidenceLink>
+          </article>
+          <article className={verificationReady ? "verified" : "pending"}>
+            <b>04</b><i>VERIFY</i><h3>반대 순서로 재검증</h3>
+            <p>Before-first와 Candidate-first 결과를 한 Pair로 묶고 서버가 원본 artifact를 다시 계산합니다.</p>
+            <dl><div><dt>policy</dt><dd>{verificationReady ? "PASS" : loading ? "REPLAY…" : "UNAVAILABLE"}</dd></div><div><dt>checks</dt><dd>{review ? `${review.checks.length}/${review.checks.length}` : "—"}</dd></div></dl>
+            <a href={`/?pair=${VERIFIED_PAIR_ID}`}>Pair 상세 보기 →</a>
+          </article>
+          <article>
+            <b>05</b><i>PROPOSE</i><h3>Draft PR까지만 제안</h3>
+            <p>YAML 한 파일의 수정 근거와 비용 투영을 제출했지만 merge, deploy, cluster mutation은 수행하지 않았습니다.</p>
+            <dl><div><dt>cost model</dt><dd>${evidence.costProjection.currentUsd} → ${evidence.costProjection.recommendedUsd}</dd></div><div><dt>state</dt><dd>DRAFT</dd></div></dl>
+            <EvidenceLink href={evidence.sources.draftPullRequest}>Draft PR #23</EvidenceLink>
+          </article>
+        </div>
+      </section>
+
+      <section className="showcase-boundary">
+        <div><p className="eyebrow">EVIDENCE BOUNDARY</p><h2>PASS가 말하지 않는 것</h2></div>
+        <ul>
+          <li><strong>{review ? mixed : 2}개 mixed spike 신호</strong>를 숨기지 않으며 Pair 정책 한계 안의 PASS입니다.</li>
+          <li>두 번째 반복 block이 실패해 캠페인은 <strong>incomplete</strong>이며 통계적 유의성을 주장하지 않습니다.</li>
+          <li>로컬 kind 고정 부하 결과이며 실제 프로덕션 트래픽·AWS 비용 절감을 입증하지 않습니다.</li>
+        </ul>
+        <EvidenceLink href={evidence.sources.publication}>출판 범위와 한계</EvidenceLink>
+      </section>
+    </main>
+  );
+}
+
 export default function App() {
   const [request, setRequest] = useState(() => cloneScenario(eligibleScenario));
   const [result, setResult] = useState<EvaluationResult | null>(null);
@@ -606,15 +718,38 @@ export default function App() {
   const [artifactLoading, setArtifactLoading] = useState(false);
   const [benchmarkLoading, setBenchmarkLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showcaseMode] = useState(
+    () => new URLSearchParams(window.location.search).get("showcase"),
+  );
 
   useEffect(() => {
     const parameters = new URLSearchParams(window.location.search);
     const artifactId = parameters.get("benchmark");
     const pairId = parameters.get("pair");
     const campaignId = parameters.get("campaign");
-    if ([artifactId, pairId, campaignId].filter((value) => value !== null).length > 1) {
-      setError("benchmark, pair, campaign 링크는 하나만 지정할 수 있습니다.");
+    const showcaseId = parameters.get("showcase");
+    if ([artifactId, pairId, campaignId, showcaseId].filter((value) => value !== null).length > 1) {
+      setError("benchmark, pair, campaign, showcase 링크는 하나만 지정할 수 있습니다.");
       return;
+    }
+    if (showcaseId !== null) {
+      if (showcaseId !== DECISION_JOURNEY_ID) {
+        setError("지원하지 않는 showcase 링크입니다.");
+        return;
+      }
+      let active = true;
+      setBenchmarkLoading(true);
+      fetchStoredBenchmarkPairReview(VERIFIED_PAIR_ID)
+        .then((review) => {
+          if (active) setPairReview(review);
+        })
+        .catch((reason: unknown) => {
+          if (active) setError(reason instanceof Error ? reason.message : "Showcase Pair 검증에 실패했습니다.");
+        })
+        .finally(() => {
+          if (active) setBenchmarkLoading(false);
+        });
+      return () => { active = false; };
     }
     if (campaignId !== null) {
       if (!/^benchmark-campaign-evidence-[0-9a-f]{32}$/.test(campaignId)) {
@@ -827,7 +962,9 @@ export default function App() {
         </a>
         <div className="principle"><i /> cluster mutation: off</div>
       </header>
-      <div className="hero" id="top">
+      {showcaseMode === DECISION_JOURNEY_ID ? (
+        <DecisionJourney review={pairReview} loading={benchmarkLoading} error={error} />
+      ) : <><div className="hero" id="top">
         <div>
           <p className="eyebrow">EXPLAINABLE · GITOPS-FIRST</p>
           <h1>줄여도 되는 이유를<br />먼저 보여줍니다.</h1>
@@ -927,7 +1064,7 @@ export default function App() {
             <p>샘플을 선택하거나 관측값을 조정한 뒤 평가를 실행하세요. 결과는 기존 KubeFit API가 계산합니다.</p>
           </main>
         )}
-      </div>
+      </div></>}
       <footer>OPEN SOURCE · HUMAN-APPROVED OPTIMIZATION</footer>
     </div>
   );

@@ -7,6 +7,7 @@ archive_name="kubefit-demo-evidence-v0.2.0.tar.gz"
 expected_sha256="c646b4483083f8fcedafb397d1cc2355391bc9f98b15a6b157e22b30f2793239"
 download_url="https://github.com/sangmu1126/kubefit/releases/download/v${release_version}/${archive_name}"
 image_reference="${KUBEFIT_DEMO_IMAGE:-ghcr.io/sangmu1126/kubefit:${release_version}}"
+build_local="${KUBEFIT_DEMO_BUILD_LOCAL:-false}"
 local_port="${KUBEFIT_DEMO_PORT:-8000}"
 cache_root="${KUBEFIT_DEMO_CACHE_DIRECTORY:-${PWD}/.kubefit/demo/${release_version}}"
 archive_path="${cache_root}/${archive_name}"
@@ -25,6 +26,20 @@ if ! [[ "${local_port}" =~ ^[0-9]+$ ]] \
   || ((local_port < 1 || local_port > 65535)); then
   echo "KUBEFIT_DEMO_PORT must be an integer from 1 through 65535" >&2
   exit 1
+fi
+
+if [[ "${build_local}" != "true" && "${build_local}" != "false" ]]; then
+  echo "KUBEFIT_DEMO_BUILD_LOCAL must be true or false" >&2
+  exit 1
+fi
+
+if [[ "${build_local}" == "true" ]]; then
+  image_reference="kubefit:decision-journey"
+  echo "Building the current KubeFit source for the Decision Journey..."
+  docker build --tag "${image_reference}" .
+  demo_query="showcase=decision-journey"
+else
+  demo_query="pair=${pair_id}"
 fi
 
 sha256_file() {
@@ -95,8 +110,8 @@ if [[ ! -f "${pair_directory}/pair.json" ]] \
   trap - EXIT
 fi
 
-demo_url="http://127.0.0.1:${local_port}/?pair=${pair_id}"
-echo "Starting KubeFit verified pair dashboard:"
+demo_url="http://127.0.0.1:${local_port}/?${demo_query}"
+echo "Starting KubeFit verified decision dashboard:"
 echo "  ${demo_url}"
 echo "Press Ctrl+C to stop the local container."
 

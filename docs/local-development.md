@@ -150,6 +150,23 @@ the digest-verified cache. Ctrl+C shuts down and removes only the demo container
 flow replays retained controlled-demo evidence; it does not collect new metrics,
 contact a cluster, establish statistical significance, or deploy Draft PR #23.
 
+### Run the Decision Journey from the current source
+
+The published `v0.2.0` image predates the Showcase route. Build the current working
+tree and open the focused, read-only presentation surface with one command:
+
+```bash
+KUBEFIT_DEMO_BUILD_LOCAL=true ./deploy/local/run-verified-pair-demo.sh
+```
+
+The script tags the local build as `kubefit:decision-journey`, reuses the same
+digest-pinned public evidence, and prints
+`http://127.0.0.1:8000/?showcase=decision-journey`. The screen visualizes the recorded
+failed 10m proposal, monotonic 20m refinement, server-replayed Pair PASS, retained
+mixed signals, and Draft PR boundary. It does not execute a new benchmark or contact
+Kubernetes. Without `KUBEFIT_DEMO_BUILD_LOCAL=true`, the script intentionally opens
+the compatible Pair detail in the published `v0.2.0` image.
+
 ## Review an evaluation in the dashboard
 
 The first dashboard slice is a local review surface over the existing evaluation
@@ -238,6 +255,7 @@ docker run --rm -p 8000:8000 \
 http://127.0.0.1:8000/?benchmark=benchmark-<digest>
 http://127.0.0.1:8000/?pair=benchmark-pair-<digest>
 http://127.0.0.1:8000/?campaign=benchmark-campaign-evidence-<digest>
+http://127.0.0.1:8000/?showcase=decision-journey
 ```
 
 `FULL ARTIFACT REPLAY` means the server rechecked the exact file set, every payload

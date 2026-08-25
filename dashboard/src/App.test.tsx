@@ -2,6 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { VERIFIED_PAIR_ID } from "./showcase";
 import type {
   AnalysisReview,
   BenchmarkCampaignReview,
@@ -486,6 +487,60 @@ describe("KubeFit dashboard", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       `/v1/benchmark-pairs/${pairReview.artifact_id}/review`,
     );
+  });
+
+  it("presents the recorded decision journey while replaying the fixed public pair", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(pairReview), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    window.history.replaceState({}, "", "/?showcase=decision-journey");
+
+    render(<App />);
+
+    expect(screen.getByRole("heading", { name: /비용보다 안전을/ })).toBeInTheDocument();
+    expect(await screen.findByText("PAIR REPLAY VERIFIED")).toBeInTheDocument();
+    expect(screen.getByText("+40.804%")).toBeInTheDocument();
+    expect(screen.getByText("-98.088%")).toBeInTheDocument();
+    expect(screen.getByText("1/2 방향 일치 · 1 mixed")).toBeInTheDocument();
+    expect(screen.getByText(/통계적 유의성을 주장하지 않습니다/)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "워크로드 관측값" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Pair 상세 보기 →" })).toHaveAttribute(
+      "href",
+      `/?pair=${VERIFIED_PAIR_ID}`,
+    );
+    expect(screen.getByRole("link", { name: /Draft PR #23/ })).toHaveAttribute(
+      "href",
+      "https://github.com/sangmu1126/kubefit/pull/23",
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/v1/benchmark-pairs/${VERIFIED_PAIR_ID}/review`,
+    );
+  });
+
+  it("keeps the recorded journey visible when pair replay is unavailable", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("evidence unavailable", { status: 404 }),
+    );
+    window.history.replaceState({}, "", "/?showcase=decision-journey");
+
+    render(<App />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Pair 재검증은 불러오지 못했습니다");
+    expect(screen.getByText("PAIR REPLAY UNAVAILABLE")).toBeInTheDocument();
+    expect(screen.getByText("+40.804%")).toBeInTheDocument();
+  });
+
+  it("rejects an unknown showcase without calling the API", () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    window.history.replaceState({}, "", "/?showcase=unknown");
+
+    render(<App />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("지원하지 않는 showcase");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("loads a completed campaign as chronological blocks without aggregation", async () => {
