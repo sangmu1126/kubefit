@@ -31,7 +31,11 @@ def test_issue_forms_are_structured_and_have_unique_ids() -> None:
 
     config = yaml.safe_load((forms / "config.yml").read_text())
     assert config["contact_links"][0]["name"] == "Security report"
-    assert config["contact_links"][0]["url"].startswith("https://")
+    private_report_url = (
+        "https://github.com/sangmu1126/kubefit/security/advisories/new"
+    )
+    assert config["contact_links"][0]["url"] == private_report_url
+    assert private_report_url in (ROOT / "SECURITY.md").read_text()
 
 
 def test_pull_request_template_preserves_project_safety_boundaries() -> None:

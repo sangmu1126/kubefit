@@ -333,3 +333,9 @@ Entry [0071](devlog/0071-open-source-contribution-surface.md) closes the submiss
 repository-entry gap with contribution, conduct, security, issue, and pull-request
 contracts. It states the current single-maintainer and disabled private-reporting
 limits rather than presenting planned community maturity as existing adoption.
+
+Entry [0072](devlog/0072-submission-evidence-hardening.md) follows that recorded limit
+with an enabled GitHub private vulnerability-reporting route, verifies the public
+`v0.3.2` image as a scanner-reported 131-package SPDX inventory bound to its
+immutable digest, and narrows submission wording to what the repository and
+controlled benchmark evidence actually demonstrate.

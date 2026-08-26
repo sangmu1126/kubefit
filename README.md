@@ -149,6 +149,22 @@ inventory under the ignored `.kubefit/supply-chain/` directory. Repeated runs
 rehash and reuse the existing artifact. This is package inventory evidence, not a
 vulnerability scan or signature.
 
+The same verifier can inspect a published release without treating a hand-written
+dependency summary as a complete SBOM:
+
+```bash
+docker pull ghcr.io/sangmu1126/kubefit:0.3.2
+KUBEFIT_IMAGE_REFERENCE=ghcr.io/sangmu1126/kubefit:0.3.2 \
+  ./deploy/local/generate-image-sbom.sh
+```
+
+Release images also carry the BuildKit SBOM and provenance attestations emitted by
+the package workflow. These attestations and the local SPDX inventory do not imply
+that the image is vulnerability-free or cryptographically signed by the maintainer.
+Because the dashboard is compiled into static assets, its bundled JavaScript
+dependencies are tracked by `dashboard/package-lock.json` and may not appear as
+separate packages in a scanner's final-image SPDX output.
+
 ## Quick start
 
 ### Replay the verified pair

@@ -13,9 +13,10 @@ Older releases are immutable evidence boundaries and are not updated in place.
 ## Reporting a vulnerability
 
 Do not open a public issue for a suspected vulnerability or include live credentials,
-production metrics, or identifying cluster data in a report. Contact the maintainer
-privately through a contact method listed on the
-[maintainer's GitHub profile](https://github.com/sangmu1126).
+production metrics, or identifying cluster data in a report. Use GitHub's
+[private vulnerability report](https://github.com/sangmu1126/kubefit/security/advisories/new)
+for this repository. GitHub shares the report only with the repository's maintainers
+and security managers while it is being assessed.
 
 Include, when available:
 
