@@ -136,7 +136,7 @@ GitHub Release into the ignored `.kubefit/demo/` cache. It accepts the archive o
 when its SHA-256 is
 `c646b4483083f8fcedafb397d1cc2355391bc9f98b15a6b157e22b30f2793239`, rejects unsafe
 archive paths, mounts the extracted pair read-only, and starts
-`ghcr.io/sangmu1126/kubefit:0.3.1` on loopback port 8000. The evidence remains the
+`ghcr.io/sangmu1126/kubefit:0.3.2` on loopback port 8000. The evidence remains the
 immutable `v0.2.0` asset, while the printed Showcase URL selects and replays that exact
 counterbalanced Pair through the newer presentation image.
 
@@ -153,7 +153,7 @@ contact a cluster, establish statistical significance, or deploy Draft PR #23.
 
 ### Run the Decision Journey from the current source
 
-The default path uses the published `v0.3.1` image. Build the current working tree
+The default path uses the published `v0.3.2` image. Build the current working tree
 instead when validating changes that have not been released:
 
 ```bash
@@ -166,7 +166,7 @@ digest-pinned public evidence, and prints
 failed 10m proposal, monotonic 20m refinement, server-replayed Pair PASS, retained
 mixed signals, and Draft PR boundary. It does not execute a new benchmark or contact
 Kubernetes. Without `KUBEFIT_DEMO_BUILD_LOCAL=true`, the script pulls the public
-`v0.3.1` image and opens the same Showcase route.
+`v0.3.2` image and opens the same Showcase route.
 
 ## Review an evaluation in the dashboard
 
