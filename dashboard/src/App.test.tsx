@@ -61,6 +61,25 @@ const result: EvaluationResult = {
   },
 };
 
+const recordedEvaluationResult: EvaluationResult = {
+  ...structuredClone(result),
+  recommendation: {
+    ...structuredClone(result.recommendation),
+    recommended: {
+      cpu_request_millicores: 10,
+      cpu_limit_millicores: 20,
+      memory_request_mib: 32,
+      memory_limit_mib: 48,
+    },
+  },
+  cost: {
+    ...structuredClone(result.cost),
+    recommended: { cpu_usd: "0.584000", memory_usd: "0.228125", total_usd: "0.812125" },
+    monthly_delta_usd: "-72.187875",
+    savings_percent: "98.9",
+  },
+};
+
 const artifactReview: AnalysisReview = {
   schema_version: 1,
   artifact_schema_version: 1,
@@ -489,47 +508,88 @@ describe("KubeFit dashboard", () => {
     );
   });
 
-  it("presents the recorded decision journey while replaying the fixed public pair", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify(pairReview), {
+  it("runs recommendation and pair replay APIs as two operator-triggered demo steps", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(recordedEvaluationResult), {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      }),
-    );
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(pairReview), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }));
     window.history.replaceState({}, "", "/?showcase=decision-journey");
 
     render(<App />);
 
     expect(screen.getByRole("heading", { name: /비용보다 안전을/ })).toBeInTheDocument();
+    expect(screen.getByText("WAITING FOR OPERATOR")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Draft PR #23/ })).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: /추천 계산 실행/ }));
+
+    expect(await screen.findByText("LIVE CANDIDATE COMPUTED")).toBeInTheDocument();
+    expect(screen.getAllByText("10m / 20m")).toHaveLength(2);
+    expect(screen.getByText("ready / eligible")).toBeInTheDocument();
+    expect(screen.getByText(/readiness 통과는 수집 근거가 충분하다는 뜻/)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/v1/evaluations",
+      expect.objectContaining({ method: "POST" }),
+    );
+    const evaluationRequest = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    expect(evaluationRequest).toMatchObject({
+      current: {
+        cpu_request_millicores: 1000,
+        memory_request_mib: 2048,
+      },
+      observed: {
+        memory_p99_mib: 7.68671875,
+        sample_count: 122,
+      },
+    });
+    expect(evaluationRequest.observed.cpu_p95_millicores).toBeCloseTo(3.658831, 6);
+    expect(screen.queryByRole("link", { name: /Draft PR #23/ })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /Pair 재검증/ }));
+
     expect(await screen.findByText("PAIR REPLAY VERIFIED")).toBeInTheDocument();
     expect(screen.getByText("+40.804%")).toBeInTheDocument();
     expect(screen.getByText("-98.088%")).toBeInTheDocument();
     expect(screen.getByText("1/2 방향 일치 · 1 mixed")).toBeInTheDocument();
+    expect(screen.getByText(/deploy\/demo\/overprovisioned-api.yaml/)).toBeInTheDocument();
     expect(screen.getByText(/통계적 유의성을 주장하지 않습니다/)).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "워크로드 관측값" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Pair 상세 보기 →" })).toHaveAttribute(
       "href",
       `/?pair=${VERIFIED_PAIR_ID}`,
     );
-    expect(screen.getByRole("link", { name: /Draft PR #23/ })).toHaveAttribute(
-      "href",
-      "https://github.com/sangmu1126/kubefit/pull/23",
-    );
-    expect(fetchMock).toHaveBeenCalledWith(
+    for (const link of screen.getAllByRole("link", { name: /Draft PR #23/ })) {
+      expect(link).toHaveAttribute("href", "https://github.com/sangmu1126/kubefit/pull/23");
+    }
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
       `/v1/benchmark-pairs/${VERIFIED_PAIR_ID}/review`,
     );
   });
 
-  it("keeps the recorded journey visible when pair replay is unavailable", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response("evidence unavailable", { status: 404 }),
-    );
+  it("keeps the recorded journey visible when triggered pair replay is unavailable", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(recordedEvaluationResult), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }))
+      .mockResolvedValueOnce(new Response("evidence unavailable", { status: 404 }));
     window.history.replaceState({}, "", "/?showcase=decision-journey");
 
     render(<App />);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Pair 재검증은 불러오지 못했습니다");
-    expect(screen.getByText("PAIR REPLAY UNAVAILABLE")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /추천 계산 실행/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /Pair 재검증/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("실행이 중단됐습니다");
+    expect(screen.getByText("LIVE EXECUTION FAILED")).toBeInTheDocument();
     expect(screen.getByText("+40.804%")).toBeInTheDocument();
   });
 

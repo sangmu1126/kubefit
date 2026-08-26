@@ -303,6 +303,13 @@ and verifies the one-command Showcase against the public image. It deliberately 
 the controlled Pair on its original `v0.2.0` asset and digest rather than relabeling
 historical evidence as newly collected release data.
 
-The MVP implementation and submission release are complete. Further work starts as a
-new post-MVP decision: campaign drill-down, supply-chain signing, or production-cluster
-evidence must not be implied by the `v0.2.0` controlled-demo claims.
+Entry [0067](devlog/0067-operator-triggered-verified-demo.md) corrects the remaining
+demonstration gap: the Showcase now waits for visible operator actions, runs the
+existing recommendation and full Pair replay APIs in sequence, and unlocks recorded
+YAML and Draft PR evidence only after replay `PASS`. Live calculations and historical
+measurements are labeled separately, and the flow remains read-only.
+
+The MVP implementation is complete. Packaging the operator-triggered interaction is
+the remaining submission release task; campaign drill-down, supply-chain signing, or
+production-cluster evidence remain post-MVP and must not be implied by the `v0.2.0`
+controlled-demo claims.

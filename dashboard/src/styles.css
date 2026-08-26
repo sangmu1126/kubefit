@@ -45,6 +45,34 @@ h1 { max-width: 850px; margin: 0; font-size: clamp(42px, 7vw, 92px); line-height
 .showcase-verdict strong { font-size: clamp(48px, 6vw, 76px); line-height: .9; letter-spacing: -.07em; }
 .showcase-verdict small { opacity: .76; }
 .showcase-error { margin: 24px 0 0; padding: 14px 18px; border-left: 3px solid #a13e2e; background: #f5e3df; color: #812f24; font-size: 12px; }
+.demo-runner { margin-top: 32px; padding: 28px 30px; display: grid; grid-template-columns: minmax(240px, .8fr) minmax(360px, 1.2fr) minmax(210px, .55fr); gap: 30px; align-items: center; border: 1px solid var(--ink); background: var(--paper); }
+.demo-runner h2, .live-response h2, .live-gitops h2 { margin: 0; font-size: clamp(22px, 2.5vw, 32px); letter-spacing: -.05em; }
+.demo-runner-copy > p:last-child, .live-gitops > div > p { margin: 12px 0 0; color: #616a65; font-size: 10px; line-height: 1.65; }
+.demo-runner-steps { margin: 0; padding: 0; list-style: none; }
+.demo-runner-steps li { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); color: #8a8f8b; }
+.demo-runner-steps li:first-child { border-top-color: var(--ink); }
+.demo-runner-steps li > span { display: grid; width: 26px; height: 26px; place-items: center; border: 1px solid currentColor; border-radius: 50%; font: 9px ui-monospace, "SFMono-Regular", monospace; }
+.demo-runner-steps strong, .demo-runner-steps small { display: block; }
+.demo-runner-steps strong { color: inherit; font-size: 10px; }
+.demo-runner-steps small { margin-top: 2px; font: 8px ui-monospace, "SFMono-Regular", monospace; }
+.demo-runner-steps b { font: 8px ui-monospace, "SFMono-Regular", monospace; letter-spacing: .08em; }
+.demo-runner-steps li.active { color: #a76418; }
+.demo-runner-steps li.done { color: var(--green); }
+.demo-runner-action button { width: 100%; min-height: 58px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--ink); background: var(--ink); color: white; font-size: 11px; font-weight: 700; text-align: left; }
+.demo-runner-action button:hover:not(:disabled) { border-color: var(--green); background: var(--green); }
+.demo-runner-action button:disabled { opacity: .58; cursor: wait; }
+.demo-runner-action button.secondary { background: var(--paper); color: var(--ink); }
+.demo-runner-action > small { display: block; margin-top: 8px; color: #777e7a; font-size: 8px; text-align: center; }
+.live-response { margin-top: 24px; padding: 28px 30px; display: grid; grid-template-columns: minmax(240px, .8fr) minmax(420px, 1.2fr); gap: 24px 42px; border: 1px solid var(--green); background: #edf2e9; }
+.live-response dl { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #bdc9c0; }
+.live-response dl > div { padding: 15px; background: var(--paper); }
+.live-response dt { color: #69716d; font-size: 9px; }
+.live-response dd { margin: 7px 0 0; font: 700 13px ui-monospace, "SFMono-Regular", monospace; }
+.live-response > p { grid-column: 1 / -1; margin: 0; padding: 13px 16px; border-left: 3px solid #a13e2e; background: #f5e3df; color: #6e443d; font-size: 11px; line-height: 1.6; }
+.live-gitops { margin-top: 24px; padding: 30px; display: grid; grid-template-columns: minmax(240px, .7fr) minmax(420px, 1.3fr); gap: 36px; border: 1px solid var(--ink); background: var(--paper); }
+.live-gitops a { display: inline-block; margin-top: 22px; color: var(--green); font-size: 11px; font-weight: 700; }
+.live-gitops pre { margin: 0; padding: 20px; overflow-x: auto; background: #17211d; color: #dce9df; font: 10px/1.65 ui-monospace, "SFMono-Regular", monospace; }
+.locked-link { color: #8a8f8b; font-size: 9px; }
 .showcase-metrics { margin-top: 32px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; border: 1px solid var(--line); background: var(--line); }
 .showcase-metrics article { min-height: 148px; padding: 20px; display: flex; flex-direction: column; background: var(--paper); }
 .showcase-metrics article:first-child { background: var(--lime); }
@@ -65,7 +93,8 @@ h1 { max-width: 850px; margin: 0; font-size: clamp(42px, 7vw, 92px); line-height
 .journey-flow article.rejected::before { background: #a13e2e; }
 .journey-flow article.verified::before { background: var(--lime); box-shadow: 0 0 0 4px var(--green); }
 .journey-flow article > b { color: #777d79; font: 10px ui-monospace, "SFMono-Regular", monospace; }
-.journey-flow article > i { margin-top: 28px; color: var(--green); font: normal 10px ui-monospace, "SFMono-Regular", monospace; letter-spacing: .12em; }
+.journey-flow article > em { align-self: start; margin-top: 15px; padding: 4px 6px; border: 1px solid var(--line); color: #6d746f; font: normal 7px ui-monospace, "SFMono-Regular", monospace; letter-spacing: .08em; }
+.journey-flow article > i { margin-top: 12px; color: var(--green); font: normal 10px ui-monospace, "SFMono-Regular", monospace; letter-spacing: .12em; }
 .journey-flow article.rejected > i { color: #a13e2e; }
 .journey-flow h3 { margin: 8px 0 12px; font-size: 18px; letter-spacing: -.035em; }
 .journey-flow p { margin: 0; color: #606964; font-size: 11px; line-height: 1.65; }
@@ -221,6 +250,9 @@ footer { padding: 24px clamp(20px, 5vw, 72px); border-top: 1px solid var(--line)
   .showcase-hero { grid-template-columns: 1fr; }
   .showcase-verdict { min-height: 190px; }
   .showcase-metrics { grid-template-columns: repeat(2, 1fr); }
+  .demo-runner { grid-template-columns: 1fr 1fr; }
+  .demo-runner-action { grid-column: 1 / -1; }
+  .live-response, .live-gitops { grid-template-columns: 1fr; }
   .journey-flow { grid-template-columns: 1fr 1fr; }
   .journey-flow article { min-height: 310px; border-bottom: 1px solid var(--line); }
   .journey-flow article::before { display: none; }
@@ -233,6 +265,10 @@ footer { padding: 24px clamp(20px, 5vw, 72px); border-top: 1px solid var(--line)
   .showcase { padding-bottom: 40px; }
   .showcase-hero { padding-top: 48px; gap: 34px; }
   .showcase-metrics, .journey-flow, .showcase-boundary { grid-template-columns: 1fr; }
+  .demo-runner { padding: 22px 20px; grid-template-columns: 1fr; }
+  .demo-runner-action { grid-column: 1; }
+  .live-response, .live-gitops { padding: 22px 20px; }
+  .live-response dl { grid-template-columns: 1fr; }
   .showcase-section-heading { display: block; }
   .showcase-section-heading > p { margin-top: 12px; text-align: left; }
   .journey-panel { padding: 22px 20px; }
