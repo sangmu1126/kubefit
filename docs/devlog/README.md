@@ -90,6 +90,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0066](0066-verified-v030-showcase-release.md) | Verified v0.3.0 Showcase release | Publish the presentation image and chart while reusing immutable Pair evidence |
 | [0067](0067-operator-triggered-verified-demo.md) | Operator-triggered verified demo | Run recommendation and Pair replay from visible user actions before exposing GitOps evidence |
 | [0068](0068-verified-v031-interactive-release.md) | Verified v0.3.1 interactive release | Publish and anonymously verify the two-step demo without rewriting historical Pair evidence |
+| [0069](0069-visual-decision-console.md) | Visual Decision Console | Connect live resources, retained rejection, opposite-order replay, policy checks, and GitOps unlock in one guided surface |
 
 ## Visual language
 

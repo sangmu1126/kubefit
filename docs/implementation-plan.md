@@ -317,3 +317,9 @@ advances without changing the digest-pinned `v0.2.0` controlled Pair.
 The MVP implementation and public packaging are complete. Campaign drill-down,
 supply-chain signing, or production-cluster evidence remain post-MVP and must not be
 implied by the controlled-demo claims.
+
+Entry [0069](devlog/0069-visual-decision-console.md) is a presentation-only follow-up.
+It replaces sparse result cards with a guided Decision Console that visualizes the
+resource path, evidence-source trace, rejected candidate, counterbalanced orders, and
+policy checks. It does not expand the MVP or weaken the existing live/recorded and
+read-only boundaries. A patch package remains necessary for the public demo command.
