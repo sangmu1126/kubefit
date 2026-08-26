@@ -43,7 +43,7 @@ be mistaken for one another:
 | One counterbalanced pair passed complete replay | [Pair and refinement evidence](docs/devlog/0060-validation-informed-cpu-floor.md) |
 | A verified pair becomes a reviewable Git change | Idempotent resource [Draft PR #23](https://github.com/sangmu1126/kubefit/pull/23) and [publication record 0061](docs/devlog/0061-live-pair-draft-publication.md) |
 | Repeated evidence is not overstated | The preregistered campaign remains explicitly `incomplete`; no aggregate or significance claim is made |
-| Public packages are installable without repository credentials | [v0.3.1 release](https://github.com/sangmu1126/kubefit/releases/tag/v0.3.1) with an anonymously verified image and chart |
+| Public packages are installable without repository credentials | [v0.3.1 release](https://github.com/sangmu1126/kubefit/releases/tag/v0.3.1) and successful [anonymous package verification](https://github.com/sangmu1126/kubefit/actions/runs/32928617554) |
 
 The latest live resource PR passed Python 3.12, 3.13, and 3.14 plus Dashboard, Helm,
 and Docker in [GitHub Actions](https://github.com/sangmu1126/kubefit/actions/runs/32749825481).
@@ -60,10 +60,11 @@ MVP source boundary. Records [0060](docs/devlog/0060-validation-informed-cpu-flo
 [0064](docs/devlog/0064-public-replayable-pair-demo.md), and
 [0065](docs/devlog/0065-decision-journey-showcase.md),
 [0066](docs/devlog/0066-verified-v030-showcase-release.md), and
-[0067](docs/devlog/0067-operator-triggered-verified-demo.md) document the later
+[0067](docs/devlog/0067-operator-triggered-verified-demo.md), and
+[0068](docs/devlog/0068-verified-v031-interactive-release.md) document the later
 counterbalanced validation, authenticated Draft publication, verified public package
 release, package-content audit, replayable public evidence, presentation boundary,
-and operator-triggered demonstration.
+operator-triggered demonstration, and its public patch release.
 
 ## Repository layout
 
