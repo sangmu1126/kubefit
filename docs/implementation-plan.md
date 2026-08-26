@@ -344,3 +344,8 @@ Entry [0073](devlog/0073-korean-readme-entrypoint.md) makes the repository's def
 README a Korean evaluator and newcomer path, preserves the complete English document
 as `README.en.md`, and keeps bidirectional language navigation plus the same safety
 and evidence boundaries in both entry points.
+
+Entry [0074](devlog/0074-english-readme-entrypoint.md) supersedes only the default
+language decision from entry 0073: `README.md` again provides the complete English
+global open-source entry, while the unchanged Korean evaluator path remains available
+as `README.ko.md` through bidirectional navigation.

@@ -1,159 +1,224 @@
 # KubeFit
 
-**한국어** | [English](README.en.md)
+**English** | [한국어](README.ko.md)
 
-KubeFit은 실제 Kubernetes 워크로드와 Prometheus 메트릭을 분석해 CPU·메모리
-`requests/limits`를 추천하고, 성능 검증을 통과한 YAML 변경안을 GitHub Draft
-PR로 제안하는 GitOps 기반 오픈소스 플랫폼입니다.
+KubeFit is a GitOps-first Kubernetes resource optimization platform. It analyzes
+real workload metrics, explains its recommendations, and proposes reviewed YAML
+changes through GitHub pull requests instead of mutating production workloads.
 
-> 먼저 측정하고, 근거와 위험을 설명한 뒤, GitOps 검토를 거쳐 변경합니다.
+> Measure first. Explain the trade-off. Change through GitOps.
 
-![KubeFit의 counterbalanced Pair 검증 화면](docs/assets/pair-review-live.png)
+![KubeFit live counterbalanced pair review](docs/assets/pair-review-live.png)
 
-오른쪽 Pair 결과는 서로 반대인 두 실행 순서의 실제 benchmark artifact를 서버가
-전부 재생한 뒤 `PASS`로 판정한 결과입니다. 왼쪽 수정 가능 영역은 예제 입력이며
-해당 PASS 판정의 근거가 아닙니다.
+The stored pair on the right was fully replayed from two opposite-order live benchmark
+artifacts before the dashboard displayed `PASS`. The editable scenario panel on the
+left is example input and is not the source of that verdict.
 
-## 왜 KubeFit인가
+## MVP scope
 
-Kubernetes 리소스를 너무 크게 잡으면 비용이 낭비되고, 너무 작게 잡으면
-OOMKilled, CPU throttling, 응답 지연이 발생할 수 있습니다. 추천값만 자동 적용하면
-변경 이유와 실제 성능 영향을 검토하기도 어렵습니다.
+- Analyze Kubernetes `Deployment` resources
+- Read CPU and memory usage from Prometheus
+- Recommend requests and limits from CPU P95 and memory P99
+- Compare estimated cost and operational risk
+- Generate a Kubernetes YAML patch
+- Open a GitHub draft pull request
+- Compare before/after behavior with load tests
 
-KubeFit은 운영 클러스터를 자동으로 줄이지 않습니다.
+HPA recommendations, multi-cloud support, predictive incident detection,
+Terraform generation, and an AI chatbot are intentionally outside the first
+release.
+
+## Verified MVP evidence
+
+KubeFit's MVP is complete on `main`. The current submission evidence is deliberately
+split by claim so a cost projection, one passing run, and a repeated experiment cannot
+be mistaken for one another:
+
+| Claim | Reproducible evidence |
+|---|---|
+| Resource recommendations, package boundaries, and the demo contract are safety-gated | 403 Python tests on the current source |
+| The review UI builds and behaves as specified | 19 dashboard tests and a production Vite build |
+| The package renders with least-privilege defaults | Helm lint and default-template validation |
+| The production image actually starts | Docker startup, numeric non-root user, health, dashboard, and disabled-storage smoke checks |
+| Controlled observation works on Kubernetes | 100,501 requests, 0 errors, and 100% usage/throttling coverage in [record 0060](docs/devlog/0060-validation-informed-cpu-floor.md) |
+| Unsafe-looking savings cannot override latency | The 10m candidate and one repeated 20m block were rejected by the fixed steady-P99 gate |
+| One counterbalanced pair passed complete replay | [Pair and refinement evidence](docs/devlog/0060-validation-informed-cpu-floor.md) |
+| A verified pair becomes a reviewable Git change | Idempotent resource [Draft PR #23](https://github.com/sangmu1126/kubefit/pull/23) and [publication record 0061](docs/devlog/0061-live-pair-draft-publication.md) |
+| Repeated evidence is not overstated | The preregistered campaign remains explicitly `incomplete`; no aggregate or significance claim is made |
+| Public packages are installable without repository credentials | [v0.3.2 release](https://github.com/sangmu1126/kubefit/releases/tag/v0.3.2) with an anonymously verified image and chart |
+
+The latest live resource PR passed Python 3.12, 3.13, and 3.14 plus Dashboard, Helm,
+and Docker in [GitHub Actions](https://github.com/sangmu1126/kubefit/actions/runs/32749825481).
+It proposes CPU `1000m/2000m → 20m/40m` and memory `2Gi/4Gi → 32Mi/48Mi`, with an
+illustrative request-cost projection of `73.000000 → 1.396125` USD per month. This is
+not a measured AWS invoice saving. PR #23 remains Draft and KubeFit did not merge or
+deploy it.
+
+The [v0.1.0 release-readiness record](docs/release-readiness.md) preserves the earlier
+MVP source boundary. Records [0060](docs/devlog/0060-validation-informed-cpu-floor.md),
+[0061](docs/devlog/0061-live-pair-draft-publication.md), and
+[0062](docs/devlog/0062-verified-v020-release.md), then
+[0063](docs/devlog/0063-generated-evidence-package-boundary.md),
+[0064](docs/devlog/0064-public-replayable-pair-demo.md), and
+[0065](docs/devlog/0065-decision-journey-showcase.md),
+[0066](docs/devlog/0066-verified-v030-showcase-release.md), and
+[0067](docs/devlog/0067-operator-triggered-verified-demo.md), and
+[0068](docs/devlog/0068-verified-v031-interactive-release.md),
+[0069](docs/devlog/0069-visual-decision-console.md), and
+[0070](docs/devlog/0070-verified-v032-decision-console-release.md),
+[0071](docs/devlog/0071-open-source-contribution-surface.md), and
+[0072](docs/devlog/0072-submission-evidence-hardening.md) document the later
+counterbalanced validation, authenticated Draft publication, verified public package
+release, package-content audit, replayable public evidence, presentation boundary,
+operator-triggered demonstration, visual decision path, verified public patch release,
+open-source contribution surface, and submission-evidence audit.
+
+## Repository layout
 
 ```text
-Kubernetes Deployment + Prometheus 시계열
-                    ↓
-      P95/P99 기반 리소스 추천
-                    ↓
-         비용·안정성 위험 평가
-                    ↓
-      before/after + 반대 순서 검증
-                    ↓
-         YAML 최소 변경안 생성
-                    ↓
-          GitHub Draft PR 제안
-                    ↓
-             사람의 최종 승인
+collector/       Kubernetes and Prometheus adapters
+recommender/     Resource recommendation domain logic
+evaluator/       Cost, stability, and performance evaluation
+gitops/          YAML patch and GitHub pull request integration
+api/             FastAPI application
+dashboard/       React recommendation review dashboard
+deploy/          Helm chart and demo manifests
+benchmarks/      Load tests and reproducible comparisons
+docs/            Architecture, security, and evaluation records
+tests/           Unit and integration tests
 ```
 
-핵심 차별점은 다음 세 가지입니다.
+The API now has a multi-stage non-root `Dockerfile` and a Helm chart at
+[`deploy/helm/kubefit`](deploy/helm/kubefit). The chart defaults to a tokenless
+ServiceAccount, read-only root filesystem, dropped capabilities, health probes, and
+explicit resources. Optional observation access creates only namespace-scoped
+read-only Roles for explicitly named targets; see the
+[chart guide](deploy/helm/kubefit/README.md).
 
-- **설명 가능성:** 사용한 메트릭, percentile, 안전 여유와 차단 사유를 표시합니다.
-- **GitOps 안전성:** 추천 경로에서는 클러스터를 변경하지 않고 검증된 제안만 Draft
-  PR로 전달합니다.
-- **비용과 안정성의 동시 평가:** 비용 절감 수치가 latency, OOM, throttling 위험을
-  덮어쓰지 못합니다.
+`deploy/local/verify-kubefit-chart.sh` performs the complete disposable-kind proof:
+local image build/load, tokenless install, health and packaged-dashboard probes,
+scoped RBAC allow/deny matrix, and restoration to tokenless defaults. It refuses
+non-kind targets and does not push an image or delete the cluster.
 
-## MVP 범위
+The ordered delivery phases and their completion criteria are documented in
+[`docs/implementation-plan.md`](docs/implementation-plan.md).
 
-- Kubernetes `Deployment` 분석
-- Prometheus CPU·메모리 시계열 수집
-- CPU P95·메모리 P99와 안전 여유 기반 requests/limits 추천
-- 현재·추천 request 비용과 운영 위험 비교
-- 기존 문맥을 보존하는 Kubernetes YAML 최소 패치
-- GitHub Draft PR 생성
-- k6 before/after 및 반대 순서 Pair 검증
-- FastAPI API와 React Decision Console
-- Helm chart 및 amd64/arm64 공개 컨테이너 이미지
+To run KubeFit against a disposable kind cluster with Prometheus, follow the
+[`docs/local-development.md`](docs/local-development.md) guide.
 
-HPA 추천, 멀티클라우드 가격 자동 수집, 장애 예측, Terraform 생성, AI 챗봇은 현재
-MVP 범위에 포함하지 않습니다.
+Engineering decisions, failed assumptions, diagrams, and reproducible evidence are
+recorded in the [`docs/devlog/`](docs/devlog/README.md) development journal.
 
-## 검증된 결과
+The local dashboard sends editable example evidence to the existing evaluation API
+or loads the JSON emitted by `kubefit analyze`. New schema v2 artifacts retain
+aggregate observation and recommendation-policy inputs, so the API replays the
+recommendation, risk, cost comparison, and patch eligibility before returning the
+review model. The UI contains no independent recommendation logic. Schema v1
+remains compatible and is labeled `integrity_only`; schema v2 is labeled
+`recommendation_replayed`. Neither version retains raw Prometheus time series for
+percentile aggregation replay. Run it with the API using the commands in the
+[local development guide](docs/local-development.md). The multi-stage Docker build
+packages its immutable production bundle into the same non-root API image used by
+Helm.
 
-KubeFit은 비용 절감 예상치, 단일 Pair 결과, 반복 campaign을 서로 다른 증거로
-관리합니다. 하나의 성공 결과처럼 합쳐 표현하지 않습니다.
+Repository CI separates Python, dashboard, Helm, and Docker failures. The Python gate
+runs the same hash-locked install, compatibility check, lint, and test sequence on
+Python 3.12, 3.13, and 3.14 without fail-fast cancellation. The Docker gate does not
+stop at image construction: it starts the packaged image on an ephemeral loopback
+port, verifies the numeric non-root user, health endpoint, dashboard HTML, and
+disabled-by-default benchmark storage, then removes the exact temporary container.
 
-| 주장 | 재현 가능한 근거 |
-|---|---|
-| 추천·artifact·데모 계약이 안전 조건으로 보호됨 | 현재 소스 기준 Python 테스트 403개 |
-| Dashboard가 명세대로 동작하고 빌드됨 | 테스트 19개와 Vite production build |
-| Helm 패키지가 최소 권한 기본값으로 렌더링됨 | Helm lint 및 기본 template 검증 |
-| 공개 이미지가 실제로 기동함 | non-root `10001:10001`, health, Dashboard, 저장 비활성 smoke test |
-| 통제된 Kubernetes 관측이 완료됨 | 요청 100,501건, 오류 0건, usage/throttling coverage 100% ([기록 0060](docs/devlog/0060-validation-informed-cpu-floor.md)) |
-| 공격적인 절감안이 성능보다 우선하지 않음 | CPU 10m 후보와 별도 20m 반복 블록을 steady-P99 기준으로 기각 |
-| 하나의 반대 순서 Pair가 전체 재생을 통과함 | [Pair 및 재분석 근거](docs/devlog/0060-validation-informed-cpu-floor.md) |
-| 검증된 Pair가 검토 가능한 Git 변경으로 연결됨 | 멱등적인 [Draft PR #23](https://github.com/sangmu1126/kubefit/pull/23)과 [기록 0061](docs/devlog/0061-live-pair-draft-publication.md) |
-| 반복 실험을 과장하지 않음 | 사전 등록 campaign은 `INCOMPLETE`, 평균 효과·통계적 유의성을 주장하지 않음 |
-| 저장소 인증 없이 공개 패키지를 설치할 수 있음 | 익명 pull을 검증한 [v0.3.2 릴리스](https://github.com/sangmu1126/kubefit/releases/tag/v0.3.2) |
+The separate `Release packages` workflow accepts only an existing annotated semantic
+version tag that matches the Python and Helm versions. It publishes an amd64/arm64
+GHCR image and OCI Helm chart, then uses a fresh job without package permission to
+verify the image digest, anonymous pull/runtime, and anonymous chart pull. The
+workflow is a release mechanism, not current publication evidence; use a version only
+after that version's final anonymous verification job has passed.
 
-검증된 리소스 제안은 CPU `1000m/2000m → 20m/40m`, 메모리
-`2Gi/4Gi → 32Mi/48Mi`입니다. 예제 단가 기준 월 request 비용 예상치는
-`73.000000 → 1.396125 USD`지만, 이는 실제 AWS 청구서 절감액이 아닙니다.
-노드 단편화, 할인, 세금, 오토스케일링 replica-hours는 이 계산에 포함되지 않습니다.
+Benchmark results can be reviewed either by selecting a local result directory or
+through `/?benchmark=benchmark-<digest>`. Counterbalanced pairs use
+`/?pair=benchmark-pair-<digest>`, and completed repeated campaigns use
+`/?campaign=benchmark-campaign-evidence-<digest>`. Shareable queries are enabled only
+when the API has the corresponding explicit read-only results, pairs, or
+`KUBEFIT_BENCHMARK_CAMPAIGN_EVIDENCE_DIRECTORY` root. The server revalidates the
+complete evidence before returning a review. Pair review plots both order-specific
+changes and their observed minimum–maximum range. Campaign review plots chronological
+block position and duration plus planned/observed starting order. Neither view calls
+its observations a confidence interval or aggregate effect. KubeFit does not publish
+artifacts or make a local directory public automatically.
 
-또한 20m 후보의 한 Pair는 7/7 정책 검사를 통과했지만, 다른 반복 블록은 한 실행
-순서에서 steady P99가 21.3% 악화되어 실패했습니다. KubeFit은 이 실패와 불완전한
-campaign을 그대로 보존합니다.
+After building `kubefit:dev`, `deploy/local/generate-image-sbom.sh` resolves the
+mutable tag to its complete local image ID and publishes a verified SPDX 2.3
+inventory under the ignored `.kubefit/supply-chain/` directory. Repeated runs
+rehash and reuse the existing artifact. This is package inventory evidence, not a
+vulnerability scan or signature.
 
-## 1분 데모
+The same verifier can inspect a published release without treating a hand-written
+dependency summary as a complete SBOM:
 
-Docker가 실행 중이면 다음 명령 하나로 공개 이미지와 자체 검증 가능한 Pair 증거를
-내려받아 실행할 수 있습니다.
+```bash
+docker pull ghcr.io/sangmu1126/kubefit:0.3.2
+KUBEFIT_IMAGE_REFERENCE=ghcr.io/sangmu1126/kubefit:0.3.2 \
+  ./deploy/local/generate-image-sbom.sh
+```
+
+Release images also carry the BuildKit SBOM and provenance attestations emitted by
+the package workflow. These attestations and the local SPDX inventory do not imply
+that the image is vulnerability-free or cryptographically signed by the maintainer.
+Because the dashboard is compiled into static assets, its bundled JavaScript
+dependencies are tracked by `dashboard/package-lock.json` and may not appear as
+separate packages in a scanner's final-image SPDX output.
+
+## Quick start
+
+### Replay the verified pair
+
+With Docker running, one command downloads the public self-contained evidence,
+verifies its pinned SHA-256, mounts it read-only, and starts the published image:
 
 ```bash
 ./deploy/local/run-verified-pair-demo.sh
 ```
 
-출력된 `http://127.0.0.1:8000/?showcase=decision-journey` 주소를 열고 다음 순서로
-진행합니다.
+Open the printed `http://127.0.0.1:8000/?showcase=decision-journey` URL. Press
+**추천 계산 실행**, then follow the Decision Console's **20m Pair 검증 계속** action.
+The published `v0.3.2` image visualizes current, observed, rejected, and verified
+resources plus the source-labeled execution trace, opposite orders, and policy checks.
+The exact YAML diff and Draft PR link open only after `PASS`. The script binds only to
+loopback, never contacts Kubernetes, and removes its container on Ctrl+C. Set
+`KUBEFIT_DEMO_PORT` if port 8000 is already in use.
 
-1. **추천 계산 실행**
-2. 10m 후보의 `REJECTED`와 steady-P99 회귀 확인
-3. **20m Pair 검증 계속**
-4. 서로 반대인 두 실행 순서와 정책 검사 7/7 확인
-5. `PASS` 후 YAML diff와 기록된 Draft PR 근거 확인
-
-이 스크립트는 loopback에만 바인딩하고 Kubernetes에 접속하지 않으며, `Ctrl+C` 시
-임시 컨테이너를 제거합니다. 8000 포트를 사용 중이라면 `KUBEFIT_DEMO_PORT`를
-지정할 수 있습니다.
-
-공개 v0.3.2 대신 커밋하지 않은 현재 소스를 확인하려면 다음처럼 실행합니다.
+To test uncommitted current-source changes instead of the published `v0.3.2` image,
+build and run with the same script:
 
 ```bash
 KUBEFIT_DEMO_BUILD_LOCAL=true ./deploy/local/run-verified-pair-demo.sh
 ```
 
-수정 가능한 예제 평가 화면만 열려면 다음 명령을 사용합니다. 이 화면은 예제 입력을
-API로 평가하며 클러스터에서 메트릭을 수집하거나 클러스터를 변경하지 않습니다.
+This route connects a live recommendation calculation to the recorded
+`reject → refine → verify → Draft PR` narrative and the same server-replayed Pair.
+The UI labels live API responses separately from committed evidence. The published
+`v0.3.2` image and current-source path use the same APIs, Decision Console, and
+digest-pinned `v0.2.0` Pair evidence; only the application image source differs.
+
+### Open only the editable review scenario
+
+The published image contains both FastAPI and the React review dashboard. No local
+Node.js or Kubernetes cluster is required for the editable review scenario:
 
 ```bash
 docker run --rm -p 127.0.0.1:8000:8000 \
   ghcr.io/sangmu1126/kubefit:0.3.2
 ```
 
-브라우저에서 `http://127.0.0.1:8000`을 엽니다.
+Open `http://127.0.0.1:8000`. This default screen evaluates editable example inputs
+through the API and does not collect from or mutate a cluster. A fully replayed stored
+benchmark or pair additionally requires its read-only evidence directory; follow the
+[local dashboard guide](docs/local-development.md#open-a-fully-verified-benchmark-pair-or-campaign-link).
 
-## 저장소 구조
+### Install the development environment
 
-```text
-collector/       Kubernetes·Prometheus 어댑터
-recommender/     리소스 추천 도메인 로직
-evaluator/       비용·안정성·성능 평가
-gitops/          YAML 패치·GitHub Draft PR 연동
-api/             FastAPI 애플리케이션과 CLI
-dashboard/       React 추천 검토 Dashboard
-deploy/          Helm chart와 로컬 데모 환경
-benchmarks/      k6 부하 테스트와 재현 가능한 비교
-docs/            아키텍처·보안·평가·개발기록
-tests/           단위·통합·계약 테스트
-```
-
-상세 설계와 근거는 다음 문서에서 확인할 수 있습니다.
-
-- [구현 순서와 완료 기준](docs/implementation-plan.md)
-- [아키텍처](docs/architecture.md)
-- [로컬 개발·kind·Prometheus 실행](docs/local-development.md)
-- [개발기록 73개](docs/devlog/README.md)
-- [GitHub 실증 절차](docs/live-github-demo.md)
-- [기여 안내](CONTRIBUTING.md)
-- [보안 정책](SECURITY.md)
-
-## 개발 환경 설치
-
-Python 3.12 이상이 필요합니다.
+Requires Python 3.12+.
 
 ```bash
 python -m venv .venv
@@ -166,33 +231,22 @@ pytest -q
 uvicorn api.main:app --reload
 ```
 
-실행 후 `http://localhost:8000/docs`에서 API 문서를 확인합니다.
-`POST /v1/recommendations`는 추천 결과를, `POST /v1/evaluations`는 추천·위험·비용
-비교를 함께 반환합니다.
+Maintainers regenerate all three Python locks with `pip-tools==7.6.1` and
+`deploy/local/compile-python-locks.sh`; normal installs consume the reviewed locks
+rather than resolving compatible ranges again.
 
-Dashboard 개발 명령은 다음과 같습니다.
+Then open `http://localhost:8000/docs`. Use `POST /v1/recommendations` for the
+capacity result alone or `POST /v1/evaluations` for a recommendation plus an
+explicit request-cost comparison.
 
-```bash
-cd dashboard
-npm ci
-npm test -- --run
-npm run build
-```
-
-## 실제 Deployment 분석
-
-Prometheus를 로컬에서 접근할 수 있는 상태에서 먼저 관측 준비도를 확인합니다.
+Analyze a live Deployment (with Prometheus reachable locally):
 
 ```bash
 kubefit readiness --context kind-kubefit \
   --namespace kubefit-demo --deployment overprovisioned-api \
   --prometheus-url http://localhost:9090 \
   --identity-store .kubefit/identities.json --days 1
-```
 
-준비도가 충족되면 비용 단가와 출처를 명시해 분석합니다.
-
-```bash
 kubefit analyze --namespace kubefit-demo --deployment overprovisioned-api \
   --prometheus-url http://localhost:9090 \
   --identity-store .kubefit/identities.json \
@@ -201,110 +255,247 @@ kubefit analyze --namespace kubefit-demo --deployment overprovisioned-api \
   --price-source example://local-model
 ```
 
-CLI는 현재 `kubectl` context에서 Deployment와 Pod 메타데이터를 읽고 Prometheus를
-조회합니다. Prometheus에는 cAdvisor 지표와 kube-state-metrics의
-`kube_pod_owner`가 필요합니다. KubeFit은 Deployment UID·생성 시각과 controller
-owner UID로 관측 대상을 고정하여 이름이 같은 과거 워크로드가 섞이지 않게 합니다.
+The CLI invokes `kubectl` using the current context, reads only Deployment and
+Pod metadata, queries Prometheus, and prints a recommendation with its evidence.
+Prometheus must scrape cAdvisor metrics plus `kube_pod_owner` from
+kube-state-metrics. KubeFit filters ReplicaSets through their Kubernetes controller
+owner UID and clips history to the current Deployment creation time, avoiding
+Pod-name prefixes and same-name workload history.
 
-운영 기본 관측은 대표성 있는 다일 트래픽을 전제로 합니다. 대회용 통제 데모에서는
-하루 동안 유휴 트래픽을 기다리지 말고, 고정 1시간 k6 프로필과
-`--observation-profile demo`를 readiness와 analyze에 동일하게 사용합니다. 데모
-프로필 결과는 운영 트래픽을 대표한다고 주장할 수 없습니다.
+For the local competition demo, do not wait on a one-day mostly idle window. Run the
+fixed one-hour `benchmarks/k6/observation_profile.js` traffic profile and use
+`--observation-profile demo` for both readiness and analysis. This path requires 90%
+coverage and labels its result controlled-demo-only. The default `production`
+profile remains multi-day and is intended for representative real traffic.
 
-자세한 kind·Prometheus 설치 및 분석 절차는
-[로컬 개발 가이드](docs/local-development.md)를 참고하세요.
+If a benchmark rejects an aggressive CPU floor, `kubefit reanalyze` can derive a
+stricter schema v2 analysis from the retained observation and pricing inputs without
+pretending that new metrics were collected. The command can only raise the retained
+floor; the override remains explicit in the replayable recommendation policy.
 
-## 추천과 안전 판단
+`kubefit readiness` uses the same collection and policy path without requiring
+price inputs. It distinguishes evidence that only needs more collection time from
+unstable replicas, missing Pod signals, and already observed high-risk conditions.
+Time estimates state their stable-replica and continued-scrape assumptions.
 
-- CPU request는 관측 CPU P95에 안전 여유를 적용합니다.
-- 메모리 request는 관측 memory P99에 안전 여유를 적용합니다.
-- limit는 request와 최대 관측값을 함께 고려합니다.
-- 관측 coverage, 샘플 수, replica 안정성, Pod별 신호가 부족하면 변경을 차단합니다.
-- throttling 지표나 Pod 상태가 불완전하면 위험을 임의로 `low`로 만들지 않고
-  `unknown`으로 표시합니다.
-- OOMKilled가 관측되면 전체 관측 창이 불완전해도 높은 위험으로 표시합니다.
-- 비용 절감 수치는 latency·error·OOM·throttling 정책을 통과시키지 못합니다.
+The evaluator also reads the cAdvisor CPU throttled-period counters and current
+Kubernetes target-container status. Missing throttling metrics or incomplete Pod
+status coverage keeps the relevant risk `unknown`; an observed OOMKilled state is
+reported as high risk even when the wider observation window is incomplete.
 
-모든 평가는 `patch_eligibility`를 포함합니다. GitOps 패치는 `eligible`일 때만
-생성할 수 있으며, 중간 위험은 자동 통과가 아니라 reviewer 경고로 남습니다.
+Every evaluation includes `patch_eligibility`. Future GitOps patch generation must
+require `eligible`; insufficient readiness and high or unknown safety risks produce
+stable machine-readable blocking checks. Medium risk remains an explicit reviewer
+warning and never becomes an invisible pass.
 
-## YAML과 GitOps 경계
+The `gitops` package can generate a stale-safe manifest proposal from an eligible
+evaluation. It matches one `apps/v1` Deployment and container across supplied YAML
+sources, verifies that repository resources still equal the evaluated workload, and
+returns patched content, a unified diff, and a SHA-256-backed report without writing
+the file. Only the changed resource scalar ranges are replaced, preserving unrelated
+documents, fields, comments, order, and quoting.
 
-KubeFit은 대상 `apps/v1 Deployment`와 컨테이너를 정확히 한 개로 식별하고, 분석
-당시 리소스 값과 저장소 YAML이 여전히 같은지 확인합니다. 조건이 맞을 때만 다음
-네 scalar를 변경합니다.
+An eligible patch can be published as an immutable proposal bundle containing the
+before/after manifests, canonical evaluation, diff, report, and benchmark context.
+Its ID is derived from content, every payload is indexed by SHA-256 and byte size,
+and publication uses a private staging directory followed by one directory rename.
+Identical retries reuse the bundle; modified or partial existing content is rejected.
 
-- CPU request
-- CPU limit
-- memory request
-- memory limit
+The `benchmarks` package defines `kubefit-load-v1`, a fixed k6 warmup → steady →
+spike → recovery profile, plus typed before/after measurements and an explicit
+safety verdict. Results must reference the same proposal, profile, and complete
+offered load before latency, errors, throttling, OOM, and recovery regressions are
+evaluated. Per-phase completed iterations must meet the fixed minimum and match
+the minimum or its single scheduler-boundary overshoot in each run. Missing work or
+two extra iterations remains invalid. Request-cost change is reported separately and
+cannot override safety.
 
-그 외 문서, 필드, 주석, 순서와 quoting은 보존합니다. 오래되었거나 모호한 YAML,
-symlink, dirty Git 상태, 예상과 다른 remote ref는 fail-closed 방식으로 거부합니다.
+The benchmark execution core revalidates every proposal hash before cluster access,
+requires an explicit kubectl context, executes a selected `before-after` or
+`after-before` sequence, and reapplies the before manifest on every exit path after
+mutation starts. Measurement timestamps must prove non-overlapping intervals and
+every single sequential result carries an order-bias warning. The CLI is
+restricted to an explicitly acknowledged disposable `kind-*` cluster and is not a
+production automation interface. After Kubernetes reports rollout completion, the
+runner also waits until exactly the desired number of selected Pods remain and every
+target container is Running and Ready, preventing terminating rollout Pods from
+contaminating the runtime snapshot.
 
-`kubefit publish`는 명시적인 `--confirm-publish`와 환경변수의 GitHub token을
-요구합니다. 전용 브랜치와 Draft PR만 생성하며 병합하거나 배포하지 않습니다.
-동일한 제안은 재사용하고, 같은 이름의 다른 내용은 덮어쓰지 않습니다.
+The aligned measurement collector brackets the fixed k6 run with Pod-level runtime
+snapshots, queries Prometheus throttling inside that run, derives recovery from raw
+timestamped samples, and selects the proposal-fixed monthly request cost. Its output
+records run timestamps, Pod identity, and raw/summary hashes. The result publisher
+retains those inputs in a separate immutable benchmark artifact.
 
-## Benchmark 증거 경계
+Completed benchmark executions can now be published separately from their proposal
+as immutable `benchmark-<digest>` artifacts. Each result binds canonical before/after
+measurements, exact k6 summaries and raw streams, the recomputed verdict, and a
+human-readable report with per-file hashes. Identical publication retries reuse the
+same result; tampered or partial existing content is never overwritten.
 
-단일 before/after 실행은 시간 순서 편향을 가질 수 있습니다. 따라서 필수 publication
-gate는 같은 제안을 다음 두 순서로 실행한 Pair를 사용합니다.
+`kubefit benchmark` composes the local workflow under a Deployment-scoped OS lock.
+It requires an explicit `kind-*` context and `--confirm-disposable-cluster`, holds
+the lock through restoration and result publication, then prints a compact JSON
+handoff. A rollout-safe local Service proxy, a Prometheus port-forward, and an
+existing immutable proposal are currently required; see
+[`docs/local-development.md`](docs/local-development.md).
 
-```text
-before → after
-after  → before
+Operators can counterbalance time-order effects by running the same proposal once in
+each order. `kubefit benchmark-pair` fully verifies both content-addressed artifacts
+and emits one deterministic PASS/FAIL/INVALID policy-agreement assessment. A passing
+assessment is published with complete copies of both benchmark bundles as an immutable
+`benchmark-pair-<digest>` artifact. It does not average two samples or claim statistical
+significance; this self-contained pair is a mandatory publication input.
+The same verified pair supplies an order-aware metric table in the Draft PR and a
+read-only dashboard plot. It reports whether both changes improved, regressed, stayed
+equal, or pointed in different directions, without averaging the two trials.
+
+Repeated evidence can be preregistered with `kubefit benchmark-campaign-plan`. The
+immutable plan fixes an explicit pair count, balances and randomizes which execution
+order starts each time block, and requires every planned block before completion.
+`kubefit benchmark-campaign-check` fully reloads supplied pair artifacts and rejects
+duplicates, proposal/profile/cost drift, overlapping time blocks, schedule violations,
+and outcome-dependent early stopping. COMPLETE publishes an immutable, self-contained
+`benchmark-campaign-evidence-<digest>` with the plan and every pair bundle, then reloads
+it before returning success. Campaign completion is optional advanced evidence: it does
+not yet compute variance or replace the mandatory single-pair publication gate.
+
+`kubefit analyze` emits a typed schema v2 artifact binding aggregate observation,
+policy, and evaluation evidence to Deployment UID and creation time. Loading it
+replays the saved recommendation decision. `kubefit propose` consumes that identity
+directly with repository-bounded YAML sources and publishes an immutable proposal;
+it does not allow the target to be retyped. Benchmark preflight rejects a recreated
+Deployment before any apply. Multi-document source files remain byte-exact review
+evidence, while benchmark apply and restoration use separately hashed,
+single-Deployment manifests so neighboring Services or workloads are never
+reconciled.
+
+After a passing benchmark pair, `build_pull_request_plan` independently reloads the
+proposal, primary before-after benchmark, and self-contained pair artifact. It replays
+both embedded benchmark results and their pair assessment, requires the primary result
+to be a member of that pair, and produces a deterministic one-file draft PR contract.
+The contract includes the exact expected repository source hash, patched content,
+benchmark metrics, pair identity, both order-specific changes and their observed
+range, cost caveats, warnings, and rollback guidance. Supplying
+`--benchmark-campaign-evidence` explicitly also reloads the complete repeated campaign,
+requires the mandatory pair to be one of its chronological blocks, and adds the
+campaign IDs and block table to the same PR body. Omitting it preserves the normal
+pair-only publication path. This stage is read-only; branch creation and GitHub
+publication remain separate adapters.
+
+`commit_pull_request_plan` applies that contract to an explicit clean Git top-level.
+It rechecks the source hash and bytes, rejects symlinks and detached HEAD, creates a
+one-file commit on the deterministic branch, verifies the resulting Git tree, and
+returns to the original branch. An identical existing branch is reused; a collision
+fails closed. It does not push or contact GitHub.
+
+`publish_pull_request` revalidates that local handoff, derives the GitHub repository
+identity from a credential-free `github.com` remote, and publishes the exact commit
+with an absent-ref lease. It reuses only an identical remote ref and an exact open
+draft PR contract; conflicting refs, duplicate matches, and edited PRs fail closed.
+Ambiguous push or API responses are resolved by observing remote state again. The
+GitHub token is sent only as an HTTP authorization header. This library boundary is
+exposed by `kubefit publish`, which requires `--confirm-publish` and reads the token
+only from a named environment variable. The command never merges or deploys the
+change.
+
+`kubefit publish-check` runs the same artifact and local Git validation without
+creating a commit, then reads the configured GitHub remote ref and, when a token is
+present, repository metadata through a GET request. Its JSON separates blockers
+from warnings and always reports `mutation_performed: false`. A `ready` result means
+the observable preconditions passed; it does not prove effective branch or pull
+request write permission.
+
+The authenticated two-run verification procedure is documented in
+[`docs/live-github-demo.md`](docs/live-github-demo.md). It requires a separately named
+private disposable repository, captures first-create and second-reuse evidence, and
+archives rather than deletes the target by default.
+
+`kubefit verify-publication` then validates the runbook's exact five-file evidence
+set without network access. It rebuilds the proposal/benchmark/pair plan, checks the
+preflight, two publication outputs, remote ref, and GitHub Draft PR as one contract,
+hashes every file, and emits a deterministic `publication-<digest>` verification ID.
+When optional campaign evidence is supplied, it additionally binds the campaign IDs
+and requires the independently captured GitHub body to equal the generated body.
+
+The example prices are illustrative, not a cloud-provider price claim. Live
+analysis requires the caller to provide CPU and memory rates plus a source label.
+The output repeats those assumptions and separates current/recommended CPU and
+memory request costs. Projected request savings do not necessarily become invoice
+savings because node fragmentation, discounts, taxes, and autoscaling replica-hours
+are outside this model.
+
+The optional identity store retains observed ReplicaSet names after Kubernetes
+deletes their objects. It is an atomic local JSON snapshot containing identifiers
+only; a new Deployment UID replaces same-name history rather than merging it.
+
+Example request:
+
+```json
+{
+  "current": {
+    "cpu_request_millicores": 1000,
+    "cpu_limit_millicores": 2000,
+    "memory_request_mib": 2048,
+    "memory_limit_mib": 4096
+  },
+  "observed": {
+    "cpu_p95_millicores": 230,
+    "memory_p99_mib": 710,
+    "cpu_max_millicores": 400,
+    "memory_max_mib": 900,
+    "sample_count": 1900,
+    "observation_coverage": 0.95,
+    "desired_replicas": 2,
+    "available_replicas": 2,
+    "observed_replicas": 2
+  }
+}
 ```
 
-두 결과는 평균으로 숨기지 않고 각각의 변화와 관측 범위를 표시합니다. Pair가
-PASS하려면 두 순서의 정책 검사가 모두 통과해야 합니다. 반복 campaign은 선택적인
-고급 증거이며 현재 분산, 신뢰구간, 통계적 유의성을 계산하지 않습니다.
+For `/v1/evaluations`, add the following top-level fields to the same request:
 
-Benchmark 실행은 명시적으로 확인한 disposable `kind-*` 클러스터로 제한되고, 변경이
-시작된 모든 종료 경로에서 원래 manifest 복원을 시도합니다. 이는 운영 클러스터 자동
-최적화 인터페이스가 아닙니다.
-
-## SBOM과 공급망 범위
-
-공개 이미지는 BuildKit SBOM·provenance attestation과 함께 빌드됩니다. 로컬에서는
-정확한 이미지 ID에 바인딩된 SPDX 2.3 inventory를 생성하고 재검증할 수 있습니다.
-
-```bash
-docker pull ghcr.io/sangmu1126/kubefit:0.3.2
-KUBEFIT_IMAGE_REFERENCE=ghcr.io/sangmu1126/kubefit:0.3.2 \
-  ./deploy/local/generate-image-sbom.sh
+```json
+{
+  "cost_assumptions": {
+    "cpu_core_hour_usd": "0.04",
+    "memory_gib_hour_usd": "0.005",
+    "monthly_hours": "730",
+    "price_source": "example://local-model"
+  },
+  "replica_count": 2
+}
 ```
 
-이 SBOM은 패키지 inventory 증거이지 취약점 스캔, maintainer 서명, 라이선스 준수
-인증이 아닙니다. Dashboard는 정적 asset으로 번들되므로 JavaScript 의존성의 기준은
-`dashboard/package-lock.json`이며, 최종 이미지 scanner가 이를 개별 패키지로 모두
-표시하지 않을 수 있습니다.
+When maxima or sufficient observation coverage are unavailable, KubeFit reports
+the related risk as `unknown` rather than presenting an unsupported low-risk claim.
+The recommendation is actionable only when its `readiness.status` is `ready`.
 
-## 프로젝트의 출발점
+## Project origin
 
-KubeFit은 기존 서버리스 플랫폼을 운영하며 경험한 리소스 과다 할당과 관측성 문제에서
-출발했습니다. 그러나 기존 FaaS 코드베이스를 확장한 것이 아니라, 독립적인 오픈소스
-Kubernetes 최적화 도구로 새롭게 설계·구현했습니다. 이전 프로젝트는 문제 발견의
-배경이며 이 저장소의 배포 구조나 코드베이스가 아닙니다.
+KubeFit grew from lessons about over-allocation and observability learned while
+operating an earlier serverless platform. It is independently designed and
+implemented as an open-source Kubernetes optimization tool. The prior project
+is context, not this repository's codebase or deployment architecture.
 
-## 기여와 보안
+## License
 
-기여를 환영합니다. 개발 환경, 품질 gate, 설계 경계와 PR 절차는
-[CONTRIBUTING.md](CONTRIBUTING.md)를 확인하세요. 버그와 기능 제안에는 GitHub의
-구조화된 issue form을 사용하고 모든 프로젝트 공간에서
-[행동강령](CODE_OF_CONDUCT.md)을 준수해 주세요.
+KubeFit is distributed under the [Apache License 2.0](LICENSE).
 
-취약점 의심 내용을 공개 issue에 작성하지 마세요. 지원 버전과 비공개 신고 경로는
-[SECURITY.md](SECURITY.md)에 정리되어 있습니다.
+## Community and contributing
 
-## 안전 원칙
+Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) for the
+locked development setup, quality gates, design boundaries, and pull-request process.
+Use the structured GitHub issue forms for bugs and feature proposals, and follow the
+[Code of Conduct](CODE_OF_CONDUCT.md) in all project spaces.
 
-- 추천 경로에서는 워크로드와 메트릭을 읽기만 하고 클러스터를 변경하지 않습니다.
-- 변경안은 근거와 rollback 지침이 포함된 Draft PR로 제출합니다.
-- Kubernetes, Prometheus, GitHub 자격 증명을 저장소에 저장하지 않습니다.
-- 추천 정책은 결정적이며 독립적으로 테스트할 수 있어야 합니다.
-- 실패한 benchmark와 불완전한 증거를 성공 결과로 바꾸거나 숨기지 않습니다.
+Do not disclose suspected vulnerabilities in a public issue. The supported-version,
+reporting, and product-security boundaries are documented in
+[SECURITY.md](SECURITY.md).
 
-## 라이선스
+## Safety principles
 
-KubeFit은 [Apache License 2.0](LICENSE)으로 배포됩니다.
+- Read workloads and metrics; never mutate a cluster in the recommendation path.
+- Submit changes as draft pull requests with evidence and rollback guidance.
+- Never store Kubernetes, Prometheus, or GitHub credentials in the repository.
+- Keep recommendation policy deterministic and independently testable.
