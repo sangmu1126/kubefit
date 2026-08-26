@@ -94,6 +94,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0070](0070-verified-v032-decision-console-release.md) | Verified v0.3.2 Decision Console release | Publish and anonymously verify the visual demo while preserving the immutable v0.2.0 Pair boundary |
 | [0071](0071-open-source-contribution-surface.md) | Open-source contribution surface | Add honest contribution, conduct, security, issue, and pull-request paths without inventing community maturity |
 | [0072](0072-submission-evidence-hardening.md) | Submission evidence hardening | Replace an unusable security contact, bind scanner-reported SPDX evidence to v0.3.2, and correct claims without hiding benchmark failures |
+| [0073](0073-korean-readme-entrypoint.md) | Korean README entry point | Make Korean the default repository introduction while preserving the complete English reference as an explicit language option |
 
 ## Visual language
 
