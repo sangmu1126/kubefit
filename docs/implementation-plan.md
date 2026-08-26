@@ -309,7 +309,11 @@ existing recommendation and full Pair replay APIs in sequence, and unlocks recor
 YAML and Draft PR evidence only after replay `PASS`. Live calculations and historical
 measurements are labeled separately, and the flow remains read-only.
 
-The MVP implementation is complete. Packaging the operator-triggered interaction is
-the remaining submission release task; campaign drill-down, supply-chain signing, or
-production-cluster evidence remain post-MVP and must not be implied by the `v0.2.0`
-controlled-demo claims.
+Entry [0068](devlog/0068-verified-v031-interactive-release.md) packages that interaction
+as `v0.3.1`, verifies the public multi-architecture image and OCI chart anonymously,
+then executes both APIs from a fresh public-image pull. The application version
+advances without changing the digest-pinned `v0.2.0` controlled Pair.
+
+The MVP implementation and public packaging are complete. Campaign drill-down,
+supply-chain signing, or production-cluster evidence remain post-MVP and must not be
+implied by the controlled-demo claims.
