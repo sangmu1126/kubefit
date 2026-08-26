@@ -93,6 +93,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0069](0069-visual-decision-console.md) | Visual Decision Console | Connect live resources, retained rejection, opposite-order replay, policy checks, and GitOps unlock in one guided surface |
 | [0070](0070-verified-v032-decision-console-release.md) | Verified v0.3.2 Decision Console release | Publish and anonymously verify the visual demo while preserving the immutable v0.2.0 Pair boundary |
 | [0071](0071-open-source-contribution-surface.md) | Open-source contribution surface | Add honest contribution, conduct, security, issue, and pull-request paths without inventing community maturity |
+| [0072](0072-submission-evidence-hardening.md) | Submission evidence hardening | Replace an unusable security contact, bind scanner-reported SPDX evidence to v0.3.2, and correct claims without hiding benchmark failures |
 
 ## Visual language
 
