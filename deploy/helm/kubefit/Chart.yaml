@@ -2,8 +2,8 @@ apiVersion: v2
 name: kubefit
 description: Explainable, GitOps-first Kubernetes resource recommendations
 type: application
-version: 0.3.1
-appVersion: "0.3.1"
+version: 0.3.2
+appVersion: "0.3.2"
 home: https://github.com/sangmu1126/kubefit
 sources:
   - https://github.com/sangmu1126/kubefit

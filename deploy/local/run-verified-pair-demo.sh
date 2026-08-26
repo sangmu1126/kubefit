@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-release_version="0.3.1"
+release_version="0.3.2"
 evidence_release_version="0.2.0"
 pair_id="benchmark-pair-dbc41864dd0dba9537ef228ebb340f60"
 archive_name="kubefit-demo-evidence-v0.2.0.tar.gz"
