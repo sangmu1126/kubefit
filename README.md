@@ -43,7 +43,7 @@ be mistaken for one another:
 | One counterbalanced pair passed complete replay | [Pair and refinement evidence](docs/devlog/0060-validation-informed-cpu-floor.md) |
 | A verified pair becomes a reviewable Git change | Idempotent resource [Draft PR #23](https://github.com/sangmu1126/kubefit/pull/23) and [publication record 0061](docs/devlog/0061-live-pair-draft-publication.md) |
 | Repeated evidence is not overstated | The preregistered campaign remains explicitly `incomplete`; no aggregate or significance claim is made |
-| Public packages are installable without repository credentials | [v0.3.0 release](https://github.com/sangmu1126/kubefit/releases/tag/v0.3.0) and successful [anonymous package verification](https://github.com/sangmu1126/kubefit/actions/runs/32871351979) |
+| Public packages are installable without repository credentials | [v0.3.1 release](https://github.com/sangmu1126/kubefit/releases/tag/v0.3.1) with an anonymously verified image and chart |
 
 The latest live resource PR passed Python 3.12, 3.13, and 3.14 plus Dashboard, Helm,
 and Docker in [GitHub Actions](https://github.com/sangmu1126/kubefit/actions/runs/32749825481).
@@ -163,7 +163,7 @@ diff and Draft PR link open only after `PASS`. The script binds only to loopback
 never contacts Kubernetes, and removes its container on Ctrl+C. Set
 `KUBEFIT_DEMO_PORT` if port 8000 is already in use.
 
-To test uncommitted current-source changes instead of the published `v0.3.0` image,
+To test uncommitted current-source changes instead of the published `v0.3.1` image,
 build and run with the same script:
 
 ```bash
@@ -172,9 +172,9 @@ KUBEFIT_DEMO_BUILD_LOCAL=true ./deploy/local/run-verified-pair-demo.sh
 
 This route connects a live recommendation calculation to the recorded
 `reject → refine → verify → Draft PR` narrative and the same server-replayed Pair.
-The UI labels live API responses separately from committed evidence. The released
-`v0.3.0` image still contains the earlier automatic Showcase; use the local-build
-command above until the operator-triggered flow is published in a patch release.
+The UI labels live API responses separately from committed evidence. The published
+`v0.3.1` image and current-source path use the same operator-triggered flow and the
+same digest-pinned `v0.2.0` Pair evidence; only the application image source differs.
 
 ### Open only the editable review scenario
 
@@ -183,7 +183,7 @@ Node.js or Kubernetes cluster is required for the editable review scenario:
 
 ```bash
 docker run --rm -p 127.0.0.1:8000:8000 \
-  ghcr.io/sangmu1126/kubefit:0.3.0
+  ghcr.io/sangmu1126/kubefit:0.3.1
 ```
 
 Open `http://127.0.0.1:8000`. This default screen evaluates editable example inputs

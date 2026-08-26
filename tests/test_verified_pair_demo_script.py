@@ -13,7 +13,7 @@ def test_verified_pair_demo_binds_public_evidence_identity() -> None:
     content = SCRIPT.read_text()
 
     assert "kubefit-demo-evidence-v0.2.0.tar.gz" in content
-    assert 'release_version="0.3.0"' in content
+    assert 'release_version="0.3.1"' in content
     assert 'evidence_release_version="0.2.0"' in content
     assert "c646b4483083f8fcedafb397d1cc2355391bc9f98b15a6b157e22b30f2793239" in content
     assert "benchmark-pair-dbc41864dd0dba9537ef228ebb340f60" in content
