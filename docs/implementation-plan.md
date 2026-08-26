@@ -339,3 +339,8 @@ with an enabled GitHub private vulnerability-reporting route, verifies the publi
 `v0.3.2` image as a scanner-reported 131-package SPDX inventory bound to its
 immutable digest, and narrows submission wording to what the repository and
 controlled benchmark evidence actually demonstrate.
+
+Entry [0073](devlog/0073-korean-readme-entrypoint.md) makes the repository's default
+README a Korean evaluator and newcomer path, preserves the complete English document
+as `README.en.md`, and keeps bidirectional language navigation plus the same safety
+and evidence boundaries in both entry points.
