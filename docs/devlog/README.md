@@ -88,6 +88,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0064](0064-public-replayable-pair-demo.md) | Public replayable pair demo | Download, verify, and replay the exact pair from one loopback-only command |
 | [0065](0065-decision-journey-showcase.md) | Decision Journey Showcase | Connect the retained failure, constrained refinement, replayed Pair, and Draft PR without duplicating analysis |
 | [0066](0066-verified-v030-showcase-release.md) | Verified v0.3.0 Showcase release | Publish the presentation image and chart while reusing immutable Pair evidence |
+| [0067](0067-operator-triggered-verified-demo.md) | Operator-triggered verified demo | Run recommendation and Pair replay from visible user actions before exposing GitOps evidence |
 
 ## Visual language
 

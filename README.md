@@ -58,9 +58,12 @@ MVP source boundary. Records [0060](docs/devlog/0060-validation-informed-cpu-flo
 [0062](docs/devlog/0062-verified-v020-release.md), then
 [0063](docs/devlog/0063-generated-evidence-package-boundary.md),
 [0064](docs/devlog/0064-public-replayable-pair-demo.md), and
-[0065](docs/devlog/0065-decision-journey-showcase.md) document the later
+[0065](docs/devlog/0065-decision-journey-showcase.md),
+[0066](docs/devlog/0066-verified-v030-showcase-release.md), and
+[0067](docs/devlog/0067-operator-triggered-verified-demo.md) document the later
 counterbalanced validation, authenticated Draft publication, verified public package
-release, package-content audit, replayable public evidence, and presentation boundary.
+release, package-content audit, replayable public evidence, presentation boundary,
+and operator-triggered demonstration.
 
 ## Repository layout
 
@@ -153,10 +156,12 @@ verifies its pinned SHA-256, mounts it read-only, and starts the published image
 ./deploy/local/run-verified-pair-demo.sh
 ```
 
-Open the printed `http://127.0.0.1:8000/?showcase=decision-journey` URL. The API replays
-both opposite-order benchmark bundles before the Showcase displays `PASS`. The script
-binds only to loopback, never contacts Kubernetes, and removes its container on
-Ctrl+C. Set `KUBEFIT_DEMO_PORT` if port 8000 is already in use.
+Open the printed `http://127.0.0.1:8000/?showcase=decision-journey` URL. In the current
+source build, press **추천 계산 실행** to recompute the retained observation, then
+press **Pair 재검증** to replay both opposite-order benchmark bundles. The exact YAML
+diff and Draft PR link open only after `PASS`. The script binds only to loopback,
+never contacts Kubernetes, and removes its container on Ctrl+C. Set
+`KUBEFIT_DEMO_PORT` if port 8000 is already in use.
 
 To test uncommitted current-source changes instead of the published `v0.3.0` image,
 build and run with the same script:
@@ -165,11 +170,11 @@ build and run with the same script:
 KUBEFIT_DEMO_BUILD_LOCAL=true ./deploy/local/run-verified-pair-demo.sh
 ```
 
-This route connects the recorded `reject → refine → verify → Draft PR` narrative to
-the same server-replayed Pair. Static cost and observation values link to committed
-evidence; the `PASS`, check count, and order-aware metrics come from the review API.
-The released default and local-build path both use the same digest-pinned Pair; only
-the application image source differs.
+This route connects a live recommendation calculation to the recorded
+`reject → refine → verify → Draft PR` narrative and the same server-replayed Pair.
+The UI labels live API responses separately from committed evidence. The released
+`v0.3.0` image still contains the earlier automatic Showcase; use the local-build
+command above until the operator-triggered flow is published in a patch release.
 
 ### Open only the editable review scenario
 
