@@ -328,3 +328,8 @@ Entry [0070](devlog/0070-verified-v032-decision-console-release.md) packages tha
 surface as `v0.3.2`, verifies the image and chart anonymously, then replays the full
 Pair from a fresh public-image pull. The application advances while the controlled
 Pair remains the immutable, digest-pinned `v0.2.0` asset.
+
+Entry [0071](devlog/0071-open-source-contribution-surface.md) closes the submission's
+repository-entry gap with contribution, conduct, security, issue, and pull-request
+contracts. It states the current single-maintainer and disabled private-reporting
+limits rather than presenting planned community maturity as existing adoption.

@@ -92,6 +92,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0068](0068-verified-v031-interactive-release.md) | Verified v0.3.1 interactive release | Publish and anonymously verify the two-step demo without rewriting historical Pair evidence |
 | [0069](0069-visual-decision-console.md) | Visual Decision Console | Connect live resources, retained rejection, opposite-order replay, policy checks, and GitOps unlock in one guided surface |
 | [0070](0070-verified-v032-decision-console-release.md) | Verified v0.3.2 Decision Console release | Publish and anonymously verify the visual demo while preserving the immutable v0.2.0 Pair boundary |
+| [0071](0071-open-source-contribution-surface.md) | Open-source contribution surface | Add honest contribution, conduct, security, issue, and pull-request paths without inventing community maturity |
 
 ## Visual language
 

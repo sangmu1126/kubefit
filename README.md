@@ -462,6 +462,17 @@ is context, not this repository's codebase or deployment architecture.
 
 KubeFit is distributed under the [Apache License 2.0](LICENSE).
 
+## Community and contributing
+
+Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) for the
+locked development setup, quality gates, design boundaries, and pull-request process.
+Use the structured GitHub issue forms for bugs and feature proposals, and follow the
+[Code of Conduct](CODE_OF_CONDUCT.md) in all project spaces.
+
+Do not disclose suspected vulnerabilities in a public issue. The supported-version,
+reporting, and product-security boundaries are documented in
+[SECURITY.md](SECURITY.md).
+
 ## Safety principles
 
 - Read workloads and metrics; never mutate a cluster in the recommendation path.

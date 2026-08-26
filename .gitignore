@@ -17,3 +17,6 @@ benchmarks/campaigns/
 benchmarks/campaign-evidence/
 .kube/
 .kubefit/
+
+# Local contest submission drafts can contain team and contact information
+docs/submission/
