@@ -524,6 +524,9 @@ describe("KubeFit dashboard", () => {
 
     expect(screen.getByRole("heading", { name: /비용보다 안전을/ })).toBeInTheDocument();
     expect(screen.getByText("WAITING FOR OPERATOR")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /리소스가 줄어드는 순간보다/ })).toBeInTheDocument();
+    expect(screen.getByLabelText("리소스 변화 비교")).toHaveTextContent("CURRENT REQUEST");
+    expect(screen.getByLabelText("실행 과정 로그")).toHaveTextContent("operator action boundary ready");
     expect(screen.queryByRole("link", { name: /Draft PR #23/ })).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
 
@@ -533,6 +536,8 @@ describe("KubeFit dashboard", () => {
     expect(screen.getAllByText("10m / 20m")).toHaveLength(2);
     expect(screen.getByText("ready / eligible")).toBeInTheDocument();
     expect(screen.getByText(/readiness 통과는 수집 근거가 충분하다는 뜻/)).toBeInTheDocument();
+    expect(screen.getByText("10m CANDIDATE ≠ SAFE")).toBeInTheDocument();
+    expect(screen.getByLabelText("실행 과정 로그")).toHaveTextContent("candidate rejected");
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       "/v1/evaluations",
@@ -552,13 +557,16 @@ describe("KubeFit dashboard", () => {
     expect(evaluationRequest.observed.cpu_p95_millicores).toBeCloseTo(3.658831, 6);
     expect(screen.queryByRole("link", { name: /Draft PR #23/ })).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: /Pair 재검증/ }));
+    await userEvent.click(screen.getByRole("button", { name: /20m Pair 검증 계속/ }));
 
     expect(await screen.findByText("PAIR REPLAY VERIFIED")).toBeInTheDocument();
     expect(screen.getByText("+40.804%")).toBeInTheDocument();
     expect(screen.getByText("-98.088%")).toBeInTheDocument();
     expect(screen.getByText("1/2 방향 일치 · 1 mixed")).toBeInTheDocument();
     expect(screen.getByText(/deploy\/demo\/overprovisioned-api.yaml/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Pair 반대 순서 검증 결과")).toHaveTextContent("2/2 PASS");
+    expect(screen.getByLabelText("Pair 반대 순서 검증 결과")).toHaveTextContent(/opposite orders/i);
+    expect(screen.getByLabelText("리소스 변화 비교")).toHaveTextContent("VERIFIED");
     expect(screen.getByText(/통계적 유의성을 주장하지 않습니다/)).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "워크로드 관측값" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Pair 상세 보기 →" })).toHaveAttribute(
@@ -591,6 +599,23 @@ describe("KubeFit dashboard", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("실행이 중단됐습니다");
     expect(screen.getByText("LIVE EXECUTION FAILED")).toBeInTheDocument();
     expect(screen.getByText("+40.804%")).toBeInTheDocument();
+  });
+
+  it("does not reuse the recorded rejection when the live candidate identity changes", async () => {
+    const changedEvaluation = structuredClone(recordedEvaluationResult);
+    changedEvaluation.recommendation.recommended.cpu_request_millicores = 15;
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(changedEvaluation), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
+    window.history.replaceState({}, "", "/?showcase=decision-journey");
+
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: /추천 계산 실행/ }));
+
+    expect(await screen.findByText("UNBENCHMARKED")).toBeInTheDocument();
+    expect(screen.getByText("recorded rejection applies to 10m only")).toBeInTheDocument();
+    expect(screen.getByLabelText("실행 과정 로그")).toHaveTextContent("recorded verdict not reused");
   });
 
   it("rejects an unknown showcase without calling the API", () => {

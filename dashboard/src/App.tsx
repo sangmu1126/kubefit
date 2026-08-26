@@ -614,6 +614,48 @@ type ShowcaseRunState =
   | "verified"
   | "failed";
 
+function allocationWidth(value: number, current: number) {
+  return `${Math.max(8, (Math.log10(value + 1) / Math.log10(current + 1)) * 100)}%`;
+}
+
+function ResourceTrack({
+  label,
+  unit,
+  current,
+  observed,
+  candidate,
+  verified,
+}: {
+  label: string;
+  unit: string;
+  current: number;
+  observed: number;
+  candidate: number | null;
+  verified: number | null;
+}) {
+  const stages = [
+    { name: "CURRENT REQUEST", value: current, tone: "current" },
+    { name: "OBSERVED", value: observed, tone: "observed" },
+    { name: "LIVE CANDIDATE", value: candidate, tone: "rejected" },
+    { name: "VERIFIED", value: verified, tone: "verified" },
+  ];
+
+  return (
+    <div className="resource-track">
+      <div className="resource-track-title"><strong>{label}</strong><small>log scale · request 기준</small></div>
+      {stages.map((stage) => (
+        <div className={`resource-bar-row ${stage.tone} ${stage.value === null ? "locked" : ""}`} key={stage.name}>
+          <span>{stage.name}</span>
+          <div className="resource-bar-rail">
+            {stage.value !== null && <i style={{ width: allocationWidth(stage.value, current) }} />}
+          </div>
+          <b>{stage.value === null ? "LOCKED" : `${stage.value.toFixed(stage.value < 10 ? 2 : 0)}${unit}`}</b>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DecisionJourney({
   review,
   evaluation,
@@ -642,6 +684,8 @@ function DecisionJourney({
   const verificationReady = review?.status === "pass";
   const running = runState === "evaluating" || runState === "replaying";
   const recommendationReady = evaluation !== null;
+  const liveCandidateCpu = evaluation?.recommendation.recommended.cpu_request_millicores ?? null;
+  const recordedCandidateMatches = liveCandidateCpu === evidence.rejected.cpuRequestMillicores;
   const heroStatus = {
     idle: ["WAITING FOR OPERATOR", "RUN"],
     evaluating: ["POST /v1/evaluations", "…"],
@@ -650,6 +694,18 @@ function DecisionJourney({
     verified: ["PAIR REPLAY VERIFIED", "PASS"],
     failed: ["LIVE EXECUTION FAILED", "!"],
   }[runState];
+  const traceLines = [
+    { visible: true, source: "SYSTEM", text: "operator action boundary ready" },
+    { visible: runState === "failed", source: "ERROR", text: error ?? "live execution stopped" },
+    { visible: runState !== "idle", source: "LIVE", text: "POST /v1/evaluations · retained observation" },
+    { visible: recommendationReady, source: "LIVE", text: evaluation ? `candidate ${evaluation.recommendation.recommended.cpu_request_millicores}m/${evaluation.recommendation.recommended.cpu_limit_millicores}m · saving ${evaluation.cost.savings_percent}%` : "" },
+    { visible: recommendationReady, source: "RECORDED", text: recordedCandidateMatches ? `steady P99 +${evidence.rejected.steadyP99ChangePercent}% · candidate rejected` : "live candidate differs · recorded verdict not reused" },
+    { visible: recommendationReady, source: "POLICY", text: "monotonic CPU floor · refined proposal 20m/40m" },
+    { visible: runState === "replaying" || verificationReady, source: "LIVE", text: "GET pair review · replaying two opposite orders" },
+    { visible: verificationReady, source: "LIVE", text: review ? `${review.checks.length}/${review.checks.length} checks PASS · GitOps evidence unlocked` : "" },
+  ].filter((line) => line.visible);
+  const steadyLatency = review?.metrics.find((metric) => metric.code === "steady_latency_p99")
+    ?? review?.metrics.find((metric) => metric.code === "steady_latency_p95");
 
   return (
     <main className="showcase" id="top" aria-live="polite">
@@ -665,7 +721,7 @@ function DecisionJourney({
         <div className={`showcase-verdict ${verificationReady ? "verified" : "pending"}`}>
           <span>{heroStatus[0]}</span>
           <strong>{heroStatus[1]}</strong>
-          <small>{review ? `${review.checks.length}/${review.checks.length} checks · 2/2 orders` : "버튼을 눌러 실제 API를 실행하세요"}</small>
+          <small>{review ? `${review.checks.length}/${review.checks.length} checks · 2/2 orders` : recommendationReady ? "2단계 Pair 재검증을 실행하세요" : "버튼을 눌러 실제 API를 실행하세요"}</small>
         </div>
       </section>
 
@@ -706,16 +762,80 @@ function DecisionJourney({
         </p>
       )}
 
-      {evaluation && (
-        <section className="live-response" aria-labelledby="live-response-title">
-          <div><p className="eyebrow">LIVE API RESULT · 방금 계산됨</p><h2 id="live-response-title">관측 근거는 충분하지만, 성능 검증 전 후보입니다.</h2></div>
-          <dl>
-            <div><dt>CPU recommendation</dt><dd>{evaluation.recommendation.recommended.cpu_request_millicores}m / {evaluation.recommendation.recommended.cpu_limit_millicores}m</dd></div>
-            <div><dt>Memory recommendation</dt><dd>{evaluation.recommendation.recommended.memory_request_mib}Mi / {evaluation.recommendation.recommended.memory_limit_mib}Mi</dd></div>
-            <div><dt>Projected saving</dt><dd>{evaluation.cost.savings_percent}%</dd></div>
-            <div><dt>Readiness / patch gate</dt><dd>{evaluation.recommendation.readiness.status} / {evaluation.patch_eligibility.status}</dd></div>
-          </dl>
-          <p><strong>다음 판단:</strong> readiness 통과는 수집 근거가 충분하다는 뜻입니다. 기록된 부하 테스트에서 이 10m 후보의 steady P99가 +{evidence.rejected.steadyP99ChangePercent}% 악화되어 실제 제안에서는 거부됐습니다.</p>
+      <section className={`decision-console state-${runState}`} aria-labelledby="decision-console-title">
+        <div className="decision-console-heading">
+          <div><p className="eyebrow">DECISION CONSOLE · LIVE + RECORDED EVIDENCE</p><h2 id="decision-console-title">리소스가 줄어드는 순간보다, 멈춘 이유를 보여줍니다.</h2></div>
+          <span>{runState.replace("-", " ").toUpperCase()}</span>
+        </div>
+        <div className="decision-console-grid">
+          <div className="resource-visual" aria-label="리소스 변화 비교">
+            <ResourceTrack
+              label="CPU"
+              unit="m"
+              current={recordedInitialEvaluationRequest.current.cpu_request_millicores}
+              observed={recordedInitialEvaluationRequest.observed.cpu_p95_millicores}
+              candidate={evaluation?.recommendation.recommended.cpu_request_millicores ?? null}
+              verified={verificationReady ? evidence.refined.cpuRequestMillicores : null}
+            />
+            <ResourceTrack
+              label="MEMORY"
+              unit="Mi"
+              current={recordedInitialEvaluationRequest.current.memory_request_mib}
+              observed={recordedInitialEvaluationRequest.observed.memory_p99_mib}
+              candidate={evaluation?.recommendation.recommended.memory_request_mib ?? null}
+              verified={verificationReady ? evidence.refined.memoryRequestMiB : null}
+            />
+          </div>
+          <div className={`decision-gate ${recommendationReady ? "decided" : "waiting"} ${verificationReady ? "passed" : ""}`}>
+            <small>PERFORMANCE GATE</small>
+            {!recommendationReady ? (
+              <><strong>WAITING</strong><p>추천 API 실행 전</p></>
+            ) : (
+              <>
+                <div className="decision-candidate"><span>{liveCandidateCpu}m</span><b>{recordedCandidateMatches ? "REJECTED" : "UNBENCHMARKED"}</b><small>{recordedCandidateMatches ? `recorded steady P99 +${evidence.rejected.steadyP99ChangePercent}%` : "recorded rejection applies to 10m only"}</small></div>
+                <i>↓ MONOTONIC REFINE</i>
+                <div className={verificationReady ? "decision-refined verified" : "decision-refined"}><span>20m</span><b>{verificationReady ? "VERIFIED" : "REPLAY REQUIRED"}</b><small>{verificationReady ? `2 orders · ${review?.checks.length}/${review?.checks.length} checks` : "readiness ≠ performance safety"}</small></div>
+                {runState === "candidate-ready" && <button type="button" className="gate-action" onClick={onReplay}>20m Pair 검증 계속 →</button>}
+              </>
+            )}
+          </div>
+          <div className="execution-trace" aria-label="실행 과정 로그">
+            <div><span>EXECUTION TRACE</span><b>{running ? "RUNNING" : verificationReady ? "COMPLETE" : "READY"}</b></div>
+            <ol>
+              {traceLines.map((line, index) => <li key={`${line.source}-${line.text}`}><i>{String(index + 1).padStart(2, "0")}</i><em>{line.source}</em><span>{line.text}</span></li>)}
+            </ol>
+          </div>
+        </div>
+        {evaluation && (
+          <div className="live-result-strip">
+            <div><span>LIVE CPU</span><strong>{evaluation.recommendation.recommended.cpu_request_millicores}m / {evaluation.recommendation.recommended.cpu_limit_millicores}m</strong></div>
+            <div><span>LIVE MEMORY</span><strong>{evaluation.recommendation.recommended.memory_request_mib}Mi / {evaluation.recommendation.recommended.memory_limit_mib}Mi</strong></div>
+            <div><span>PROJECTED</span><strong>{evaluation.cost.savings_percent}%</strong></div>
+            <div><span>READINESS / GATE</span><strong>{evaluation.recommendation.readiness.status} / {evaluation.patch_eligibility.status}</strong></div>
+            <p>readiness 통과는 수집 근거가 충분하다는 뜻입니다. 성능 안전성은 별도이며, 기록된 회귀 때문에 10m 후보는 자동 적용되지 않았습니다.</p>
+          </div>
+        )}
+        {review && steadyLatency && (
+          <div className="pair-proof" aria-label="Pair 반대 순서 검증 결과">
+            <div className="pair-proof-title"><span>COUNTERBALANCED PAIR</span><strong>2 ORDERS</strong><b>{review.checks.length}/{review.checks.length} PASS</b></div>
+            <div className="order-proof-grid">
+              {steadyLatency.trials.map((trial, index) => (
+                <article key={trial.benchmark_id}>
+                  <small>ORDER {index + 1} · {trial.measurement_order}</small>
+                  <div><span>{trial.before.toFixed(2)}ms</span><i>→</i><strong>{trial.after.toFixed(2)}ms</strong></div>
+                  <b>{trial.change_percent?.toFixed(2)}% · {trial.direction.toUpperCase()}</b>
+                </article>
+              ))}
+            </div>
+            <ul>{review.checks.map((check) => <li key={check.code}><i>✓</i><span>{check.code.replaceAll("_", " ")}</span><b>{check.status.toUpperCase()}</b></li>)}</ul>
+          </div>
+        )}
+      </section>
+
+      {evaluation && !verificationReady && (
+        <section className="candidate-warning" aria-label="후보 거부 근거">
+          <strong>{liveCandidateCpu}m CANDIDATE ≠ SAFE</strong>
+          <p>API는 계산을 완료했지만 성능 검증은 별도입니다. {recordedCandidateMatches ? `기록된 steady P99 +${evidence.rejected.steadyP99ChangePercent}% 회귀가 이 후보를 멈췄습니다.` : "현재 후보와 기록된 10m 실패가 다르므로 과거 verdict를 적용하지 않습니다."}</p>
         </section>
       )}
 
