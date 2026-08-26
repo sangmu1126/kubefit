@@ -1,0 +1,70 @@
+name: Bug report
+description: Report a reproducible KubeFit defect or safety-boundary violation
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a defect. Do not include credentials, production metrics, or identifying workload data. Report vulnerabilities through SECURITY.md instead.
+  - type: input
+    id: version
+    attributes:
+      label: KubeFit version or commit
+      placeholder: v0.3.2 or a complete commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - collector
+        - recommender
+        - evaluator
+        - benchmarks
+        - gitops
+        - api
+        - dashboard
+        - Docker or Helm packaging
+        - documentation
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, Python, Kubernetes, Prometheus, browser, and deployment details that matter.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Use non-sensitive sample data and the smallest deterministic sequence possible.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior and evidence
+      description: Include sanitized logs, artifact identities, or screenshots when relevant.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety checklist
+      options:
+        - label: I removed credentials, production metrics, and identifying workload data.
+          required: true
+        - label: This is not a privately reportable security vulnerability.
+          required: true
