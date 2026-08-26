@@ -322,4 +322,9 @@ Entry [0069](devlog/0069-visual-decision-console.md) is a presentation-only foll
 It replaces sparse result cards with a guided Decision Console that visualizes the
 resource path, evidence-source trace, rejected candidate, counterbalanced orders, and
 policy checks. It does not expand the MVP or weaken the existing live/recorded and
-read-only boundaries. A patch package remains necessary for the public demo command.
+read-only boundaries.
+
+Entry [0070](devlog/0070-verified-v032-decision-console-release.md) packages that
+surface as `v0.3.2`, verifies the image and chart anonymously, then replays the full
+Pair from a fresh public-image pull. The application advances while the controlled
+Pair remains the immutable, digest-pinned `v0.2.0` asset.
