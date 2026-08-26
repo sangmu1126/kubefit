@@ -35,7 +35,7 @@ be mistaken for one another:
 | Claim | Reproducible evidence |
 |---|---|
 | Resource recommendations, package boundaries, and the demo contract are safety-gated | 400 Python tests on the audited release branch |
-| The review UI builds and behaves as specified | 18 dashboard tests and a production Vite build |
+| The review UI builds and behaves as specified | 19 dashboard tests and a production Vite build |
 | The package renders with least-privilege defaults | Helm lint and default-template validation |
 | The production image actually starts | Docker startup, numeric non-root user, health, dashboard, and disabled-storage smoke checks |
 | Controlled observation works on Kubernetes | 100,501 requests, 0 errors, and 100% usage/throttling coverage in [record 0060](docs/devlog/0060-validation-informed-cpu-floor.md) |
@@ -61,10 +61,13 @@ MVP source boundary. Records [0060](docs/devlog/0060-validation-informed-cpu-flo
 [0065](docs/devlog/0065-decision-journey-showcase.md),
 [0066](docs/devlog/0066-verified-v030-showcase-release.md), and
 [0067](docs/devlog/0067-operator-triggered-verified-demo.md), and
-[0068](docs/devlog/0068-verified-v031-interactive-release.md) document the later
+[0068](docs/devlog/0068-verified-v031-interactive-release.md),
+[0069](docs/devlog/0069-visual-decision-console.md), and
+[0070](docs/devlog/0070-verified-v032-decision-console-release.md) document the later
 counterbalanced validation, authenticated Draft publication, verified public package
 release, package-content audit, replayable public evidence, presentation boundary,
-operator-triggered demonstration, and its public patch release.
+operator-triggered demonstration, visual decision path, and its verified public patch
+release.
 
 ## Repository layout
 
