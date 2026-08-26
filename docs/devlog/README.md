@@ -95,6 +95,7 @@ evidence of engineering judgment than a final screenshot without context.
 | [0071](0071-open-source-contribution-surface.md) | Open-source contribution surface | Add honest contribution, conduct, security, issue, and pull-request paths without inventing community maturity |
 | [0072](0072-submission-evidence-hardening.md) | Submission evidence hardening | Replace an unusable security contact, bind scanner-reported SPDX evidence to v0.3.2, and correct claims without hiding benchmark failures |
 | [0073](0073-korean-readme-entrypoint.md) | Korean README entry point | Make Korean the default repository introduction while preserving the complete English reference as an explicit language option |
+| [0074](0074-english-readme-entrypoint.md) | English README entry point | Restore English as the default global open-source entry while preserving the Korean evaluator path |
 
 ## Visual language
 
