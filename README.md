@@ -157,11 +157,10 @@ verifies its pinned SHA-256, mounts it read-only, and starts the published image
 ./deploy/local/run-verified-pair-demo.sh
 ```
 
-Open the printed `http://127.0.0.1:8000/?showcase=decision-journey` URL. In the current
-source build, press **추천 계산 실행** to recompute the retained observation, then
-press **Pair 재검증** to replay both opposite-order benchmark bundles. The exact YAML
-diff and Draft PR link open only after `PASS`. The script binds only to loopback,
-never contacts Kubernetes, and removes its container on Ctrl+C. Set
+Open the printed `http://127.0.0.1:8000/?showcase=decision-journey` URL. The published
+`v0.3.1` image runs the recommendation and Pair replay as two operator-triggered
+steps. The exact YAML diff and Draft PR link open only after `PASS`. The script binds
+only to loopback, never contacts Kubernetes, and removes its container on Ctrl+C. Set
 `KUBEFIT_DEMO_PORT` if port 8000 is already in use.
 
 To test uncommitted current-source changes instead of the published `v0.3.1` image,
@@ -171,11 +170,15 @@ build and run with the same script:
 KUBEFIT_DEMO_BUILD_LOCAL=true ./deploy/local/run-verified-pair-demo.sh
 ```
 
+The current-source preview adds the Decision Console. Press **추천 계산 실행**, then
+follow **20m Pair 검증 계속**. It visualizes current, observed, rejected, and verified
+resources plus the source-labeled execution trace, opposite orders, and policy checks.
+
 This route connects a live recommendation calculation to the recorded
 `reject → refine → verify → Draft PR` narrative and the same server-replayed Pair.
 The UI labels live API responses separately from committed evidence. The published
-`v0.3.1` image and current-source path use the same operator-triggered flow and the
-same digest-pinned `v0.2.0` Pair evidence; only the application image source differs.
+`v0.3.1` image and current-source path use the same APIs and digest-pinned `v0.2.0`
+Pair evidence; the Decision Console remains a source preview until its patch release.
 
 ### Open only the editable review scenario
 
