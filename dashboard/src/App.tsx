@@ -12,6 +12,8 @@ import {
   DECISION_JOURNEY_ID,
   VERIFIED_PAIR_ID,
   decisionJourneyEvidence,
+  recordedInitialEvaluationRequest,
+  recordedYamlDiff,
 } from "./showcase";
 import type {
   CheckStatus,
@@ -604,14 +606,30 @@ function EvidenceLink({ href, children }: { href: string; children: string }) {
   return <a href={href} target="_blank" rel="noreferrer">{children} ↗</a>;
 }
 
+type ShowcaseRunState =
+  | "idle"
+  | "evaluating"
+  | "candidate-ready"
+  | "replaying"
+  | "verified"
+  | "failed";
+
 function DecisionJourney({
   review,
-  loading,
+  evaluation,
+  runState,
   error,
+  onEvaluate,
+  onReplay,
+  onReset,
 }: {
   review: CounterbalancedPairReview | null;
-  loading: boolean;
+  evaluation: EvaluationResult | null;
+  runState: ShowcaseRunState;
   error: string | null;
+  onEvaluate: () => void;
+  onReplay: () => void;
+  onReset: () => void;
 }) {
   const evidence = decisionJourneyEvidence;
   const agreements = review?.metrics.filter((metric) => metric.direction !== "mixed").length ?? 0;
@@ -622,12 +640,22 @@ function DecisionJourney({
     ? "0%"
     : "검증 상세 참조";
   const verificationReady = review?.status === "pass";
+  const running = runState === "evaluating" || runState === "replaying";
+  const recommendationReady = evaluation !== null;
+  const heroStatus = {
+    idle: ["WAITING FOR OPERATOR", "RUN"],
+    evaluating: ["POST /v1/evaluations", "…"],
+    "candidate-ready": ["LIVE CANDIDATE COMPUTED", evaluation ? `${evaluation.recommendation.recommended.cpu_request_millicores}m` : "—"],
+    replaying: ["GET /v1/benchmark-pairs/{id}/review", "…"],
+    verified: ["PAIR REPLAY VERIFIED", "PASS"],
+    failed: ["LIVE EXECUTION FAILED", "!"],
+  }[runState];
 
   return (
     <main className="showcase" id="top" aria-live="polite">
       <section className="showcase-hero">
         <div>
-          <p className="eyebrow">RECORDED DECISION JOURNEY · READ ONLY</p>
+          <p className="eyebrow">INTERACTIVE VERIFIED DEMO · OPERATOR TRIGGERED</p>
           <h1>비용보다 안전을<br />먼저 검증했습니다.</h1>
           <p>
             98% 절감 후보를 바로 적용하지 않았습니다. 실패한 10m 제안을 보존하고,
@@ -635,16 +663,72 @@ function DecisionJourney({
           </p>
         </div>
         <div className={`showcase-verdict ${verificationReady ? "verified" : "pending"}`}>
-          <span>{loading ? "REPLAYING" : verificationReady ? "PAIR REPLAY VERIFIED" : "PAIR REPLAY UNAVAILABLE"}</span>
-          <strong>{loading ? "…" : verificationReady ? "PASS" : "—"}</strong>
-          <small>{review ? `${review.checks.length}/${review.checks.length} checks · 2/2 orders` : "공개 증거를 API로 재검증"}</small>
+          <span>{heroStatus[0]}</span>
+          <strong>{heroStatus[1]}</strong>
+          <small>{review ? `${review.checks.length}/${review.checks.length} checks · 2/2 orders` : "버튼을 눌러 실제 API를 실행하세요"}</small>
+        </div>
+      </section>
+
+      <section className="demo-runner" aria-labelledby="demo-runner-title">
+        <div className="demo-runner-copy">
+          <p className="eyebrow">LIVE EXECUTION</p>
+          <h2 id="demo-runner-title">설명이 아니라 서버 코드를 실행합니다.</h2>
+          <p>첫 호출은 보존된 관측 입력으로 추천·비용·readiness를 다시 계산합니다. 두 번째 호출은 공개 Pair의 모든 artifact와 정책 verdict를 서버에서 다시 검증합니다.</p>
+        </div>
+        <ol className="demo-runner-steps">
+          <li className={recommendationReady ? "done" : runState === "evaluating" ? "active" : ""}>
+            <span>1</span><div><strong>추천 API</strong><small>POST /v1/evaluations</small></div><b>{recommendationReady ? "DONE" : runState === "evaluating" ? "RUNNING" : "WAIT"}</b>
+          </li>
+          <li className={verificationReady ? "done" : runState === "replaying" ? "active" : ""}>
+            <span>2</span><div><strong>Pair Replay API</strong><small>GET /v1/benchmark-pairs/…/review</small></div><b>{verificationReady ? "DONE" : runState === "replaying" ? "RUNNING" : "WAIT"}</b>
+          </li>
+          <li className={verificationReady ? "done" : ""}>
+            <span>3</span><div><strong>GitOps 증거</strong><small>검증된 YAML diff + Draft PR</small></div><b>{verificationReady ? "READY" : "LOCKED"}</b>
+          </li>
+        </ol>
+        <div className="demo-runner-action">
+          {runState === "idle" || runState === "failed" ? (
+            <button type="button" onClick={onEvaluate} disabled={running}>1. 추천 계산 실행 <span>→</span></button>
+          ) : runState === "candidate-ready" ? (
+            <button type="button" onClick={onReplay}>2. 실패 기록을 거쳐 Pair 재검증 <span>→</span></button>
+          ) : running ? (
+            <button type="button" disabled>서버 응답 검증 중…</button>
+          ) : (
+            <button type="button" className="secondary" onClick={onReset}>데모 다시 실행 ↻</button>
+          )}
+          <small>클러스터·GitHub를 변경하지 않는 read-only 실행</small>
         </div>
       </section>
 
       {error && (
         <p className="showcase-error" role="alert">
-          기록된 여정은 표시하지만 Pair 재검증은 불러오지 못했습니다: {error}
+          실행이 중단됐습니다. 기록된 증거는 변경되지 않았습니다: {error}
         </p>
+      )}
+
+      {evaluation && (
+        <section className="live-response" aria-labelledby="live-response-title">
+          <div><p className="eyebrow">LIVE API RESULT · 방금 계산됨</p><h2 id="live-response-title">관측 근거는 충분하지만, 성능 검증 전 후보입니다.</h2></div>
+          <dl>
+            <div><dt>CPU recommendation</dt><dd>{evaluation.recommendation.recommended.cpu_request_millicores}m / {evaluation.recommendation.recommended.cpu_limit_millicores}m</dd></div>
+            <div><dt>Memory recommendation</dt><dd>{evaluation.recommendation.recommended.memory_request_mib}Mi / {evaluation.recommendation.recommended.memory_limit_mib}Mi</dd></div>
+            <div><dt>Projected saving</dt><dd>{evaluation.cost.savings_percent}%</dd></div>
+            <div><dt>Readiness / patch gate</dt><dd>{evaluation.recommendation.readiness.status} / {evaluation.patch_eligibility.status}</dd></div>
+          </dl>
+          <p><strong>다음 판단:</strong> readiness 통과는 수집 근거가 충분하다는 뜻입니다. 기록된 부하 테스트에서 이 10m 후보의 steady P99가 +{evidence.rejected.steadyP99ChangePercent}% 악화되어 실제 제안에서는 거부됐습니다.</p>
+        </section>
+      )}
+
+      {verificationReady && (
+        <section className="live-gitops" aria-labelledby="live-gitops-title">
+          <div>
+            <p className="eyebrow">VERIFIED OUTPUT · READ ONLY</p>
+            <h2 id="live-gitops-title">검증이 끝난 뒤에만 YAML 변경 근거를 엽니다.</h2>
+            <p>아래 diff는 검증된 refined proposal의 기록입니다. 이 데모는 새 PR을 만들거나 기존 PR을 병합하지 않습니다.</p>
+            <EvidenceLink href={evidence.sources.draftPullRequest}>Draft PR #23 열기</EvidenceLink>
+          </div>
+          <pre><code>{recordedYamlDiff}</code></pre>
+        </section>
       )}
 
       <section className="showcase-metrics" aria-label="발표 핵심 지표">
@@ -662,34 +746,34 @@ function DecisionJourney({
         </div>
         <div className="journey-flow">
           <article>
-            <b>01</b><i>OBSERVE</i><h3>과다 할당을 관측</h3>
+            <b>01</b><em>RECORDED INPUT</em><i>OBSERVE</i><h3>과다 할당을 관측</h3>
             <p>1000m/2000m CPU와 2Gi/4Gi 메모리 상태에서 한 시간 동안 고정 부하를 수집했습니다.</p>
             <dl><div><dt>requests</dt><dd>{evidence.observation.requests.toLocaleString()}</dd></div><div><dt>coverage</dt><dd>{evidence.observation.usageCoveragePercent}%</dd></div></dl>
             <EvidenceLink href={evidence.sources.refinement}>관측 근거</EvidenceLink>
           </article>
           <article className="rejected">
-            <b>02</b><i>REJECT</i><h3>10m 후보를 거부</h3>
+            <b>02</b><em>RECORDED BENCHMARK</em><i>REJECT</i><h3>10m 후보를 거부</h3>
             <p>비용 절감 폭이 커도 steady P99가 정책 한계를 넘자 실패 artifact를 그대로 보존했습니다.</p>
             <dl><div><dt>CPU</dt><dd>10m / 20m</dd></div><div><dt>steady P99</dt><dd>+{evidence.rejected.steadyP99ChangePercent}%</dd></div></dl>
             <EvidenceLink href={evidence.sources.refinement}>실패 기록</EvidenceLink>
           </article>
           <article>
-            <b>03</b><i>REFINE</i><h3>정책 입력으로 재분석</h3>
+            <b>03</b><em>RECORDED REANALYSIS</em><i>REFINE</i><h3>정책 입력으로 재분석</h3>
             <p>새로운 유휴 구간을 고르지 않고 보존된 schema v2 입력에 단조 증가 CPU floor를 적용했습니다.</p>
             <dl><div><dt>CPU</dt><dd>20m / 40m</dd></div><div><dt>Memory</dt><dd>32Mi / 48Mi</dd></div></dl>
             <EvidenceLink href={evidence.sources.refinement}>재분석 경계</EvidenceLink>
           </article>
           <article className={verificationReady ? "verified" : "pending"}>
-            <b>04</b><i>VERIFY</i><h3>반대 순서로 재검증</h3>
+            <b>04</b><em>LIVE API</em><i>VERIFY</i><h3>반대 순서로 재검증</h3>
             <p>Before-first와 Candidate-first 결과를 한 Pair로 묶고 서버가 원본 artifact를 다시 계산합니다.</p>
-            <dl><div><dt>policy</dt><dd>{verificationReady ? "PASS" : loading ? "REPLAY…" : "UNAVAILABLE"}</dd></div><div><dt>checks</dt><dd>{review ? `${review.checks.length}/${review.checks.length}` : "—"}</dd></div></dl>
-            <a href={`/?pair=${VERIFIED_PAIR_ID}`}>Pair 상세 보기 →</a>
+            <dl><div><dt>policy</dt><dd>{verificationReady ? "PASS" : runState === "replaying" ? "REPLAY…" : "WAIT"}</dd></div><div><dt>checks</dt><dd>{review ? `${review.checks.length}/${review.checks.length}` : "—"}</dd></div></dl>
+            {verificationReady ? <a href={`/?pair=${VERIFIED_PAIR_ID}`}>Pair 상세 보기 →</a> : <span className="locked-link">Pair replay 실행 후 열림</span>}
           </article>
           <article>
-            <b>05</b><i>PROPOSE</i><h3>Draft PR까지만 제안</h3>
+            <b>05</b><em>RECORDED GITOPS</em><i>PROPOSE</i><h3>Draft PR까지만 제안</h3>
             <p>YAML 한 파일의 수정 근거와 비용 투영을 제출했지만 merge, deploy, cluster mutation은 수행하지 않았습니다.</p>
             <dl><div><dt>cost model</dt><dd>${evidence.costProjection.currentUsd} → ${evidence.costProjection.recommendedUsd}</dd></div><div><dt>state</dt><dd>DRAFT</dd></div></dl>
-            <EvidenceLink href={evidence.sources.draftPullRequest}>Draft PR #23</EvidenceLink>
+            {verificationReady ? <EvidenceLink href={evidence.sources.draftPullRequest}>Draft PR #23</EvidenceLink> : <span className="locked-link">Pair replay 실행 후 열림</span>}
           </article>
         </div>
       </section>
@@ -718,6 +802,8 @@ export default function App() {
   const [artifactLoading, setArtifactLoading] = useState(false);
   const [benchmarkLoading, setBenchmarkLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showcaseEvaluation, setShowcaseEvaluation] = useState<EvaluationResult | null>(null);
+  const [showcaseRunState, setShowcaseRunState] = useState<ShowcaseRunState>("idle");
   const [showcaseMode] = useState(
     () => new URLSearchParams(window.location.search).get("showcase"),
   );
@@ -737,19 +823,7 @@ export default function App() {
         setError("지원하지 않는 showcase 링크입니다.");
         return;
       }
-      let active = true;
-      setBenchmarkLoading(true);
-      fetchStoredBenchmarkPairReview(VERIFIED_PAIR_ID)
-        .then((review) => {
-          if (active) setPairReview(review);
-        })
-        .catch((reason: unknown) => {
-          if (active) setError(reason instanceof Error ? reason.message : "Showcase Pair 검증에 실패했습니다.");
-        })
-        .finally(() => {
-          if (active) setBenchmarkLoading(false);
-        });
-      return () => { active = false; };
+      return;
     }
     if (campaignId !== null) {
       if (!/^benchmark-campaign-evidence-[0-9a-f]{32}$/.test(campaignId)) {
@@ -816,6 +890,40 @@ export default function App() {
       active = false;
     };
   }, []);
+
+  const runShowcaseEvaluation = async () => {
+    setError(null);
+    setPairReview(null);
+    setShowcaseEvaluation(null);
+    setShowcaseRunState("evaluating");
+    try {
+      setShowcaseEvaluation(await evaluateResources(recordedInitialEvaluationRequest));
+      setShowcaseRunState("candidate-ready");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Showcase 추천 계산에 실패했습니다.");
+      setShowcaseRunState("failed");
+    }
+  };
+
+  const runShowcasePairReplay = async () => {
+    setError(null);
+    setPairReview(null);
+    setShowcaseRunState("replaying");
+    try {
+      setPairReview(await fetchStoredBenchmarkPairReview(VERIFIED_PAIR_ID));
+      setShowcaseRunState("verified");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Showcase Pair 검증에 실패했습니다.");
+      setShowcaseRunState("failed");
+    }
+  };
+
+  const resetShowcaseDemo = () => {
+    setShowcaseEvaluation(null);
+    setPairReview(null);
+    setError(null);
+    setShowcaseRunState("idle");
+  };
 
   const setCurrent = (key: keyof EvaluationRequest["current"], value: number) => {
     setRequest((previous) => ({
@@ -963,7 +1071,15 @@ export default function App() {
         <div className="principle"><i /> cluster mutation: off</div>
       </header>
       {showcaseMode === DECISION_JOURNEY_ID ? (
-        <DecisionJourney review={pairReview} loading={benchmarkLoading} error={error} />
+        <DecisionJourney
+          review={pairReview}
+          evaluation={showcaseEvaluation}
+          runState={showcaseRunState}
+          error={error}
+          onEvaluate={runShowcaseEvaluation}
+          onReplay={runShowcasePairReplay}
+          onReset={resetShowcaseDemo}
+        />
       ) : <><div className="hero" id="top">
         <div>
           <p className="eyebrow">EXPLAINABLE · GITOPS-FIRST</p>
