@@ -135,7 +135,13 @@ kubectl --context kind-kubefit port-forward \
   9090:9090
 ```
 
-예를 들어 다음 PromQL은 현재 Pod별 CPU 사용량을 millicore 단위로 표시합니다.
+기본 저부하 확인은 **Status → Target health**에서 `kubelet`으로 필터링한 뒤
+`/metrics`, `/metrics/cadvisor`, `/metrics/probes`가 `UP`인지 보는 방식입니다.
+KubeFit이 사용하는 컨테이너 CPU·메모리의 원천은 cAdvisor endpoint입니다. Target
+health는 수집 연결을 증명할 뿐 추천의 안전성이나 benchmark 성공을 증명하지 않습니다.
+
+선택적으로 다음 PromQL을 실행하면 현재 Pod별 CPU 사용량을 millicore 단위로 볼 수
+있습니다.
 
 ```promql
 sum by (pod) (
@@ -145,6 +151,10 @@ sum by (pod) (
   }[5m])
 ) * 1000
 ```
+
+데모 Deployment에 요청이 없다면 `0m`이 정상이며, 검증 Pair 시연을 위해 별도
+트래픽을 만들 필요가 없습니다. Collector는 하나의 현재값이 아니라 coverage 조건이
+있는 관측 구간 전체에서 이 5분 rate를 사용합니다.
 
 검증 Pair 데모를 시작한 뒤 다른 탭에서 다음 명령을 실행하면 FastAPI 상태와 화면의
 `PASS`가 프론트엔드 상수가 아니라 서버의 전체 artifact 재검증 결과임을 확인할 수

@@ -213,7 +213,12 @@ kubectl --context kind-kubefit port-forward \
   9090:9090
 ```
 
-For example, this PromQL displays current per-Pod CPU usage in millicores:
+For the default low-load check, open **Status → Target health**, filter for `kubelet`,
+and confirm that `/metrics`, `/metrics/cadvisor`, and `/metrics/probes` are `UP`.
+KubeFit's container CPU and memory source is the cAdvisor endpoint. Target health
+proves scrape connectivity, not recommendation safety or benchmark success.
+
+An optional PromQL inspection can display current per-Pod CPU usage in millicores:
 
 ```promql
 sum by (pod) (
@@ -223,6 +228,10 @@ sum by (pod) (
   }[5m])
 ) * 1000
 ```
+
+An idle demo Deployment can correctly report `0m`; generating traffic is not required
+for the verified-pair walkthrough. The collector uses this five-minute rate across a
+coverage-gated observation window rather than treating one current value as evidence.
 
 After starting the verified-pair demo, a second tab can prove that the packaged
 FastAPI server is healthy and that the visible `PASS` comes from full server-side

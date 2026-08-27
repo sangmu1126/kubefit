@@ -360,3 +360,8 @@ Entry [0076](devlog/0076-remove-unused-kube-proxy-target.md) removes the local
 kube-proxy ServiceMonitor that was predictably unreachable in kind and unused by
 KubeFit. The focused stack now reports no unhealthy targets while preserving the
 kubelet/cAdvisor and kube-state-metrics inputs required for workload analysis.
+
+Entry [0077](devlog/0077-target-health-first-walkthrough.md) makes kubelet/cAdvisor
+target health the default low-load Prometheus inspection in both README languages.
+PromQL remains optional with an explicit idle-`0m` explanation, avoiding unnecessary
+load while preserving the live-scrape versus retained-verdict boundary.
