@@ -355,3 +355,8 @@ runtime inspectable without turning it into a new benchmark campaign. Both READM
 languages now connect Docker and kind status, an optional current Prometheus scrape,
 packaged FastAPI health, and full Pair replay while explicitly separating live samples
 from the digest-pinned historical verdict.
+
+Entry [0076](devlog/0076-remove-unused-kube-proxy-target.md) removes the local
+kube-proxy ServiceMonitor that was predictably unreachable in kind and unused by
+KubeFit. The focused stack now reports no unhealthy targets while preserving the
+kubelet/cAdvisor and kube-state-metrics inputs required for workload analysis.

@@ -26,10 +26,11 @@ brew install kind helm
 
 The script is idempotent. It creates the `kubefit` kind cluster, installs pinned
 version `88.5.0` of `kube-prometheus-stack`, and applies the demo Deployment.
-Grafana, Alertmanager, and control-plane monitoring are disabled to keep local
-resource usage small. Prometheus stores its two-day history on a 5 GiB PVC with a
-4 GB retention-size ceiling, so Pod and Docker restarts do not reset observation
-coverage.
+Grafana, Alertmanager, unused control-plane monitoring, and kube-proxy monitoring are
+disabled to keep local resource usage and scrape noise small. KubeFit reads workload
+CPU and memory from kubelet/cAdvisor and does not consume kube-proxy metrics. Prometheus
+stores its two-day history on a 5 GiB PVC with a 4 GB retention-size ceiling, so Pod
+and Docker restarts do not reset observation coverage.
 
 Upgrading a cluster created before this storage configuration replaces the old
 emptyDir-backed Prometheus Pod once. Its existing metrics are not migrated, so the
