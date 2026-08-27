@@ -110,6 +110,59 @@ Docker가 실행 중이면 다음 명령 하나로 공개 이미지와 자체 �
 임시 컨테이너를 제거합니다. 8000 포트를 사용 중이라면 `KUBEFIT_DEMO_PORT`를
 지정할 수 있습니다.
 
+### 시연 화면 뒤의 실제 실행 확인
+
+시연은 터미널 창 하나와 탭 두 개면 충분합니다. [로컬 Kubernetes
+환경](docs/local-development.md)이 이미 실행 중이면 첫 번째 탭에서 kind,
+Prometheus, 데모 Deployment가 실제로 동작하는지 확인할 수 있습니다.
+
+```bash
+docker ps
+kubectl --context kind-kubefit get pods -n monitoring
+kubectl --context kind-kubefit get pods -n kubefit-demo
+kubectl --context kind-kubefit get deployment overprovisioned-api \
+  -n kubefit-demo \
+  -o jsonpath='{.spec.template.spec.containers[0].resources}'
+```
+
+두 번째 탭에서 다음 명령을 잠시 실행하고 `http://127.0.0.1:9090`을 열면 실제
+Prometheus 수집 상태를 확인할 수 있습니다.
+
+```bash
+kubectl --context kind-kubefit port-forward \
+  -n monitoring \
+  svc/monitoring-kube-prometheus-prometheus \
+  9090:9090
+```
+
+예를 들어 다음 PromQL은 현재 Pod별 CPU 사용량을 millicore 단위로 표시합니다.
+
+```promql
+sum by (pod) (
+  rate(container_cpu_usage_seconds_total{
+    namespace="kubefit-demo",
+    container="api"
+  }[5m])
+) * 1000
+```
+
+검증 Pair 데모를 시작한 뒤 다른 탭에서 다음 명령을 실행하면 FastAPI 상태와 화면의
+`PASS`가 프론트엔드 상수가 아니라 서버의 전체 artifact 재검증 결과임을 확인할 수
+있습니다.
+
+```bash
+curl --fail http://127.0.0.1:8000/healthz
+
+curl --silent \
+  http://127.0.0.1:8000/v1/benchmark-pairs/benchmark-pair-dbc41864dd0dba9537ef228ebb340f60/review \
+  | jq '{status, verification_level, benchmark_ids, checks: [.checks[].status]}'
+```
+
+`jq`는 화면에 보여줄 출력을 줄이는 용도일 뿐이며, 없어도 Pair API의 전체 검증은
+동일하게 실행됩니다. Prometheus 화면은 실시간 수집 경로를 보여주고, Showcase는
+별도로 보존해 digest로 고정한 Pair를 재생합니다. 현재 Prometheus 표본이 기록된
+과거 verdict를 만들었다고 주장하지 않습니다.
+
 공개 v0.3.2 대신 커밋하지 않은 현재 소스를 확인하려면 다음처럼 실행합니다.
 
 ```bash

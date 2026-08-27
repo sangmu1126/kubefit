@@ -188,6 +188,59 @@ The exact YAML diff and Draft PR link open only after `PASS`. The script binds o
 loopback, never contacts Kubernetes, and removes its container on Ctrl+C. Set
 `KUBEFIT_DEMO_PORT` if port 8000 is already in use.
 
+#### Inspect the runtime behind the showcase
+
+The showcase is easiest to record with one terminal window and two tabs. If the
+[local Kubernetes environment](docs/local-development.md) is already running, the
+first tab can show the actual kind, Prometheus, and demo-Deployment processes:
+
+```bash
+docker ps
+kubectl --context kind-kubefit get pods -n monitoring
+kubectl --context kind-kubefit get pods -n kubefit-demo
+kubectl --context kind-kubefit get deployment overprovisioned-api \
+  -n kubefit-demo \
+  -o jsonpath='{.spec.template.spec.containers[0].resources}'
+```
+
+To inspect the live Prometheus scrape, keep this command running temporarily in the
+second tab and open `http://127.0.0.1:9090`:
+
+```bash
+kubectl --context kind-kubefit port-forward \
+  -n monitoring \
+  svc/monitoring-kube-prometheus-prometheus \
+  9090:9090
+```
+
+For example, this PromQL displays current per-Pod CPU usage in millicores:
+
+```promql
+sum by (pod) (
+  rate(container_cpu_usage_seconds_total{
+    namespace="kubefit-demo",
+    container="api"
+  }[5m])
+) * 1000
+```
+
+After starting the verified-pair demo, a second tab can prove that the packaged
+FastAPI server is healthy and that the visible `PASS` comes from full server-side
+artifact replay rather than a frontend constant:
+
+```bash
+curl --fail http://127.0.0.1:8000/healthz
+
+curl --silent \
+  http://127.0.0.1:8000/v1/benchmark-pairs/benchmark-pair-dbc41864dd0dba9537ef228ebb340f60/review \
+  | jq '{status, verification_level, benchmark_ids, checks: [.checks[].status]}'
+```
+
+`jq` only shortens the output for display. The Pair endpoint performs the same full
+review without it. The Prometheus view demonstrates the live collection path; the
+showcase itself deliberately replays the separately retained, digest-pinned Pair and
+does not claim that the current Prometheus samples produced the recorded verdict.
+
 To test uncommitted current-source changes instead of the published `v0.3.2` image,
 build and run with the same script:
 

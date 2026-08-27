@@ -349,3 +349,9 @@ Entry [0074](devlog/0074-english-readme-entrypoint.md) supersedes only the defau
 language decision from entry 0073: `README.md` again provides the complete English
 global open-source entry, while the unchanged Korean evaluator path remains available
 as `README.ko.md` through bidirectional navigation.
+
+Entry [0075](devlog/0075-observable-demo-walkthrough.md) makes the submission demo's
+runtime inspectable without turning it into a new benchmark campaign. Both README
+languages now connect Docker and kind status, an optional current Prometheus scrape,
+packaged FastAPI health, and full Pair replay while explicitly separating live samples
+from the digest-pinned historical verdict.
