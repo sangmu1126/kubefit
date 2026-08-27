@@ -21,3 +21,6 @@ benchmarks/campaign-evidence/
 
 # Local contest submission drafts can contain team and contact information
 docs/submission/
+
+# Local recording script; keep narration and machine-specific steps private
+docs/demo-video-runbook.ko.md
